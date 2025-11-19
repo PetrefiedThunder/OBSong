@@ -1,0 +1,52 @@
+{
+  "scenePackId": "scene-industrial-grid",
+  "presetId": "industrial-grid",
+  "key": "A#",
+  "scale": "A_SHARP_MINOR",
+  "tempoBpm": 110,
+  "noteEvents": [
+    {
+      "note": "A#1",
+      "start": 0,
+      "duration": 0.6,
+      "velocity": 0.8,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.2 }
+    },
+    {
+      "note": "F2",
+      "start": 0.6,
+      "duration": 0.6,
+      "velocity": 0.85,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.2 }
+    },
+    {
+      "note": "F3",
+      "start": 0.4,
+      "duration": 0.4,
+      "velocity": 0.9,
+      "pan": -0.4,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.3 }
+    },
+    {
+      "note": "A#4",
+      "start": 0.8,
+      "duration": 0.4,
+      "velocity": 0.95,
+      "pan": 0.4,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.3 }
+    },
+    {
+      "note": "A#2",
+      "start": 0,
+      "duration": 1.2,
+      "velocity": 0.5,
+      "trackId": "pad",
+      "effects": { "reverbSend": 0.5 }
+    }
+  ],
+  "createdAt": "2025-01-19T00:00:00.000Z"
+}

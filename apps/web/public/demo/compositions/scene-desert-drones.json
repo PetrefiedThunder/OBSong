@@ -1,0 +1,35 @@
+{
+  "scenePackId": "scene-desert-drones",
+  "presetId": "desert-drones",
+  "key": "C",
+  "scale": "C_PENTATONIC",
+  "tempoBpm": 40,
+  "noteEvents": [
+    {
+      "note": "C1",
+      "start": 0,
+      "duration": 5,
+      "velocity": 0.5,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.6 }
+    },
+    {
+      "note": "G2",
+      "start": 2,
+      "duration": 1.5,
+      "velocity": 0.5,
+      "pan": 0,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.5 }
+    },
+    {
+      "note": "C2",
+      "start": 0,
+      "duration": 5,
+      "velocity": 0.4,
+      "trackId": "pad",
+      "effects": { "reverbSend": 0.7 }
+    }
+  ],
+  "createdAt": "2025-01-19T00:00:00.000Z"
+}

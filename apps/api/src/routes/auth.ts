@@ -3,7 +3,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import type { ApiResponse, AuthTokenResponse } from '@toposonics/types';
+import type { ApiResponse, ApiErrorResponse, AuthTokenResponse } from '@toposonics/types';
 import { stubLogin } from '../auth';
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -13,7 +13,7 @@ export async function authRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{
     Body: { email: string };
-    Reply: ApiResponse<AuthTokenResponse>;
+    Reply: ApiResponse<AuthTokenResponse> | ApiErrorResponse;
   }>('/auth/login', async (request, reply) => {
     const { email } = request.body;
 
@@ -24,7 +24,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           code: 'INVALID_EMAIL',
           message: 'Email is required and must be a string',
         },
-      });
+      } as ApiErrorResponse);
     }
 
     // Basic email validation
@@ -36,7 +36,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           code: 'INVALID_EMAIL_FORMAT',
           message: 'Invalid email format',
         },
-      });
+      } as ApiErrorResponse);
     }
 
     // Perform stub login

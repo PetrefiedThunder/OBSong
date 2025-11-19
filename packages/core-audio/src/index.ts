@@ -25,6 +25,11 @@ export {
   quantizeNotes,
   scaleVelocity,
   transposeNotes,
+  // Multi-voice mapping functions
+  mapHorizonToBass,
+  mapRidgesToMelody,
+  mapTextureToPad,
+  mapImageToMultiVoiceComposition,
 } from './mappers';
 
 // Export preset utilities
@@ -35,13 +40,35 @@ export {
   getAllPresets,
 } from './presets';
 
+// Export TopoSonics musical presets
+export {
+  TOPO_PRESETS,
+  getTopoPresetById,
+  getDefaultTopoPreset,
+  getAllTopoPresets,
+} from './topoPresets';
+
+// Export Scene Packs
+export {
+  SCENE_PACKS,
+  getScenePackById,
+  getScenePreset,
+  getAllScenePacks,
+} from './scenePacks';
+
 // Re-export types for convenience
 export type {
   NoteEvent,
   SoundPreset,
   LinearLandscapeOptions,
   DepthRidgeOptions,
+  MultiVoiceOptions,
   ScaleType,
   KeyType,
   MappingMode,
+  VoiceType,
+  TopoPreset,
+  VoiceConfig,
+  MappingBias,
+  ScenePack,
 } from '@toposonics/types';

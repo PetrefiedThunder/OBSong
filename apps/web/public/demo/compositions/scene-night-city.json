@@ -1,0 +1,52 @@
+{
+  "scenePackId": "scene-night-city",
+  "presetId": "night-city",
+  "key": "E",
+  "scale": "E_MINOR",
+  "tempoBpm": 90,
+  "noteEvents": [
+    {
+      "note": "E2",
+      "start": 0,
+      "duration": 0.8,
+      "velocity": 0.7,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.3 }
+    },
+    {
+      "note": "B2",
+      "start": 1,
+      "duration": 0.8,
+      "velocity": 0.75,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.3 }
+    },
+    {
+      "note": "E4",
+      "start": 0.5,
+      "duration": 0.5,
+      "velocity": 0.8,
+      "pan": -0.4,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.4 }
+    },
+    {
+      "note": "B4",
+      "start": 1.25,
+      "duration": 0.5,
+      "velocity": 0.9,
+      "pan": 0.4,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.4 }
+    },
+    {
+      "note": "E3",
+      "start": 0,
+      "duration": 1.5,
+      "velocity": 0.4,
+      "trackId": "pad",
+      "effects": { "reverbSend": 0.7 }
+    }
+  ],
+  "createdAt": "2025-01-19T00:00:00.000Z"
+}

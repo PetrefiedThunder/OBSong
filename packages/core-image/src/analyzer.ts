@@ -10,6 +10,8 @@ import {
   downsampleProfile,
 } from './brightness';
 import { computeSimpleDepthProfile, detectRidges, smoothProfile } from './depth';
+import { extractHorizonContour } from './horizon';
+import { computeTextureProfile } from './texture';
 
 /**
  * Analyze an image for LINEAR_LANDSCAPE mapping mode
@@ -130,6 +132,86 @@ export function analyzeImageForDepthRidge(
   }
 
   return result;
+}
+
+/**
+ * Analyze an image for MULTI_VOICE mapping mode
+ * Extracts all features needed for multi-layered soundscape generation
+ *
+ * @param pixels - Flattened RGBA pixel array
+ * @param width - Image width
+ * @param height - Image height
+ * @param options - Analysis options
+ * @returns Complete ImageAnalysisResult with all voice-specific features
+ */
+export function analyzeImageForMultiVoice(
+  pixels: Uint8ClampedArray | number[],
+  width: number,
+  height: number,
+  options: {
+    /** Maximum samples for brightness/ridge profiles */
+    maxSamples?: number;
+    /** Smoothing window for horizon */
+    horizonSmoothing?: number;
+  } = {}
+): ImageAnalysisResult {
+  const {
+    maxSamples = 128,
+    horizonSmoothing = 7,
+  } = options;
+
+  // 1. Extract brightness profile (for melody)
+  const centerRow = Math.floor(height / 2);
+  let brightnessProfile = computeAveragedBrightnessProfile(
+    pixels,
+    width,
+    height,
+    centerRow - 2,
+    centerRow + 3
+  );
+
+  // Downsample brightness if needed
+  if (brightnessProfile.length > maxSamples) {
+    brightnessProfile = downsampleProfile(brightnessProfile, maxSamples);
+  }
+
+  // 2. Detect ridges (for melody emphasis)
+  const ridgeStrength = detectRidges(brightnessProfile);
+
+  // 3. Compute depth profile (for spatial FX)
+  const depthProfile = computeSimpleDepthProfile(brightnessProfile);
+
+  // 4. Extract horizon contour (for bass voice)
+  const rawHorizon = extractHorizonContour(pixels, width, height, horizonSmoothing);
+  const horizonProfile =
+    rawHorizon.length > maxSamples
+      ? downsampleProfile(rawHorizon, maxSamples)
+      : rawHorizon;
+
+  // 5. Compute texture profile (for pad voice)
+  const rawTexture = computeTextureProfile(pixels, width, height, {
+    windowSize: 8,
+    rowSamples: 5,
+  });
+  const textureProfile =
+    rawTexture.length > maxSamples
+      ? downsampleProfile(rawTexture, maxSamples)
+      : rawTexture;
+
+  return {
+    width,
+    height,
+    brightnessProfile,
+    ridgeStrength,
+    depthProfile,
+    horizonProfile,
+    textureProfile,
+    metadata: {
+      samplingMethod: 'multi-voice',
+      rowIndex: centerRow,
+      timestamp: Date.now(),
+    },
+  };
 }
 
 /**

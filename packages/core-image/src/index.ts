@@ -29,8 +29,24 @@ export {
 export {
   analyzeImageForLinearLandscape,
   analyzeImageForDepthRidge,
+  analyzeImageForMultiVoice,
   analyzeImageQuick,
 } from './analyzer';
+
+// Export horizon utilities
+export {
+  computeHorizonProfile,
+  smoothHorizonProfile,
+  extractHorizonContour,
+} from './horizon';
+
+// Export texture utilities
+export {
+  computeTextureFromBrightness,
+  computeTextureProfile,
+  segmentTexture,
+  classifyTexture,
+} from './texture';
 
 // Re-export types for convenience
 export type { ImageAnalysisResult } from '@toposonics/types';

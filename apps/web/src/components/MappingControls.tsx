@@ -1,17 +1,19 @@
 'use client';
 
-import type { KeyType, ScaleType, MappingMode } from '@toposonics/types';
-import { getAllPresets } from '@toposonics/core-audio';
+import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
+import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
 
 interface MappingControlsProps {
   key: KeyType;
   scale: ScaleType;
   mappingMode: MappingMode;
   presetId: string;
+  selectedTopoPreset: TopoPreset | null;
   onKeyChange: (key: KeyType) => void;
   onScaleChange: (scale: ScaleType) => void;
   onMappingModeChange: (mode: MappingMode) => void;
   onPresetChange: (presetId: string) => void;
+  onTopoPresetChange: (preset: TopoPreset | null) => void;
 }
 
 const KEYS: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -37,6 +39,11 @@ const MAPPING_MODES: { value: MappingMode; label: string; description: string }[
     label: 'Depth Ridge',
     description: 'Uses ridge detection and depth (experimental)',
   },
+  {
+    value: 'MULTI_VOICE',
+    label: 'Multi-Voice',
+    description: 'Polyphonic composition with bass, melody, and pad layers',
+  },
 ];
 
 export function MappingControls({
@@ -44,15 +51,43 @@ export function MappingControls({
   scale,
   mappingMode,
   presetId,
+  selectedTopoPreset,
   onKeyChange,
   onScaleChange,
   onMappingModeChange,
   onPresetChange,
+  onTopoPresetChange,
 }: MappingControlsProps) {
   const presets = getAllPresets();
+  const topoPresets = getAllTopoPresets();
 
   return (
     <div className="space-y-6">
+      {/* TopoSonics Preset */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Musical Preset</label>
+        <select
+          value={selectedTopoPreset?.id || ''}
+          onChange={(e) => {
+            const preset = e.target.value
+              ? topoPresets.find((p) => p.id === e.target.value) || null
+              : null;
+            onTopoPresetChange(preset);
+          }}
+          className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">Custom (No Preset)</option>
+          {topoPresets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name}
+            </option>
+          ))}
+        </select>
+        {selectedTopoPreset && (
+          <p className="text-xs text-gray-400 mt-2">{selectedTopoPreset.description}</p>
+        )}
+      </div>
+
       {/* Mapping Mode */}
       <div>
         <label className="block text-sm font-medium mb-2">Mapping Mode</label>
