@@ -48,6 +48,14 @@ export {
   getAllTopoPresets,
 } from './topoPresets';
 
+// Export Scene Packs
+export {
+  SCENE_PACKS,
+  getScenePackById,
+  getScenePreset,
+  getAllScenePacks,
+} from './scenePacks';
+
 // Re-export types for convenience
 export type {
   NoteEvent,
@@ -62,4 +70,5 @@ export type {
   TopoPreset,
   VoiceConfig,
   MappingBias,
+  ScenePack,
 } from '@toposonics/types';

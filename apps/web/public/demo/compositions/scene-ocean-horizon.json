@@ -1,0 +1,44 @@
+{
+  "scenePackId": "scene-ocean-horizon",
+  "presetId": "ocean-horizon",
+  "key": "G",
+  "scale": "G_MAJOR",
+  "tempoBpm": 70,
+  "noteEvents": [
+    {
+      "note": "G2",
+      "start": 0,
+      "duration": 1.8,
+      "velocity": 0.6,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.5 }
+    },
+    {
+      "note": "D3",
+      "start": 0.8,
+      "duration": 0.8,
+      "velocity": 0.7,
+      "pan": -0.5,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.7 }
+    },
+    {
+      "note": "G4",
+      "start": 1.6,
+      "duration": 0.8,
+      "velocity": 0.75,
+      "pan": 0.5,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.7 }
+    },
+    {
+      "note": "G3",
+      "start": 0,
+      "duration": 2,
+      "velocity": 0.5,
+      "trackId": "pad",
+      "effects": { "reverbSend": 0.8 }
+    }
+  ],
+  "createdAt": "2025-01-19T00:00:00.000Z"
+}

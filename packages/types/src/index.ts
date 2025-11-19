@@ -93,6 +93,48 @@ export interface TopoPreset {
 }
 
 /**
+ * Scene Pack: A curated experience bundle combining preset, visual guidance, and demo assets
+ */
+export interface ScenePack {
+  /** Unique scene pack identifier */
+  id: string;
+  /** Scene pack name */
+  name: string;
+  /** Short tagline describing the scene */
+  tagline: string;
+  /** Detailed description */
+  description: string;
+
+  /** Associated TopoPreset ID */
+  presetId: string;
+
+  /** Recommended image subjects for this scene */
+  recommendedSubjects: string[];
+  /** Recommended lighting conditions */
+  recommendedLighting: string;
+  /** Optional usage notes */
+  recommendedUsageNotes?: string;
+
+  /** Demo assets */
+  demoAssets?: {
+    /** Path to sample image (e.g., "/demo/mountains-01.jpg") */
+    sampleImagePath?: string;
+    /** Pre-generated composition ID */
+    sampleCompositionId?: string;
+  };
+
+  /** UI theming hints */
+  uiThemeHints?: {
+    /** Accent color (hex) */
+    accentColor?: string;
+    /** Background style preference */
+    backgroundStyle?: 'dark' | 'light';
+    /** Tailwind gradient class suggestion */
+    gradientClassName?: string;
+  };
+}
+
+/**
  * Musical scale types
  */
 export type ScaleType =

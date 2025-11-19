@@ -16,7 +16,9 @@ import {
   getDefaultPreset,
   getAllTopoPresets,
   getDefaultTopoPreset,
+  getScenePreset,
   type TopoPreset,
+  type ScenePack,
 } from '@toposonics/core-audio';
 import { analyzeImageFile, analyzeImageFileMultiVoice } from '@/lib/imageProcessing';
 import { createComposition } from '@/lib/api';
@@ -26,6 +28,7 @@ import { ImageUploader } from '@/components/ImageUploader';
 import { MappingControls } from '@/components/MappingControls';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { TimelineVisualizer } from '@/components/TimelineVisualizer';
+import { ScenePackSelector } from '@/components/ScenePackSelector';
 
 export default function StudioPage() {
   const { user, token, login } = useAuth();
@@ -48,6 +51,9 @@ export default function StudioPage() {
 
   // TopoPreset state
   const [selectedTopoPreset, setSelectedTopoPreset] = useState<TopoPreset | null>(null);
+
+  // ScenePack state
+  const [selectedScenePack, setSelectedScenePack] = useState<ScenePack | null>(null);
 
   // Generated composition
   const [noteEvents, setNoteEvents] = useState<NoteEvent[]>([]);
@@ -82,15 +88,60 @@ export default function StudioPage() {
     }
   };
 
-  // Handle preset selection
+  // Handle scene pack selection
+  const handleScenePackSelect = (scenePack: ScenePack | null) => {
+    setSelectedScenePack(scenePack);
+
+    if (scenePack) {
+      // Find and apply the associated preset
+      const allPresets = getAllTopoPresets();
+      const associatedPreset = getScenePreset(scenePack, allPresets);
+
+      if (associatedPreset) {
+        setSelectedTopoPreset(associatedPreset);
+        setKey(associatedPreset.defaultKey);
+        setScale(associatedPreset.defaultScale);
+        setTempo(associatedPreset.defaultTempoBpm);
+        setMappingMode(associatedPreset.mappingMode as MappingMode);
+      }
+    } else {
+      // Clear preset when scene pack is cleared
+      setSelectedTopoPreset(null);
+    }
+  };
+
+  // Handle preset selection (manual override)
   const handlePresetSelect = (preset: TopoPreset | null) => {
     setSelectedTopoPreset(preset);
+    // Clear scene pack if manually selecting preset
+    setSelectedScenePack(null);
+
     if (preset) {
       setKey(preset.defaultKey);
       setScale(preset.defaultScale);
       setTempo(preset.defaultTempoBpm);
       setMappingMode(preset.mappingMode as MappingMode);
     }
+  };
+
+  // Handle demo loading
+  const handleLoadDemo = (demoNotes: NoteEvent[], scenePack: ScenePack) => {
+    // Load the demo composition
+    setNoteEvents(demoNotes);
+
+    // Apply scene pack preset settings
+    const allPresets = getAllTopoPresets();
+    const associatedPreset = getScenePreset(scenePack, allPresets);
+
+    if (associatedPreset) {
+      setKey(associatedPreset.defaultKey);
+      setScale(associatedPreset.defaultScale);
+      setTempo(associatedPreset.defaultTempoBpm);
+      setMappingMode(associatedPreset.mappingMode as MappingMode);
+    }
+
+    // Set title
+    setTitle(`${scenePack.name} Demo`);
   };
 
   // Generate composition
@@ -188,7 +239,15 @@ export default function StudioPage() {
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left Column: Image & Controls */}
         <div className="space-y-6">
-          <Card title="1. Upload Image" padding="lg">
+          <Card title="1. Choose Scene Pack" padding="lg">
+            <ScenePackSelector
+              selectedScenePack={selectedScenePack}
+              onScenePackChange={handleScenePackSelect}
+              onLoadDemo={handleLoadDemo}
+            />
+          </Card>
+
+          <Card title="2. Upload Image" padding="lg">
             <ImageUploader onImageSelected={handleImageSelected} preview={imagePreview} />
             {isAnalyzing && (
               <div className="mt-4 text-center text-sm text-gray-400">
@@ -197,7 +256,7 @@ export default function StudioPage() {
             )}
           </Card>
 
-          <Card title="2. Configure Mapping" padding="lg">
+          <Card title="3. Configure Mapping" padding="lg">
             <MappingControls
               key={key}
               scale={scale}
@@ -212,7 +271,7 @@ export default function StudioPage() {
             />
           </Card>
 
-          <Card title="3. Generate" padding="lg">
+          <Card title="4. Generate" padding="lg">
             <Button
               variant="primary"
               size="lg"

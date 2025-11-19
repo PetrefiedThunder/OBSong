@@ -1,0 +1,52 @@
+{
+  "scenePackId": "scene-majestic-mountains",
+  "presetId": "majestic-mountains",
+  "key": "D",
+  "scale": "D_MAJOR",
+  "tempoBpm": 60,
+  "noteEvents": [
+    {
+      "note": "D2",
+      "start": 0,
+      "duration": 3,
+      "velocity": 0.6,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.4 }
+    },
+    {
+      "note": "A2",
+      "start": 3,
+      "duration": 3,
+      "velocity": 0.55,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.4 }
+    },
+    {
+      "note": "D4",
+      "start": 0.75,
+      "duration": 0.75,
+      "velocity": 0.7,
+      "pan": -0.3,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.6 }
+    },
+    {
+      "note": "A4",
+      "start": 2,
+      "duration": 0.75,
+      "velocity": 0.8,
+      "pan": 0.3,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.6 }
+    },
+    {
+      "note": "D3",
+      "start": 0,
+      "duration": 6,
+      "velocity": 0.5,
+      "trackId": "pad",
+      "effects": { "reverbSend": 0.8 }
+    }
+  ],
+  "createdAt": "2025-01-19T00:00:00.000Z"
+}

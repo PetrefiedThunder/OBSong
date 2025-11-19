@@ -1,0 +1,35 @@
+{
+  "scenePackId": "scene-foggy-forest",
+  "presetId": "foggy-forest",
+  "key": "A",
+  "scale": "A_DORIAN",
+  "tempoBpm": 55,
+  "noteEvents": [
+    {
+      "note": "A1",
+      "start": 0,
+      "duration": 4,
+      "velocity": 0.4,
+      "trackId": "bass",
+      "effects": { "reverbSend": 0.7 }
+    },
+    {
+      "note": "E3",
+      "start": 1.5,
+      "duration": 1.2,
+      "velocity": 0.5,
+      "pan": -0.2,
+      "trackId": "melody",
+      "effects": { "reverbSend": 0.9 }
+    },
+    {
+      "note": "A2",
+      "start": 0,
+      "duration": 4,
+      "velocity": 0.35,
+      "trackId": "pad",
+      "effects": { "reverbSend": 1.0 }
+    }
+  ],
+  "createdAt": "2025-01-19T00:00:00.000Z"
+}
