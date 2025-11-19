@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type {
   KeyType,
@@ -17,6 +18,7 @@ import {
   getAllTopoPresets,
   getDefaultTopoPreset,
   getScenePreset,
+  getAllScenePacks,
   type TopoPreset,
   type ScenePack,
 } from '@toposonics/core-audio';
@@ -32,6 +34,7 @@ import { ScenePackSelector } from '@/components/ScenePackSelector';
 
 export default function StudioPage() {
   const { user, token, login } = useAuth();
+  const searchParams = useSearchParams();
 
   // State
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -67,6 +70,20 @@ export default function StudioPage() {
     tempo,
     preset,
   });
+
+  // Handle URL params for deep linking
+  useEffect(() => {
+    const sceneParam = searchParams.get('scene');
+    if (sceneParam) {
+      const allScenePacks = getAllScenePacks();
+      const targetScenePack = allScenePacks.find((pack) => pack.id === sceneParam);
+      if (targetScenePack) {
+        handleScenePackSelect(targetScenePack);
+      }
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle image selection
   const handleImageSelected = async (file: File) => {

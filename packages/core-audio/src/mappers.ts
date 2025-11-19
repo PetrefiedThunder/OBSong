@@ -534,7 +534,7 @@ export function mapImageToMultiVoiceComposition(
     const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, {
       minNote: bassOptions.minNote || bassConfig?.minNote || 'C2',
       maxNote: bassOptions.maxNote || bassConfig?.maxNote || 'C3',
-      noteDuration: bassOptions.noteDuration || bassConfig?.durationFactor ? bassConfig.durationFactor * 3 : 3,
+      noteDuration: bassOptions.noteDuration || (bassConfig?.durationFactor ? bassConfig.durationFactor * 3 : 3),
       maxNotes: Math.floor((bassConfig?.density ?? 0.5) * 32), // Scale max notes by density
     });
 
@@ -590,7 +590,7 @@ export function mapImageToMultiVoiceComposition(
   if (enablePad && analysis.textureProfile) {
     const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, {
       segments: padOptions.segments || Math.floor((padConfig?.density ?? 0.3) * 20),
-      noteDuration: padOptions.noteDuration || padConfig?.durationFactor ? padConfig.durationFactor * 6 : 6,
+      noteDuration: padOptions.noteDuration || (padConfig?.durationFactor ? padConfig.durationFactor * 6 : 6),
     });
 
     // Apply preset velocity and effects if available
