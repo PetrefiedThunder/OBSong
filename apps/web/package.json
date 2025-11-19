@@ -16,7 +16,7 @@
     "@toposonics/core-image": "workspace:*",
     "@toposonics/types": "workspace:*",
     "@toposonics/ui": "workspace:*",
-    "next": "14.1.0",
+    "next": "14.2.32",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tone": "^14.7.77"
