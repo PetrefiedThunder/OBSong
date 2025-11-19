@@ -10,6 +10,7 @@ import type {
   MultiVoiceOptions,
   KeyType,
   ScaleType,
+  TopoPreset,
 } from '@toposonics/types';
 import { getScaleNotes, brightnessToScaleIndex, noteNameToMidi, midiToNoteName } from './scales';
 
@@ -502,18 +503,20 @@ export function mapTextureToPad(
  *
  * @param analysis - Complete image analysis result
  * @param options - Multi-voice mapping configuration
+ * @param preset - Optional TopoPreset to apply voice configurations
  * @returns Array of all note events across all voices
  */
 export function mapImageToMultiVoiceComposition(
   analysis: ImageAnalysisResult,
-  options: MultiVoiceOptions
+  options: MultiVoiceOptions,
+  preset?: TopoPreset
 ): NoteEvent[] {
   const {
     key,
     scale,
-    enableBass = true,
-    enableMelody = true,
-    enablePad = true,
+    enableBass = preset?.voices.bass.enabled ?? true,
+    enableMelody = preset?.voices.melody.enabled ?? true,
+    enablePad = preset?.voices.pad.enabled ?? true,
     bassOptions = {},
     melodyOptions = {},
     padOptions = {},
@@ -521,14 +524,34 @@ export function mapImageToMultiVoiceComposition(
 
   const allNotes: NoteEvent[] = [];
 
+  // Apply preset voice configs if provided
+  const bassConfig = preset?.voices.bass;
+  const melodyConfig = preset?.voices.melody;
+  const padConfig = preset?.voices.pad;
+
   // 1. Bass voice from horizon
   if (enableBass && analysis.horizonProfile) {
     const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, {
-      minNote: bassOptions.minNote || 'C2',
-      maxNote: bassOptions.maxNote || 'C3',
-      noteDuration: bassOptions.noteDuration || 3,
-      maxNotes: 16,
+      minNote: bassOptions.minNote || bassConfig?.minNote || 'C2',
+      maxNote: bassOptions.maxNote || bassConfig?.maxNote || 'C3',
+      noteDuration: bassOptions.noteDuration || bassConfig?.durationFactor ? bassConfig.durationFactor * 3 : 3,
+      maxNotes: Math.floor((bassConfig?.density ?? 0.5) * 32), // Scale max notes by density
     });
+
+    // Apply preset velocity and effects if available
+    if (bassConfig) {
+      bassNotes.forEach((note) => {
+        note.velocity = bassConfig.velocityMin + (note.velocity || 0.5) * (bassConfig.velocityMax - bassConfig.velocityMin);
+        note.effects = {
+          ...note.effects,
+          reverbSend: bassConfig.reverbSend,
+          filterCutoff: bassConfig.filterBrightness,
+        };
+        // Center panning for bass (preset stereoSpread applied)
+        note.pan = (note.pan || 0) * bassConfig.stereoSpread;
+      });
+    }
+
     allNotes.push(...bassNotes);
   }
 
@@ -540,21 +563,49 @@ export function mapImageToMultiVoiceComposition(
       key,
       scale,
       {
-        minNote: melodyOptions.minNote || 'C4',
-        maxNote: melodyOptions.maxNote || 'C6',
+        minNote: melodyOptions.minNote || melodyConfig?.minNote || 'C4',
+        maxNote: melodyOptions.maxNote || melodyConfig?.maxNote || 'C6',
         ridgeThreshold: melodyOptions.ridgeThreshold || 0.4,
-        noteDuration: 0.75,
+        noteDuration: melodyConfig?.durationFactor ? melodyConfig.durationFactor * 0.75 : 0.75,
       }
     );
+
+    // Apply preset velocity and effects if available
+    if (melodyConfig) {
+      melodyNotes.forEach((note) => {
+        note.velocity = melodyConfig.velocityMin + (note.velocity || 0.5) * (melodyConfig.velocityMax - melodyConfig.velocityMin);
+        note.effects = {
+          ...note.effects,
+          reverbSend: melodyConfig.reverbSend,
+          filterCutoff: melodyConfig.filterBrightness,
+        };
+        note.pan = (note.pan || 0) * melodyConfig.stereoSpread;
+      });
+    }
+
     allNotes.push(...melodyNotes);
   }
 
   // 3. Pad voice from texture
   if (enablePad && analysis.textureProfile) {
     const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, {
-      segments: padOptions.segments || 6,
-      noteDuration: padOptions.noteDuration || 6,
+      segments: padOptions.segments || Math.floor((padConfig?.density ?? 0.3) * 20),
+      noteDuration: padOptions.noteDuration || padConfig?.durationFactor ? padConfig.durationFactor * 6 : 6,
     });
+
+    // Apply preset velocity and effects if available
+    if (padConfig) {
+      padNotes.forEach((note) => {
+        note.velocity = padConfig.velocityMin + (note.velocity || 0.5) * (padConfig.velocityMax - padConfig.velocityMin);
+        note.effects = {
+          ...note.effects,
+          reverbSend: padConfig.reverbSend,
+          filterCutoff: padConfig.filterBrightness,
+        };
+        note.pan = (note.pan || 0) * padConfig.stereoSpread;
+      });
+    }
+
     allNotes.push(...padNotes);
   }
 

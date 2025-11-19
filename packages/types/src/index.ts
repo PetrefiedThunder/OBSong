@@ -19,16 +19,96 @@ export type MappingMode = 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE' | 'MULTI_VOICE';
 export type VoiceType = 'bass' | 'melody' | 'pad' | 'fx';
 
 /**
+ * Configuration for a single voice in a multi-voice preset
+ */
+export interface VoiceConfig {
+  /** Whether this voice is enabled */
+  enabled: boolean;
+  /** Minimum note in scientific notation (e.g., "C2") */
+  minNote: string;
+  /** Maximum note in scientific notation (e.g., "C4") */
+  maxNote: string;
+  /** Note density (0-1): 0 = sparse, 1 = dense */
+  density: number;
+  /** Duration multiplier (0-2): 1 = normal, >1 longer, <1 shorter */
+  durationFactor: number;
+  /** Minimum velocity (0-1) */
+  velocityMin: number;
+  /** Maximum velocity (0-1) */
+  velocityMax: number;
+  /** Reverb send amount (0-1) */
+  reverbSend: number;
+  /** Filter brightness (0-1): 0 = dark, 1 = bright */
+  filterBrightness: number;
+  /** Stereo spread (0-1): 0 = center, 1 = wide */
+  stereoSpread: number;
+}
+
+/**
+ * Weights for mapping visual features to a voice
+ */
+export interface MappingBias {
+  /** Weight for horizon/contour influence (0-1) */
+  horizonWeight: number;
+  /** Weight for ridge/peak influence (0-1) */
+  ridgeWeight: number;
+  /** Weight for texture/variance influence (0-1) */
+  textureWeight: number;
+  /** Weight for depth influence (0-1) */
+  depthWeight: number;
+}
+
+/**
+ * A complete musical preset defining the behavior of all voices
+ */
+export interface TopoPreset {
+  /** Unique preset identifier */
+  id: string;
+  /** Human-readable preset name */
+  name: string;
+  /** Description of the preset's character */
+  description: string;
+  /** Default musical key */
+  defaultKey: KeyType;
+  /** Default musical scale */
+  defaultScale: ScaleType;
+  /** Default tempo in BPM */
+  defaultTempoBpm: number;
+  /** Mapping mode to use */
+  mappingMode: 'SIMPLE' | 'MULTI_VOICE';
+  /** Configuration for each voice */
+  voices: {
+    bass: VoiceConfig;
+    melody: VoiceConfig;
+    pad: VoiceConfig;
+    fx: VoiceConfig;
+  };
+  /** Mapping biases for each voice */
+  mappingBias: {
+    bass: MappingBias;
+    melody: MappingBias;
+    pad: MappingBias;
+    fx: MappingBias;
+  };
+}
+
+/**
  * Musical scale types
  */
 export type ScaleType =
   | 'C_MAJOR'
   | 'C_MINOR'
+  | 'D_MAJOR'
+  | 'E_MINOR'
   | 'A_MINOR'
+  | 'A_SHARP_MINOR'
+  | 'G_MAJOR'
   | 'C_PENTATONIC'
   | 'A_MINOR_PENTATONIC'
   | 'C_BLUES'
   | 'D_DORIAN'
+  | 'A_DORIAN'
+  | 'C_MIXOLYDIAN'
   | 'E_PHRYGIAN';
 
 /**

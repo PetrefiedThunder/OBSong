@@ -40,6 +40,14 @@ export {
   getAllPresets,
 } from './presets';
 
+// Export TopoSonics musical presets
+export {
+  TOPO_PRESETS,
+  getTopoPresetById,
+  getDefaultTopoPreset,
+  getAllTopoPresets,
+} from './topoPresets';
+
 // Re-export types for convenience
 export type {
   NoteEvent,
@@ -51,4 +59,7 @@ export type {
   KeyType,
   MappingMode,
   VoiceType,
+  TopoPreset,
+  VoiceConfig,
+  MappingBias,
 } from '@toposonics/types';

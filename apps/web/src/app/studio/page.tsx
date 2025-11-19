@@ -14,6 +14,9 @@ import {
   mapImageToMultiVoiceComposition,
   getPresetById,
   getDefaultPreset,
+  getAllTopoPresets,
+  getDefaultTopoPreset,
+  type TopoPreset,
 } from '@toposonics/core-audio';
 import { analyzeImageFile, analyzeImageFileMultiVoice } from '@/lib/imageProcessing';
 import { createComposition } from '@/lib/api';
@@ -42,6 +45,9 @@ export default function StudioPage() {
   const [mappingMode, setMappingMode] = useState<MappingMode>('LINEAR_LANDSCAPE');
   const [presetId, setPresetId] = useState('sine-soft');
   const [tempo, setTempo] = useState(90);
+
+  // TopoPreset state
+  const [selectedTopoPreset, setSelectedTopoPreset] = useState<TopoPreset | null>(null);
 
   // Generated composition
   const [noteEvents, setNoteEvents] = useState<NoteEvent[]>([]);
@@ -76,6 +82,17 @@ export default function StudioPage() {
     }
   };
 
+  // Handle preset selection
+  const handlePresetSelect = (preset: TopoPreset | null) => {
+    setSelectedTopoPreset(preset);
+    if (preset) {
+      setKey(preset.defaultKey);
+      setScale(preset.defaultScale);
+      setTempo(preset.defaultTempoBpm);
+      setMappingMode(preset.mappingMode as MappingMode);
+    }
+  };
+
   // Generate composition
   const handleGenerate = () => {
     if (!analysis) {
@@ -87,14 +104,18 @@ export default function StudioPage() {
 
     if (mappingMode === 'MULTI_VOICE') {
       // Multi-voice mode: generate bass, melody, and pad voices
-      events = mapImageToMultiVoiceComposition(analysis, {
-        key,
-        scale,
-        tempoBpm: tempo,
-        enableBass: true,
-        enableMelody: true,
-        enablePad: true,
-      });
+      events = mapImageToMultiVoiceComposition(
+        analysis,
+        {
+          key,
+          scale,
+          tempoBpm: tempo,
+          enableBass: true,
+          enableMelody: true,
+          enablePad: true,
+        },
+        selectedTopoPreset || undefined
+      );
     } else {
       // Linear landscape mode (default)
       events = mapLinearLandscape(analysis, {
@@ -182,10 +203,12 @@ export default function StudioPage() {
               scale={scale}
               mappingMode={mappingMode}
               presetId={presetId}
+              selectedTopoPreset={selectedTopoPreset}
               onKeyChange={setKey}
               onScaleChange={setScale}
               onMappingModeChange={setMappingMode}
               onPresetChange={setPresetId}
+              onTopoPresetChange={handlePresetSelect}
             />
           </Card>
 
