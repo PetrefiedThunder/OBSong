@@ -18,6 +18,7 @@ export const SCENE_PACKS: ScenePack[] = [
     tagline: 'Cinematic ridgelines and slow-moving skies.',
     description:
       'Slow, wide, orchestral-style soundscapes for mountain ranges and big horizons. Great for alpine photos and desert cliffs.',
+    category: 'Nature',
     presetId: 'majestic-mountains',
     recommendedSubjects: ['mountain ranges', 'alpine valleys', 'desert cliffs', 'canyons'],
     recommendedLighting:
@@ -43,6 +44,7 @@ export const SCENE_PACKS: ScenePack[] = [
     tagline: 'Neon skylines and blinking lights.',
     description:
       'Minor-key, rhythmic textures inspired by city skylines, highways, and building grids. Great for night shots and high contrast photos.',
+    category: 'Urban',
     presetId: 'night-city',
     recommendedSubjects: ['city skylines', 'downtown streets', 'bridges at night', 'neon signs'],
     recommendedLighting: 'Night, twilight, or moody indoor lighting with strong highlights.',
@@ -67,6 +69,7 @@ export const SCENE_PACKS: ScenePack[] = [
     tagline: 'Soft, misty drones and slow melodies.',
     description:
       'Low-contrast, reverb-heavy atmospheres for forests, fog, and quiet nature scenes.',
+    category: 'Atmospheric',
     presetId: 'foggy-forest',
     recommendedSubjects: ['forests', 'foggy hills', 'misty fields', 'overcast trails'],
     recommendedLighting: 'Overcast, fog, or low-contrast scenes benefit most.',
@@ -91,6 +94,7 @@ export const SCENE_PACKS: ScenePack[] = [
     tagline: 'Minimal, hypnotic dunes and rockscapes.',
     description:
       'Sparse, slow-moving drones tuned for dunes, rock deserts, and minimal landscapes.',
+    category: 'Atmospheric',
     presetId: 'desert-drones',
     recommendedSubjects: ['sand dunes', 'rock deserts', 'Joshua Tree landscapes', 'canyons'],
     recommendedLighting: 'Harsh midday or golden hour both work; shape and shadow matter.',
@@ -114,6 +118,7 @@ export const SCENE_PACKS: ScenePack[] = [
     tagline: 'Flowing wave textures and sky pads.',
     description:
       'Gentle, flowing soundscapes tuned to coastlines and seascapes with visible horizons.',
+    category: 'Nature',
     presetId: 'ocean-horizon',
     recommendedSubjects: ['ocean horizons', 'coastlines', 'beaches', 'lakes with visible horizons'],
     recommendedLighting: 'Any, but soft afternoon light or overcast gives smooth results.',
@@ -138,6 +143,7 @@ export const SCENE_PACKS: ScenePack[] = [
     tagline: 'Mechanical pulses and grid-based melodies.',
     description:
       'Tight, rhythmically active textures tuned to factories, bridges, wires, and infrastructure.',
+    category: 'Urban',
     presetId: 'industrial-grid',
     recommendedSubjects: ['factories', 'bridges', 'overpasses', 'rail yards', 'power lines'],
     recommendedLighting: 'Harsh daytime or high-contrast night scenes work well.',

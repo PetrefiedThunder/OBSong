@@ -104,6 +104,8 @@ export interface ScenePack {
   tagline: string;
   /** Detailed description */
   description: string;
+  /** Category for grouping and filtering */
+  category: 'Nature' | 'Urban' | 'Atmospheric';
 
   /** Associated TopoPreset ID */
   presetId: string;

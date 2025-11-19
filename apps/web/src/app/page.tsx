@@ -7,13 +7,21 @@ import { getAllScenePacks } from '@toposonics/core-audio';
 import type { ScenePack, NoteEvent } from '@toposonics/types';
 import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
 
+type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
+
 export default function HomePage() {
-  const scenePacks = getAllScenePacks();
+  const allScenePacks = getAllScenePacks();
+  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [activeDemo, setActiveDemo] = useState<{
     scenePack: ScenePack;
     noteEvents: NoteEvent[];
   } | null>(null);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+
+  // Filter scene packs by category
+  const scenePacks = selectedCategory === 'All'
+    ? allScenePacks
+    : allScenePacks.filter(pack => pack.category === selectedCategory);
 
   const handlePlayDemo = async (scenePack: ScenePack) => {
     setLoadingDemo(scenePack.id);
@@ -62,10 +70,27 @@ export default function HomePage() {
         <div className="mb-20">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-3">Explore Scene Packs</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
+            <p className="text-gray-400 max-w-2xl mx-auto mb-6">
               Each scene pack is a carefully crafted musical experience designed for specific
               types of imagery. Try a demo or jump straight into the studio.
             </p>
+
+            {/* Category Filter */}
+            <div className="flex justify-center gap-2 flex-wrap">
+              {(['All', 'Nature', 'Urban', 'Atmospheric'] as Category[]).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedCategory === category
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -80,7 +105,12 @@ export default function HomePage() {
                 <div className="p-6 space-y-4">
                   {/* Header */}
                   <div>
-                    <h3 className="text-xl font-bold mb-2">{pack.name}</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-xl font-bold">{pack.name}</h3>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-elevated text-gray-400 border border-gray-700">
+                        {pack.category}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-400">{pack.tagline}</p>
                   </div>
 
