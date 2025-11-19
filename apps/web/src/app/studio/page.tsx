@@ -9,8 +9,13 @@ import type {
   NoteEvent,
   ImageAnalysisResult,
 } from '@toposonics/types';
-import { mapLinearLandscape, getPresetById, getDefaultPreset } from '@toposonics/core-audio';
-import { analyzeImageFile } from '@/lib/imageProcessing';
+import {
+  mapLinearLandscape,
+  mapImageToMultiVoiceComposition,
+  getPresetById,
+  getDefaultPreset,
+} from '@toposonics/core-audio';
+import { analyzeImageFile, analyzeImageFileMultiVoice } from '@/lib/imageProcessing';
 import { createComposition } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToneEngine } from '@/hooks/useToneEngine';
@@ -56,10 +61,12 @@ export default function StudioPage() {
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
 
-    // Auto-analyze
+    // Auto-analyze using the appropriate analyzer based on mode
     setIsAnalyzing(true);
     try {
-      const result = await analyzeImageFile(file);
+      const result = mappingMode === 'MULTI_VOICE'
+        ? await analyzeImageFileMultiVoice(file)
+        : await analyzeImageFile(file);
       setAnalysis(result.analysis);
     } catch (error) {
       console.error('Failed to analyze image:', error);
@@ -76,14 +83,29 @@ export default function StudioPage() {
       return;
     }
 
-    const events = mapLinearLandscape(analysis, {
-      key,
-      scale,
-      maxNotes: 64,
-      noteDurationBeats: 0.5,
-      enablePanning: true,
-      enableVelocityVariation: true,
-    });
+    let events: NoteEvent[];
+
+    if (mappingMode === 'MULTI_VOICE') {
+      // Multi-voice mode: generate bass, melody, and pad voices
+      events = mapImageToMultiVoiceComposition(analysis, {
+        key,
+        scale,
+        tempoBpm: tempo,
+        enableBass: true,
+        enableMelody: true,
+        enablePad: true,
+      });
+    } else {
+      // Linear landscape mode (default)
+      events = mapLinearLandscape(analysis, {
+        key,
+        scale,
+        maxNotes: 64,
+        noteDurationBeats: 0.5,
+        enablePanning: true,
+        enableVelocityVariation: true,
+      });
+    }
 
     setNoteEvents(events);
   };

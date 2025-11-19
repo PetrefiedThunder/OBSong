@@ -10,7 +10,13 @@
 /**
  * Supported mapping modes for converting images to audio
  */
-export type MappingMode = 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE';
+export type MappingMode = 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE' | 'MULTI_VOICE';
+
+/**
+ * Voice types for multi-voice compositions
+ * Each voice represents a different musical layer in the soundscape
+ */
+export type VoiceType = 'bass' | 'melody' | 'pad' | 'fx';
 
 /**
  * Musical scale types
@@ -66,6 +72,12 @@ export interface ImageAnalysisResult {
   /** Optional: Estimated depth values at each horizontal position (0-1, higher = closer) */
   depthProfile?: number[];
 
+  /** Optional: Horizon/base contour height at each horizontal position (0-1) */
+  horizonProfile?: number[];
+
+  /** Optional: Texture/variance values at each horizontal position (0-1) */
+  textureProfile?: number[];
+
   /** Optional: Additional metadata about the analysis */
   metadata?: {
     samplingMethod?: string;
@@ -97,7 +109,7 @@ export interface NoteEvent {
   /** Optional: Stereo pan position (-1 = left, 0 = center, 1 = right) */
   pan?: number;
 
-  /** Optional: Track/layer identifier for multi-track compositions */
+  /** Optional: Track/layer identifier for multi-track compositions (use VoiceType for multi-voice mode) */
   trackId?: string;
 
   /** Optional: Effect parameters for this note */
@@ -338,6 +350,58 @@ export interface DepthRidgeOptions extends LinearLandscapeOptions {
 
   /** Whether to emphasize depth in reverb amount */
   depthToReverb?: boolean;
+}
+
+/**
+ * Configuration options for multi-voice mapping mode
+ */
+export interface MultiVoiceOptions {
+  /** Musical key */
+  key: KeyType;
+
+  /** Musical scale */
+  scale: ScaleType;
+
+  /** Tempo in BPM */
+  tempoBpm?: number;
+
+  /** Enable bass voice (horizon → low notes) */
+  enableBass?: boolean;
+
+  /** Enable melody voice (ridges → high notes) */
+  enableMelody?: boolean;
+
+  /** Enable pad voice (texture → chords/ambient) */
+  enablePad?: boolean;
+
+  /** Enable spatial FX layer */
+  enableFx?: boolean;
+
+  /** Bass voice configuration */
+  bassOptions?: {
+    /** Pitch range for bass (default: C2-C3) */
+    minNote?: string;
+    maxNote?: string;
+    /** Note duration in beats (default: 2-4) */
+    noteDuration?: number;
+  };
+
+  /** Melody voice configuration */
+  melodyOptions?: {
+    /** Pitch range for melody (default: C4-C6) */
+    minNote?: string;
+    maxNote?: string;
+    /** Minimum ridge threshold to trigger notes (0-1) */
+    ridgeThreshold?: number;
+  };
+
+  /** Pad voice configuration */
+  padOptions?: {
+    /** Number of chord segments (default: 4-8) */
+    segments?: number;
+    /** Note duration in beats (default: 4-8) */
+    noteDuration?: number;
+  };
 }
 
 // ============================================================================

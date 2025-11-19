@@ -37,6 +37,11 @@ const MAPPING_MODES: { value: MappingMode; label: string; description: string }[
     label: 'Depth Ridge',
     description: 'Uses ridge detection and depth (experimental)',
   },
+  {
+    value: 'MULTI_VOICE',
+    label: 'Multi-Voice',
+    description: 'Polyphonic composition with bass, melody, and pad layers',
+  },
 ];
 
 export function MappingControls({

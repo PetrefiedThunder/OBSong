@@ -25,6 +25,11 @@ export {
   quantizeNotes,
   scaleVelocity,
   transposeNotes,
+  // Multi-voice mapping functions
+  mapHorizonToBass,
+  mapRidgesToMelody,
+  mapTextureToPad,
+  mapImageToMultiVoiceComposition,
 } from './mappers';
 
 // Export preset utilities
@@ -41,7 +46,9 @@ export type {
   SoundPreset,
   LinearLandscapeOptions,
   DepthRidgeOptions,
+  MultiVoiceOptions,
   ScaleType,
   KeyType,
   MappingMode,
+  VoiceType,
 } from '@toposonics/types';

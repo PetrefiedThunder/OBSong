@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Tone from 'tone';
-import type { NoteEvent, SoundPreset } from '@toposonics/types';
+import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
 
 interface UseToneEngineOptions {
   noteEvents: NoteEvent[];
@@ -10,72 +10,164 @@ interface UseToneEngineOptions {
   preset: SoundPreset;
 }
 
+interface VoiceSynth {
+  synth: Tone.PolySynth;
+  reverb: Tone.Reverb;
+  filter?: Tone.Filter;
+  panner?: Tone.Panner;
+}
+
 export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOptions) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
+  // Legacy single-synth refs (for backward compatibility)
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const reverbRef = useRef<Tone.Reverb | null>(null);
   const filterRef = useRef<Tone.Filter | null>(null);
   const pannerRef = useRef<Tone.Panner | null>(null);
+
+  // Multi-voice synth refs
+  const voiceSynthsRef = useRef<Map<VoiceType, VoiceSynth>>(new Map());
+
   const partRef = useRef<Tone.Part | null>(null);
+
+  // Detect if we're in multi-voice mode
+  const isMultiVoice = noteEvents.some(event =>
+    event.trackId && ['bass', 'melody', 'pad', 'fx'].includes(event.trackId)
+  );
 
   // Initialize Tone.js audio context
   const initializeAudio = useCallback(async () => {
-    if (synthRef.current) return; // Already initialized
+    if (synthRef.current || voiceSynthsRef.current.size > 0) return; // Already initialized
 
     setIsLoading(true);
 
     try {
       await Tone.start();
 
-      // Create synth
-      const synth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: {
-          type: preset.oscillatorType,
-        },
-        envelope: preset.synthesis?.envelope || {
-          attack: 0.1,
-          decay: 0.2,
-          sustain: 0.6,
-          release: 0.8,
-        },
-      });
+      if (isMultiVoice) {
+        // Multi-voice mode: create separate synths for each voice
+        const voices: VoiceType[] = ['bass', 'melody', 'pad'];
 
-      // Create effects
-      const reverb = new Tone.Reverb({
-        decay: preset.synthesis?.effects?.reverb?.decay || 2,
-        wet: 0,
-      });
+        for (const voice of voices) {
+          let synthConfig;
+          let reverbConfig;
 
-      const filter = new Tone.Filter({
-        type: preset.synthesis?.filter?.type || 'lowpass',
-        frequency: preset.synthesis?.filter?.frequency || 2000,
-        Q: preset.synthesis?.filter?.resonance || 1,
-      });
+          switch (voice) {
+            case 'bass':
+              synthConfig = {
+                oscillator: { type: 'triangle' as const },
+                envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 1.0 },
+              };
+              reverbConfig = { decay: 1.5, wet: 0.15 }; // Minimal reverb for bass
+              break;
 
-      const panner = new Tone.Panner(0);
+            case 'melody':
+              synthConfig = {
+                oscillator: { type: preset.oscillatorType },
+                envelope: preset.synthesis?.envelope || {
+                  attack: 0.01,
+                  decay: 0.1,
+                  sustain: 0.3,
+                  release: 0.5,
+                },
+              };
+              reverbConfig = { decay: 2.5, wet: 0.3 }; // Moderate reverb
+              break;
 
-      // Connect audio chain
-      synth.chain(filter, panner, reverb, Tone.Destination);
+            case 'pad':
+              synthConfig = {
+                oscillator: { type: 'sine' as const },
+                envelope: { attack: 0.5, decay: 0.2, sustain: 0.7, release: 2.0 },
+              };
+              reverbConfig = { decay: 4.0, wet: 0.5 }; // Heavy reverb for pads
+              break;
 
-      synthRef.current = synth;
-      reverbRef.current = reverb;
-      filterRef.current = filter;
-      pannerRef.current = panner;
+            default:
+              synthConfig = {
+                oscillator: { type: preset.oscillatorType },
+                envelope: preset.synthesis?.envelope || {
+                  attack: 0.1, decay: 0.2, sustain: 0.6, release: 0.8,
+                },
+              };
+              reverbConfig = { decay: 2, wet: 0.2 };
+          }
 
-      console.log('Tone.js initialized');
+          const synth = new Tone.PolySynth(Tone.Synth, synthConfig);
+          const reverb = new Tone.Reverb(reverbConfig);
+          await reverb.generate(); // Pre-generate reverb impulse
+
+          let filter: Tone.Filter | undefined;
+          let panner: Tone.Panner | undefined;
+
+          if (voice === 'melody') {
+            // Add filter and panner for melody
+            filter = new Tone.Filter({
+              type: 'lowpass',
+              frequency: 3000,
+              Q: 1,
+            });
+            panner = new Tone.Panner(0);
+            synth.chain(filter, panner, reverb, Tone.Destination);
+          } else {
+            // Bass and pad: just reverb
+            synth.connect(reverb);
+            reverb.toDestination();
+          }
+
+          voiceSynthsRef.current.set(voice, { synth, reverb, filter, panner });
+        }
+
+        console.log('Multi-voice Tone.js initialized');
+      } else {
+        // Legacy single-synth mode
+        const synth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: {
+            type: preset.oscillatorType,
+          },
+          envelope: preset.synthesis?.envelope || {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.6,
+            release: 0.8,
+          },
+        });
+
+        const reverb = new Tone.Reverb({
+          decay: preset.synthesis?.effects?.reverb?.decay || 2,
+          wet: 0,
+        });
+
+        const filter = new Tone.Filter({
+          type: preset.synthesis?.filter?.type || 'lowpass',
+          frequency: preset.synthesis?.filter?.frequency || 2000,
+          Q: preset.synthesis?.filter?.resonance || 1,
+        });
+
+        const panner = new Tone.Panner(0);
+
+        // Connect audio chain
+        synth.chain(filter, panner, reverb, Tone.Destination);
+
+        synthRef.current = synth;
+        reverbRef.current = reverb;
+        filterRef.current = filter;
+        pannerRef.current = panner;
+
+        console.log('Single-synth Tone.js initialized');
+      }
     } catch (error) {
       console.error('Failed to initialize Tone.js:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [preset]);
+  }, [preset, isMultiVoice]);
 
   // Create Tone.Part from note events
   useEffect(() => {
-    if (!synthRef.current || noteEvents.length === 0) return;
+    if ((!synthRef.current && voiceSynthsRef.current.size === 0) || noteEvents.length === 0) return;
 
     // Dispose of previous part
     if (partRef.current) {
@@ -91,24 +183,50 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       pan: event.pan || 0,
       reverbSend: event.effects?.reverbSend || 0.2,
       filterCutoff: event.effects?.filterCutoff || 0.5,
+      voice: event.trackId as VoiceType | undefined,
     }));
 
     const part = new Tone.Part((time, value) => {
-      if (!synthRef.current || !reverbRef.current || !pannerRef.current) return;
+      if (isMultiVoice && value.voice) {
+        // Multi-voice mode: route to appropriate synth
+        const voiceSynth = voiceSynthsRef.current.get(value.voice);
+        if (!voiceSynth) return;
 
-      // Set panning
-      pannerRef.current.pan.setValueAtTime(value.pan, time);
+        // Set per-note reverb if specified
+        if (value.reverbSend !== undefined) {
+          voiceSynth.reverb.wet.setValueAtTime(value.reverbSend, time);
+        }
 
-      // Set reverb send
-      reverbRef.current.wet.setValueAtTime(value.reverbSend, time);
+        // Set panning for melody
+        if (value.voice === 'melody' && voiceSynth.panner) {
+          voiceSynth.panner.pan.setValueAtTime(value.pan, time);
+        }
 
-      // Trigger note
-      synthRef.current.triggerAttackRelease(
-        value.note,
-        value.duration,
-        time,
-        value.velocity
-      );
+        // Trigger note
+        voiceSynth.synth.triggerAttackRelease(
+          value.note,
+          value.duration,
+          time,
+          value.velocity
+        );
+      } else {
+        // Legacy single-synth mode
+        if (!synthRef.current || !reverbRef.current || !pannerRef.current) return;
+
+        // Set panning
+        pannerRef.current.pan.setValueAtTime(value.pan, time);
+
+        // Set reverb send
+        reverbRef.current.wet.setValueAtTime(value.reverbSend, time);
+
+        // Trigger note
+        synthRef.current.triggerAttackRelease(
+          value.note,
+          value.duration,
+          time,
+          value.velocity
+        );
+      }
     }, events);
 
     part.loop = false;
@@ -120,7 +238,7 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
     return () => {
       part.dispose();
     };
-  }, [noteEvents, tempo]);
+  }, [noteEvents, tempo, isMultiVoice]);
 
   // Update current time while playing
   useEffect(() => {
@@ -172,6 +290,8 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       if (partRef.current) {
         partRef.current.dispose();
       }
+
+      // Clean up legacy synth
       if (synthRef.current) {
         synthRef.current.dispose();
       }
@@ -184,6 +304,15 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       if (pannerRef.current) {
         pannerRef.current.dispose();
       }
+
+      // Clean up multi-voice synths
+      for (const voiceSynth of voiceSynthsRef.current.values()) {
+        voiceSynth.synth.dispose();
+        voiceSynth.reverb.dispose();
+        voiceSynth.filter?.dispose();
+        voiceSynth.panner?.dispose();
+      }
+      voiceSynthsRef.current.clear();
     };
   }, []);
 
