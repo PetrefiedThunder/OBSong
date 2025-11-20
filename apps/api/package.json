@@ -15,8 +15,7 @@
     "@toposonics/types": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
     "@fastify/cors": "^8.5.0",
-    "fastify": "^4.25.2",
-    "nanoid": "^5.0.4"
+    "fastify": "^4.25.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
