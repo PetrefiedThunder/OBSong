@@ -24,7 +24,7 @@ function sortEventsByStart(noteEvents: NoteEvent[]) {
 function buildMidi(noteEvents: NoteEvent[], tempoBpm: number, title?: string) {
   const midi = new Midi();
 
-  midi.header.ppq = TICKS_PER_BEAT;
+  // Note: PPQ is readonly in @tonejs/midi v2.0.28, defaults to 480
   midi.header.setTempo(Math.max(1, tempoBpm || DEFAULT_TEMPO));
 
   if (title?.trim()) {
@@ -52,7 +52,7 @@ function buildMidi(noteEvents: NoteEvent[], tempoBpm: number, title?: string) {
       ticks: Math.max(0, Math.round(event.start * TICKS_PER_BEAT)),
       durationTicks: Math.max(1, Math.round(Math.max(MIN_DURATION_BEATS, event.duration) * TICKS_PER_BEAT)),
       velocity: normalizeVelocity(event.velocity),
-      channel: 0,
+      // Note: channel is not supported in @tonejs/midi v2.0.28 constructor
     });
   });
 
@@ -61,7 +61,8 @@ function buildMidi(noteEvents: NoteEvent[], tempoBpm: number, title?: string) {
 
 function midiToBlob(midi: Midi): Blob {
   const bytes = midi.toArray();
-  return new Blob([bytes], { type: 'audio/midi', endings: 'transparent' });
+  // Cast to BlobPart to fix type incompatibility
+  return new Blob([bytes as BlobPart], { type: 'audio/midi', endings: 'transparent' });
 }
 
 export function noteEventsToMidiBlob(noteEvents: NoteEvent[], tempoBpm: number, name?: string): Blob {
