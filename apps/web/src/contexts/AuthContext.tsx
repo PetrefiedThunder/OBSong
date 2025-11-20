@@ -7,7 +7,7 @@ import { supabaseClient } from '@/lib/supabaseClient';
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password?: string) => Promise<void>;
+  login: (email: string, password?: string) => Promise<{ token: string; user: User }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -115,6 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(mappedUser);
     localStorage.setItem('toposonics_token', data.session.access_token);
     localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
+
+    return { token: data.session.access_token, user: mappedUser };
   };
 
   const logout = async () => {

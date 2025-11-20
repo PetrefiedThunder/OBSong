@@ -5,7 +5,7 @@ import type { Composition, NoteEvent } from '@toposonics/types';
 
 const TICKS_PER_BEAT = 480;
 const DEFAULT_TEMPO = 120;
-const MIN_DURATION = 0.01;
+const MIN_DURATION_BEATS = 0.01;
 
 function normalizeVelocity(velocity?: number) {
   const normalized = velocity ?? 0.8;
@@ -49,8 +49,8 @@ function buildMidi(noteEvents: NoteEvent[], tempoBpm: number, title?: string) {
 
     track.addNote({
       midi: noteNameToMidi(event.note),
-      time: Math.max(0, event.start),
-      duration: Math.max(MIN_DURATION, event.duration),
+      ticks: Math.max(0, Math.round(event.start * TICKS_PER_BEAT)),
+      durationTicks: Math.max(1, Math.round(Math.max(MIN_DURATION_BEATS, event.duration) * TICKS_PER_BEAT)),
       velocity: normalizeVelocity(event.velocity),
       channel: 0,
     });

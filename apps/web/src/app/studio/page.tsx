@@ -212,13 +212,18 @@ export default function StudioPage() {
 
   // Save composition
   const handleSave = async () => {
-    if (!token) {
+    let effectiveToken = token;
+    let effectiveUser = user;
+
+    if (!effectiveToken) {
       // Prompt for login
       const email = prompt('Enter your email to save:');
       if (email) {
         const password = prompt('Enter your Supabase password:');
         try {
-          await login(email, password || undefined);
+          const loginResult = await login(email, password || undefined);
+          effectiveToken = loginResult.token;
+          effectiveUser = loginResult.user;
         } catch (error) {
           alert('Login failed');
           return;
@@ -228,7 +233,7 @@ export default function StudioPage() {
       }
     }
 
-    if (!noteEvents.length || !token) return;
+    if (!noteEvents.length || !effectiveToken || !effectiveUser) return;
 
     const compositionTitle = title || `Composition ${new Date().toLocaleDateString()}`;
 
@@ -244,9 +249,9 @@ export default function StudioPage() {
           scale,
           presetId,
           tempo,
-          userId: user!.id,
+          userId: effectiveUser.id,
         },
-        token
+        effectiveToken
       );
 
       alert('Composition saved!');
