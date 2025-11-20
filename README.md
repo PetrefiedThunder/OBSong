@@ -169,6 +169,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 ```bash
 PORT=3001
 SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
