@@ -15,7 +15,7 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
 };
 
-const API_URL = 'http://localhost:3001'; // Update for your environment
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export default function CompositionsScreen({ navigation }: Props) {
   const [compositions, setCompositions] = useState<Composition[]>([]);

@@ -16,7 +16,7 @@ type Props = {
   route: RouteProp<RootStackParamList, 'CompositionDetail'>;
 };
 
-const API_URL = 'http://localhost:3001';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export default function CompositionDetailScreen({ route }: Props) {
   const { id } = route.params;
