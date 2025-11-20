@@ -3,6 +3,10 @@ node_modules
 .pnp
 .pnp.js
 
+# Lock files from other package managers (use pnpm-lock.yaml only)
+package-lock.json
+yarn.lock
+
 # Testing
 coverage
 *.lcov
