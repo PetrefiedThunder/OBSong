@@ -12,25 +12,34 @@ import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
 import { API_URL } from '../config';
+import { useAuth } from '../auth/AuthProvider';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CompositionDetail'>;
 };
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
-
 export default function CompositionDetailScreen({ route }: Props) {
   const { id } = route.params;
   const [composition, setComposition] = useState<Composition | null>(null);
   const [loading, setLoading] = useState(true);
+  const { token, signInWithApple, loading: authLoading } = useAuth();
 
   useEffect(() => {
     loadComposition();
-  }, [id]);
+  }, [id, token]);
 
   const loadComposition = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_URL}/compositions/${id}`);
+      const response = await fetch(`${API_URL}/compositions/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();
@@ -51,10 +60,21 @@ export default function CompositionDetailScreen({ route }: Props) {
     );
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0284c7" />
+      </View>
+    );
+  }
+
+  if (!token) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>Sign in to load this composition</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={signInWithApple}>
+          <Text style={styles.retryButtonText}>Sign in with Apple</Text>
+        </TouchableOpacity>
       </View>
     );
   }

@@ -1,12 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User, AuthTokenResponse } from '@toposonics/types';
+import type { User } from '@toposonics/types';
+import { supabaseClient } from '@/lib/supabaseClient';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -18,57 +19,108 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load auth from localStorage on mount
+  // Load auth from Supabase session on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('toposonics_token');
-    const storedUser = localStorage.getItem('toposonics_user');
+    if (!supabaseClient) {
+      setIsLoading(false);
+      return;
+    }
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
+    const syncSession = async () => {
+      const { data } = await supabaseClient.auth.getSession();
+      const session = data.session;
+
+      if (session) {
+        const mappedUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: (session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+          createdAt: new Date(session.user.created_at),
+          lastLoginAt: session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : undefined,
+        };
+
+        setToken(session.access_token);
+        setUser(mappedUser);
+        localStorage.setItem('toposonics_token', session.access_token);
+        localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
+      } else {
+        const storedToken = localStorage.getItem('toposonics_token');
+        const storedUser = localStorage.getItem('toposonics_user');
+        if (storedToken && storedUser) {
+          try {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+          } catch (error) {
+            console.error('Failed to parse stored user:', error);
+            localStorage.removeItem('toposonics_token');
+            localStorage.removeItem('toposonics_user');
+          }
+        }
+      }
+
+      setIsLoading(false);
+    };
+
+    syncSession();
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        const mappedUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: (session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+          createdAt: new Date(session.user.created_at),
+          lastLoginAt: session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : undefined,
+        };
+        setToken(session.access_token);
+        setUser(mappedUser);
+        localStorage.setItem('toposonics_token', session.access_token);
+        localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
+      } else {
+        setToken(null);
+        setUser(null);
         localStorage.removeItem('toposonics_token');
         localStorage.removeItem('toposonics_user');
       }
-    }
+    });
 
-    setIsLoading(false);
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
-      const data: { success: boolean; data: AuthTokenResponse } = await response.json();
-
-      if (data.success) {
-        setToken(data.data.token);
-        setUser(data.data.user);
-
-        // Persist to localStorage
-        localStorage.setItem('toposonics_token', data.data.token);
-        localStorage.setItem('toposonics_user', JSON.stringify(data.data.user));
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+  const login = async (email: string, password?: string) => {
+    if (!supabaseClient) {
+      throw new Error('Supabase client is not configured');
     }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password: password || '',
+    });
+
+    if (error || !data.session) {
+      throw error || new Error('Login failed');
+    }
+
+    const mappedUser: User = {
+      id: data.session.user.id,
+      email: data.session.user.email || '',
+      displayName: (data.session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+      createdAt: new Date(data.session.user.created_at),
+      lastLoginAt: data.session.user.last_sign_in_at ? new Date(data.session.user.last_sign_in_at) : undefined,
+    };
+
+    setToken(data.session.access_token);
+    setUser(mappedUser);
+    localStorage.setItem('toposonics_token', data.session.access_token);
+    localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
     setToken(null);
     setUser(null);
     localStorage.removeItem('toposonics_token');

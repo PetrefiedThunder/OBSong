@@ -1,60 +1,56 @@
 /**
- * Authentication routes (stub implementation)
+ * Authentication routes backed by Supabase tokens
  */
 
 import type { FastifyInstance } from 'fastify';
 import type { ApiResponse, ApiErrorResponse, AuthTokenResponse } from '@toposonics/types';
-import { stubLogin } from '../auth';
+import { exchangeAccessToken } from '../auth';
 
 export async function authRoutes(fastify: FastifyInstance) {
   /**
    * POST /auth/login
-   * Stub login endpoint - accepts email and returns a fake token
+   * Validates a Supabase access token and returns the user payload
    */
   fastify.post<{
-    Body: { email: string };
+    Body: { accessToken: string };
     Reply: ApiResponse<AuthTokenResponse> | ApiErrorResponse;
   }>('/auth/login', async (request, reply) => {
-    const { email } = request.body;
+    const { accessToken } = request.body;
 
-    if (!email || typeof email !== 'string') {
+    if (!accessToken || typeof accessToken !== 'string') {
       return reply.status(400).send({
         success: false,
         error: {
-          code: 'INVALID_EMAIL',
-          message: 'Email is required and must be a string',
+          code: 'INVALID_TOKEN',
+          message: 'accessToken is required and must be a string',
         },
-      } as ApiErrorResponse);
+      });
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return reply.status(400).send({
+    const authResponse = await exchangeAccessToken(accessToken);
+
+    if (!authResponse) {
+      return reply.status(401).send({
         success: false,
         error: {
-          code: 'INVALID_EMAIL_FORMAT',
-          message: 'Invalid email format',
+          code: 'INVALID_TOKEN',
+          message: 'Invalid or expired Supabase access token',
         },
-      } as ApiErrorResponse);
+      });
     }
-
-    // Perform stub login
-    const authResponse = await stubLogin(email);
 
     return reply.send({
       success: true,
       data: authResponse,
-      message: 'Login successful (development mode)',
+      message: 'Token validated successfully',
     });
   });
 
   /**
    * POST /auth/logout
-   * Stub logout endpoint (no-op in this implementation)
+   * Client-side logout is handled by Supabase; this is a no-op
    */
   fastify.post('/auth/logout', async (_request, reply) => {
-    // In a real implementation, invalidate the token
     return reply.send({
       success: true,
       message: 'Logout successful',

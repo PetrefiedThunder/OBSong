@@ -17,8 +17,13 @@ export const config = {
   isDevelopment: process.env.NODE_ENV !== 'production',
   isProduction: process.env.NODE_ENV === 'production',
 
-  // Auth (stub configuration)
+  // Auth
   authEnabled: process.env.AUTH_ENABLED === 'true',
+
+  // Supabase
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 
   // API metadata
   apiVersion: '0.1.0',

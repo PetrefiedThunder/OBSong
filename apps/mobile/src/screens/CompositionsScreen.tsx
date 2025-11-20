@@ -11,25 +11,35 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
 import { API_URL } from '../config';
+import { useAuth } from '../auth/AuthProvider';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
 };
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
-
 export default function CompositionsScreen({ navigation }: Props) {
   const [compositions, setCompositions] = useState<Composition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { token, loading: authLoading, signInWithApple } = useAuth();
 
   useEffect(() => {
     loadCompositions();
-  }, []);
+  }, [token]);
 
   const loadCompositions = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/compositions`);
+      const response = await fetch(`${API_URL}/compositions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();
@@ -42,11 +52,22 @@ export default function CompositionsScreen({ navigation }: Props) {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0284c7" />
         <Text style={styles.loadingText}>Loading compositions...</Text>
+      </View>
+    );
+  }
+
+  if (!token) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>Sign in to view your compositions</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={signInWithApple}>
+          <Text style={styles.retryButtonText}>Sign in with Apple</Text>
+        </TouchableOpacity>
       </View>
     );
   }

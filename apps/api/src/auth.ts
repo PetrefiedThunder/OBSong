@@ -1,91 +1,41 @@
 /**
- * Authentication utilities (stub implementation)
- * In production, integrate with Auth0, Clerk, or similar
+ * Authentication utilities backed by Supabase
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { User, AuthTokenResponse } from '@toposonics/types';
+import { supabaseAdmin } from './supabase';
 
-/**
- * Stub user database
- * In production, this would be a real database
- */
-const STUB_USERS: Map<string, User> = new Map([
-  [
-    'demo@toposonics.com',
-    {
-      id: 'user-demo',
-      email: 'demo@toposonics.com',
-      displayName: 'Demo User',
-      createdAt: new Date('2024-01-01'),
-      lastLoginAt: new Date(),
-    },
-  ],
-]);
+export async function getUserFromToken(token: string): Promise<User | null> {
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
 
-/**
- * Stub token storage (session tokens)
- * In production, use JWT or session storage
- */
-const ACTIVE_TOKENS: Map<string, string> = new Map(); // token -> userId
-
-/**
- * Stub login function
- * Accepts an email and returns a fake token
- */
-export async function stubLogin(email: string): Promise<AuthTokenResponse> {
-  const { nanoid } = await import('nanoid');
-
-  // Get or create user
-  let user = STUB_USERS.get(email);
-
-  if (!user) {
-    user = {
-      id: `user-${nanoid(8)}`,
-      email,
-      displayName: email.split('@')[0],
-      createdAt: new Date(),
-      lastLoginAt: new Date(),
-    };
-    STUB_USERS.set(email, user);
+  if (error || !data.user) {
+    return null;
   }
 
-  // Update last login
-  user.lastLoginAt = new Date();
+  const supabaseUser = data.user;
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    displayName: (supabaseUser.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+    createdAt: new Date(supabaseUser.created_at),
+    lastLoginAt: supabaseUser.last_sign_in_at ? new Date(supabaseUser.last_sign_in_at) : undefined,
+  };
+}
 
-  // Generate fake token
-  const token = `fake-${nanoid(32)}`;
-  ACTIVE_TOKENS.set(token, user.id);
+export async function exchangeAccessToken(token: string): Promise<AuthTokenResponse | null> {
+  const user = await getUserFromToken(token);
+  if (!user) return null;
 
   return {
     token,
     user,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    expiresAt: undefined,
   };
 }
 
 /**
- * Verify a token and return the user ID
- */
-export function verifyToken(token: string): string | null {
-  return ACTIVE_TOKENS.get(token) || null;
-}
-
-/**
- * Get user by ID
- */
-export function getUserById(userId: string): User | null {
-  for (const user of STUB_USERS.values()) {
-    if (user.id === userId) {
-      return user;
-    }
-  }
-  return null;
-}
-
-/**
- * Fastify middleware to require authentication
- * Extracts token from Authorization header
+ * Fastify middleware to require authentication using Supabase access tokens
  */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   const authHeader = request.headers.authorization;
@@ -100,7 +50,6 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     });
   }
 
-  // Expected format: "Bearer <token>"
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0] !== 'Bearer') {
     return reply.status(401).send({
@@ -113,20 +62,20 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   }
 
   const token = parts[1];
-  const userId = verifyToken(token);
+  const user = await getUserFromToken(token);
 
-  if (!userId) {
+  if (!user) {
     return reply.status(401).send({
       success: false,
       error: {
         code: 'INVALID_TOKEN',
-        message: 'Invalid or expired token',
+        message: 'Invalid or expired Supabase token',
       },
     });
   }
 
-  // Attach user ID to request for downstream handlers
-  (request as any).userId = userId;
+  (request as any).userId = user.id;
+  (request as any).user = user;
 }
 
 /**
@@ -139,9 +88,10 @@ export async function optionalAuth(request: FastifyRequest, _reply: FastifyReply
     const parts = authHeader.split(' ');
     if (parts.length === 2 && parts[0] === 'Bearer') {
       const token = parts[1];
-      const userId = verifyToken(token);
-      if (userId) {
-        (request as any).userId = userId;
+      const user = await getUserFromToken(token);
+      if (user) {
+        (request as any).userId = user.id;
+        (request as any).user = user;
       }
     }
   }
@@ -151,5 +101,6 @@ export async function optionalAuth(request: FastifyRequest, _reply: FastifyReply
 declare module 'fastify' {
   interface FastifyRequest {
     userId?: string;
+    user?: User;
   }
 }
