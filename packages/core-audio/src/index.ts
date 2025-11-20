@@ -32,6 +32,9 @@ export {
   mapImageToMultiVoiceComposition,
 } from './mappers';
 
+// Export MIDI helpers
+export { compositionToMidiBlob, noteEventsToMidiBlob } from './midi';
+
 // Export preset utilities
 export {
   SOUND_PRESETS,

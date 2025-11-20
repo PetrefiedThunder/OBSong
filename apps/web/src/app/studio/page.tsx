@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type {
@@ -69,6 +69,21 @@ export default function StudioPage() {
     tempo,
     preset,
   });
+
+  const compositionDurationBeats = useMemo(() => {
+    if (!noteEvents.length) return 0;
+    return noteEvents.reduce((max, event) => Math.max(max, event.start + event.duration), 0);
+  }, [noteEvents]);
+
+  const compositionDurationSeconds = useMemo(
+    () => compositionDurationBeats * (60 / Math.max(1, tempo)),
+    [compositionDurationBeats, tempo]
+  );
+
+  const scanlineProgress = useMemo(() => {
+    if (!compositionDurationSeconds) return 0;
+    return Math.min(currentTime / compositionDurationSeconds, 1);
+  }, [compositionDurationSeconds, currentTime]);
 
   // Handle URL params for deep linking
   useEffect(() => {
@@ -276,7 +291,11 @@ export default function StudioPage() {
           </Card>
 
           <Card title="2. Upload Image" padding="lg">
-            <ImageUploader onImageSelected={handleImageSelected} preview={imagePreview} />
+            <ImageUploader
+              onImageSelected={handleImageSelected}
+              preview={imagePreview}
+              scanlineProgress={isPlaying ? scanlineProgress : 0}
+            />
             {isAnalyzing && (
               <div className="mt-4 text-center text-sm text-gray-400">
                 Analyzing image...
