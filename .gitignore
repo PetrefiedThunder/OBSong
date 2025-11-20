@@ -33,6 +33,12 @@ lerna-debug.log*
 
 # Local env files
 .env
+.env.production
+.env.staging
+.env.development
+.env.test
+# Allow committing production mobile environment defaults for build pipelines
+!apps/mobile/.env
 .env*.local
 .env.local
 .env.development.local

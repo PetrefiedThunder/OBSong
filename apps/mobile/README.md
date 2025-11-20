@@ -143,14 +143,14 @@ for (const note of noteEvents) {
 
 ## Environment Configuration
 
-Create `.env`:
+Create `.env` in `apps/mobile` for production and local builds:
 
 ```bash
-API_URL=http://localhost:3001
-# or your deployed API URL
+EXPO_PUBLIC_API_URL=https://api.toposonics.com
+IOS_BUILD_NUMBER=1.0.0
 ```
 
-Update the `API_URL` constant in screens as needed.
+`EXPO_PUBLIC_API_URL` is injected via Expo config (`extra.apiUrl`) and consumed in the screens. Override values locally by copying `.env` to a `.env.local` file (ignored by Git).
 
 ## Building for Production
 
