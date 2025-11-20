@@ -1,13 +1,13 @@
 # @toposonics/api
 
-Fastify-based backend API for TopoSonics.
+Fastify-based backend API for TopoSonics with Supabase-backed authentication and Postgres persistence.
 
 ## Features
 
 - **Health checks**: `/health` and `/health/detailed`
-- **Stub authentication**: Email-based login with fake tokens
-- **Composition CRUD**: Create, read, update, delete compositions
-- **In-memory storage**: Development-friendly (replace with database for production)
+- **JWT authentication**: Validates Supabase access tokens and surfaces user profile data
+- **Composition CRUD**: Create, read, update, delete compositions stored in Postgres
+- **Persistent storage**: Supabase Postgres table `compositions` (JSON payload per row)
 - **CORS support**: Configurable cross-origin access
 - **Security hardening**: HTTPS enforcement, rate limiting, and DDoS protections
 - **Operational visibility**: Built-in health and status endpoints for monitoring
@@ -36,18 +36,18 @@ pnpm typecheck
 - `GET /health` - Basic health check
 - `GET /health/detailed` - Detailed health information
 
-### Authentication (Stub)
+### Authentication (Supabase)
 
-- `POST /auth/login` - Login with email, get fake token
+- `POST /auth/login` - Validate an existing Supabase access token and return the associated user
   ```json
   {
-    "email": "user@example.com"
+    "accessToken": "<supabase-access-token>"
   }
   ```
 
 ### Compositions
 
-All composition endpoints require `Authorization: Bearer <token>` header (except GET endpoints which work with optional auth).
+All composition endpoints require `Authorization: Bearer <accessToken>` using a valid Supabase access token for the authenticated user.
 
 - `GET /compositions` - List all compositions (filtered by user if authenticated)
 - `GET /compositions/:id` - Get specific composition
@@ -89,65 +89,20 @@ See `.env.example` for configuration options. Key security/operations settings:
 
 ## Authentication Flow
 
-This is a **stub implementation** for development:
+Supabase issues JWT access tokens to clients. The API validates these tokens using the Supabase Admin client, returning the hydrated `User` payload and attaching the user ID to downstream requests:
 
-1. Client POSTs to `/auth/login` with email
-2. Server returns fake token and user object
-3. Client includes token in `Authorization: Bearer <token>` header
-4. Server validates token and extracts user ID
-
-**For production**, replace with:
-- Auth0, Clerk, or similar service
-- JWT-based authentication
-- Proper password hashing and security
-- OAuth/social login
+1. Client authenticates with Supabase (email/password, OAuth, or magic link) and receives an access token.
+2. Client POSTs the access token to `/auth/login` to validate and receive a normalized payload.
+3. Authenticated requests include `Authorization: Bearer <accessToken>`.
+4. The API verifies the token with Supabase and attaches `request.user` for route handlers.
 
 ## Data Persistence
 
-Currently uses **in-memory storage** (Map).
-
-**For production**, integrate a database:
-
-### Option 1: Prisma + PostgreSQL
-
-```bash
-pnpm add prisma @prisma/client
-npx prisma init
-```
-
-Create schema in `prisma/schema.prisma`:
-
-```prisma
-model Composition {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String
-  description String?
-  noteEvents  Json
-  mappingMode String
-  key         String
-  scale       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-```
-
-### Option 2: MongoDB
-
-```bash
-pnpm add mongodb
-```
-
-### Option 3: Supabase
-
-```bash
-pnpm add @supabase/supabase-js
-```
+Compositions are stored in Supabase Postgres using the `compositions` table. Each row contains a JSON payload of the full composition alongside metadata fields for ownership and timestamps. The service uses the Supabase service role key to perform CRUD operations securely on behalf of authenticated users.
 
 ## Future Enhancements
 
-- [ ] Database integration (Prisma recommended)
-- [ ] Real authentication (Auth0, Clerk)
+- [ ] Optional Auth0/Clerk adapters
 - [ ] File upload for images
 - [ ] Image storage (S3, Cloudinary)
 - [ ] API documentation (Swagger/OpenAPI)
@@ -164,16 +119,16 @@ pnpm test
 # Manual testing with curl
 curl http://localhost:3001/health
 
-# Login
+# Validate an existing Supabase access token
 curl -X POST http://localhost:3001/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com"}'
+  -d '{"accessToken":"<supabase-access-token>"}'
 
-# Create composition (use token from login)
+# Create composition (use a real Supabase token from your client session)
 curl -X POST http://localhost:3001/compositions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer fake-<your-token>" \
-  -d '{"title":"Test","noteEvents":[],"mappingMode":"LINEAR_LANDSCAPE","key":"C","scale":"C_MAJOR","userId":"user-demo"}'
+  -H "Authorization: Bearer <supabase-access-token>" \
+  -d '{"title":"Test","noteEvents":[],"mappingMode":"LINEAR_LANDSCAPE","key":"C","scale":"C_MAJOR"}'
 ```
 
 ## Production Deployment
