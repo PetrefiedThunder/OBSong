@@ -1,13 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
+import { useAuth } from '../auth/AuthProvider';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
 export default function HomeScreen({ navigation }: Props) {
+  const { user, signInWithApple, signOut } = useAuth();
+
+  const handleAppleSignIn = async () => {
+    try {
+      await signInWithApple();
+    } catch (error) {
+      Alert.alert('Apple Sign-In failed', (error as Error).message);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
@@ -15,6 +26,11 @@ export default function HomeScreen({ navigation }: Props) {
         <Text style={styles.subtitle}>
           Transform images into musical landscapes on the go
         </Text>
+        {user ? (
+          <Text style={styles.signedIn}>Signed in as {user.email}</Text>
+        ) : (
+          <Text style={styles.signedOut}>Sign in to sync your compositions</Text>
+        )}
       </View>
 
       <View style={styles.buttonContainer}>
@@ -31,6 +47,19 @@ export default function HomeScreen({ navigation }: Props) {
         >
           <Text style={styles.buttonText}>View Compositions</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.appleButton]}
+          onPress={handleAppleSignIn}
+        >
+          <Text style={styles.buttonText}>{user ? 'Re-authenticate with Apple' : 'Sign in with Apple'}</Text>
+        </TouchableOpacity>
+
+        {user && (
+          <TouchableOpacity style={[styles.button, styles.signOutButton]} onPress={signOut}>
+            <Text style={styles.buttonText}>Sign out</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.infoContainer}>
@@ -85,6 +114,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
+  signedIn: {
+    color: '#a3e635',
+    marginTop: 12,
+  },
+  signedOut: {
+    color: '#fcd34d',
+    marginTop: 12,
+  },
   buttonContainer: {
     gap: 16,
     marginBottom: 40,
@@ -100,6 +137,14 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: '#4b5563',
+  },
+  appleButton: {
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  signOutButton: {
+    backgroundColor: '#ef4444',
   },
   buttonText: {
     color: '#ffffff',

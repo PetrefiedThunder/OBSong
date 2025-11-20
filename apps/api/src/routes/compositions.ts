@@ -10,8 +10,14 @@ import type {
   ApiResponse,
   ApiErrorResponse,
 } from '@toposonics/types';
-import { compositionStore } from '../store';
-import { optionalAuth, requireAuth } from '../auth';
+import { requireAuth } from '../auth';
+import {
+  listCompositions,
+  getCompositionById,
+  createComposition,
+  updateComposition,
+  deleteComposition,
+} from '../services/compositions';
 
 export async function compositionRoutes(fastify: FastifyInstance) {
   /**
@@ -21,13 +27,11 @@ export async function compositionRoutes(fastify: FastifyInstance) {
   fastify.get<{ Reply: ApiResponse<Composition[]> | ApiErrorResponse }>(
     '/compositions',
     {
-      preHandler: optionalAuth,
+      preHandler: requireAuth,
     },
     async (request, reply) => {
       try {
-        // If user is authenticated, filter by their ID
-        const userId = request.userId;
-        const compositions = await compositionStore.findAll(userId);
+        const compositions = await listCompositions(request.userId);
 
         return reply.send({
           success: true,
@@ -56,15 +60,15 @@ export async function compositionRoutes(fastify: FastifyInstance) {
   }>(
     '/compositions/:id',
     {
-      preHandler: optionalAuth,
+      preHandler: requireAuth,
     },
     async (request, reply) => {
       const { id } = request.params;
 
       try {
-        const composition = await compositionStore.findById(id);
+        const composition = await getCompositionById(id);
 
-        if (!composition) {
+        if (!composition || composition.userId !== request.userId) {
           return reply.status(404).send({
             success: false,
             error: {
@@ -73,11 +77,6 @@ export async function compositionRoutes(fastify: FastifyInstance) {
             },
           });
         }
-
-        // Optional: Check if user has access
-        // if (request.userId && composition.userId !== request.userId) {
-        //   return reply.status(403).send({ ... });
-        // }
 
         return reply.send({
           success: true,
@@ -101,7 +100,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
    * Create a new composition (requires auth)
    */
   fastify.post<{
-    Body: CreateCompositionDTO;
+    Body: Omit<CreateCompositionDTO, 'userId'>;
     Reply: ApiResponse<Composition> | ApiErrorResponse;
   }>(
     '/compositions',
@@ -124,10 +123,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
         }
 
         // Create composition with authenticated user's ID
-        const composition = await compositionStore.create({
-          ...data,
-          userId: request.userId!,
-        });
+        const composition = await createComposition(request.userId!, data);
 
         return reply.status(201).send({
           success: true,
@@ -165,7 +161,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
       const data = request.body;
 
       try {
-        const existing = await compositionStore.findById(id);
+        const existing = await getCompositionById(id);
 
         if (!existing) {
           return reply.status(404).send({
@@ -188,7 +184,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const updated = await compositionStore.update(id, data);
+        const updated = await updateComposition(id, data);
 
         if (!updated) {
           return reply.status(500).send({
@@ -234,7 +230,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
 
       try {
-        const existing = await compositionStore.findById(id);
+        const existing = await getCompositionById(id);
 
         if (!existing) {
           return reply.status(404).send({
@@ -257,7 +253,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const deleted = await compositionStore.delete(id);
+        const deleted = await deleteComposition(id);
 
         if (!deleted) {
           return reply.status(500).send({

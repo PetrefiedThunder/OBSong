@@ -10,9 +10,18 @@ interface ImageUploaderProps {
    * Percentage (0-1) representing the current playback position for the scanline overlay
    */
   scanlineProgress?: number;
+  /**
+   * When true, shows the scanline overlay to mirror the current playback position
+   */
+  showScanline?: boolean;
 }
 
-export function ImageUploader({ onImageSelected, preview, scanlineProgress = 0 }: ImageUploaderProps) {
+export function ImageUploader({
+  onImageSelected,
+  preview,
+  scanlineProgress = 0,
+  showScanline = false,
+}: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,8 +65,11 @@ export function ImageUploader({ onImageSelected, preview, scanlineProgress = 0 }
             aria-hidden
           >
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-transform duration-75"
-              style={{ transform: `translateX(${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%)` }}
+              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-transform duration-75 transition-opacity"
+              style={{
+                transform: `translateX(${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%)`,
+                opacity: showScanline ? 1 : 0,
+              }}
             />
           </div>
           <Button

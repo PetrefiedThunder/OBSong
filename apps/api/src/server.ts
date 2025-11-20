@@ -9,7 +9,6 @@ import { config } from './config';
 import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
 import { compositionRoutes } from './routes/compositions';
-import { compositionStore } from './store';
 
 /**
  * Create and configure the Fastify server
@@ -89,14 +88,6 @@ async function createServer() {
 async function start() {
   try {
     const fastify = await createServer();
-
-    // Seed development data if needed
-    if (config.isDevelopment) {
-      const count = await compositionStore.count();
-      if (count === 0) {
-        await compositionStore.seed();
-      }
-    }
 
     // Start listening
     await fastify.listen({

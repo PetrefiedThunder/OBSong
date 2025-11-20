@@ -32,6 +32,7 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   const voiceSynthsRef = useRef<Map<VoiceType, VoiceSynth>>(new Map());
 
   const partRef = useRef<Tone.Part | null>(null);
+  const stopSchedulerIdRef = useRef<number | null>(null);
 
   // Detect if we're in multi-voice mode
   const isMultiVoice = noteEvents.some(event =>
@@ -244,11 +245,16 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   useEffect(() => {
     if (!isPlaying) return;
 
-    const interval = setInterval(() => {
-      setCurrentTime(Tone.Transport.seconds);
-    }, 50);
+    let frameId: number;
 
-    return () => clearInterval(interval);
+    const updateTime = () => {
+      setCurrentTime(Tone.Transport.seconds);
+      frameId = requestAnimationFrame(updateTime);
+    };
+
+    frameId = requestAnimationFrame(updateTime);
+
+    return () => cancelAnimationFrame(frameId);
   }, [isPlaying]);
 
   const play = useCallback(async () => {
@@ -259,22 +265,38 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       return;
     }
 
+    // Reset transport so the scanline starts from the left edge
+    Tone.Transport.position = 0;
+    setCurrentTime(0);
+
+    // Start playback
     Tone.Transport.start();
     partRef.current.start(0);
     setIsPlaying(true);
 
-    // Auto-stop at the end
+    // Auto-stop at the end using the transport clock for accuracy
     const duration = noteEvents.reduce(
       (max, event) => Math.max(max, event.start + event.duration),
       0
     );
 
-    setTimeout(() => {
+    const durationSeconds = (duration + 1) * (60 / tempo);
+
+    if (stopSchedulerIdRef.current !== null) {
+      Tone.Transport.clear(stopSchedulerIdRef.current);
+    }
+
+    stopSchedulerIdRef.current = Tone.Transport.scheduleOnce(() => {
       stop();
-    }, (duration + 1) * 1000 * (60 / tempo));
-  }, [initializeAudio, noteEvents, tempo]);
+    }, `+${durationSeconds}`);
+  }, [initializeAudio, noteEvents, stop, tempo]);
 
   const stop = useCallback(() => {
+    if (stopSchedulerIdRef.current !== null) {
+      Tone.Transport.clear(stopSchedulerIdRef.current);
+      stopSchedulerIdRef.current = null;
+    }
+
     if (partRef.current) {
       partRef.current.stop();
     }
@@ -286,6 +308,8 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
 
   // Cleanup on unmount
   useEffect(() => {
+    const voiceSynths = voiceSynthsRef.current;
+
     return () => {
       if (partRef.current) {
         partRef.current.dispose();
@@ -306,13 +330,13 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       }
 
       // Clean up multi-voice synths
-      for (const voiceSynth of voiceSynthsRef.current.values()) {
+      for (const voiceSynth of voiceSynths.values()) {
         voiceSynth.synth.dispose();
         voiceSynth.reverb.dispose();
         voiceSynth.filter?.dispose();
         voiceSynth.panner?.dispose();
       }
-      voiceSynthsRef.current.clear();
+      voiceSynths.clear();
     };
   }, []);
 

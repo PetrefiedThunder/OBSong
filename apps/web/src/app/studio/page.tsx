@@ -95,7 +95,7 @@ export default function StudioPage() {
         handleScenePackSelect(targetScenePack);
       }
     }
-  }, []);
+  }, [searchParams]);
 
   // Handle image selection
   const handleImageSelected = async (file: File) => {
@@ -216,8 +216,9 @@ export default function StudioPage() {
       // Prompt for login
       const email = prompt('Enter your email to save:');
       if (email) {
+        const password = prompt('Enter your Supabase password:');
         try {
-          await login(email);
+          await login(email, password || undefined);
         } catch (error) {
           alert('Login failed');
           return;
@@ -307,6 +308,7 @@ export default function StudioPage() {
             <ImageUploader
               onImageSelected={handleImageSelected}
               preview={imagePreview}
+              showScanline={isPlaying && noteEvents.length > 0}
               scanlineProgress={isPlaying ? scanlineProgress : 0}
             />
             {isAnalyzing && (
