@@ -619,6 +619,19 @@ pnpm dev:web
 
 ---
 
+## 🧯 Troubleshooting & Known Fragile Areas
+
+These are the most common issues that break during local development and how to fix them quickly:
+
+1. **Mobile API Connectivity (Network Errors):** Android emulators and physical devices cannot reach `localhost` on your computer. Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your machine's LAN IP (e.g., `http://192.168.x.x:3001`) and ensure the device is on the same Wi‑Fi network.
+2. **Web Audio Playback (Autoplay Policy):** Browsers keep the Tone.js `AudioContext` suspended until a user gesture. Click the page or a Play button to resume audio; `LandingDemoPlayer.tsx` and `useToneEngine.ts` attempt this automatically but manual interaction is often still required.
+3. **Mobile Audio Playback (Missing Asset):** The mobile `playNoteEvents` service depends on `apps/mobile/assets/audio/beep.wav`. If the file is missing, playback fails silently—restore the asset to fix.
+4. **Image Analysis Limitations:** The "Depth Ridge" mapping mode still falls back to a simplified linear landscape algorithm (`mapDepthRidge` TODO). Avoid relying on it for accurate depth perception until the full implementation lands.
+5. **API Server Overload:** `@fastify/under-pressure` triggers 503s when event loop delay exceeds 1000ms or heap usage exceeds 200MB. Raise limits in `apps/api/.env` if processing large images or heavy concurrency.
+6. **Image Upload Failures:** Extremely large or unsupported images can crash the browser or time out mobile extraction. Prefer JPG/PNG under ~5MB; the web analyzer resizes images >1200px but very large files can still fail.
+
+---
+
 ## 🚢 Deployment Checklist
 
 ### Production Requirements
