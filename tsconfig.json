@@ -10,6 +10,7 @@
       "@toposonics/core-audio/*": ["packages/core-audio/src/*"],
       "@toposonics/core-image/*": ["packages/core-image/src/*"],
       "@toposonics/ui/*": ["packages/ui/src/*"],
+      "@toposonics/types": ["packages/types/src"],
       "@toposonics/types/*": ["packages/types/src/*"]
     },
     "module": "commonjs",
