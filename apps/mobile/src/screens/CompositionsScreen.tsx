@@ -10,12 +10,11 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
+import { API_URL } from '../config';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
 };
-
-const API_URL = 'http://localhost:3001'; // Update for your environment
 
 export default function CompositionsScreen({ navigation }: Props) {
   const [compositions, setCompositions] = useState<Composition[]>([]);

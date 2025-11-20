@@ -11,12 +11,11 @@ import {
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
+import { API_URL } from '../config';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CompositionDetail'>;
 };
-
-const API_URL = 'http://localhost:3001';
 
 export default function CompositionDetailScreen({ route }: Props) {
   const { id } = route.params;

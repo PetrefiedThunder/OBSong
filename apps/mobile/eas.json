@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "version": ">= 6.0.0"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "channel": "production",
+      "autoIncrement": "versionCode",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.toposonics.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./credentials/google-service-account.json"
+      }
+    }
+  }
+}
