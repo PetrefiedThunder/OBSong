@@ -9,7 +9,13 @@ import {
   computeAveragedBrightnessProfile,
   downsampleProfile,
 } from './brightness';
-import { computeSimpleDepthProfile, detectRidges, smoothProfile } from './depth';
+import {
+  computeSimpleDepthProfile,
+  detectRidges,
+  smoothProfile,
+  applySobelEdgeDetection,
+  extractEdgeProfile,
+} from './depth';
 import { extractHorizonContour } from './horizon';
 import { computeTextureProfile } from './texture';
 
@@ -95,8 +101,8 @@ export function analyzeImageForLinearLandscape(
 }
 
 /**
- * Analyze an image for DEPTH_RIDGE mapping mode (future implementation)
- * This is a more advanced mode that will use edge detection and depth estimation
+ * Analyze an image for DEPTH_RIDGE mapping mode
+ * Uses Sobel edge detection to identify prominent ridges and depth features
  *
  * @param pixels - Flattened RGBA pixel array
  * @param width - Image width
@@ -111,27 +117,61 @@ export function analyzeImageForDepthRidge(
   options: {
     ridgeThreshold?: number;
     smoothingWindow?: number;
+    maxSamples?: number;
   } = {}
 ): ImageAnalysisResult {
-  // TODO: Implement advanced depth-ridge analysis
-  // For now, use the linear landscape analysis with ridge detection
-  const result = analyzeImageForLinearLandscape(pixels, width, height, {
-    includeDepth: true,
-    includeRidges: true,
+  const {
+    smoothingWindow = 3,
+    maxSamples = 128,
+  } = options;
+
+  // 1. Apply Sobel edge detection to the full image
+  const edgeMagnitudes = applySobelEdgeDetection(pixels, width, height);
+
+  // 2. Extract edge profile along center horizontal line(s)
+  const centerRow = Math.floor(height / 2);
+  let ridgeStrength = extractEdgeProfile(edgeMagnitudes, width, height, {
+    rowIndex: centerRow,
     averageRows: true,
+    rowsToAverage: 5,
   });
 
-  // TODO: Add more sophisticated analysis:
-  // - Multi-row ridge detection
-  // - Contour following
-  // - Peak prominence calculation
-  // - Spatial feature clustering
+  // 3. Extract brightness profile for pitch mapping
+  let brightnessProfile = computeAveragedBrightnessProfile(
+    pixels,
+    width,
+    height,
+    centerRow - 2,
+    centerRow + 3
+  );
 
-  if (options.smoothingWindow && result.ridgeStrength) {
-    result.ridgeStrength = smoothProfile(result.ridgeStrength, options.smoothingWindow);
+  // 4. Apply smoothing to ridge strength for stability
+  if (smoothingWindow > 1) {
+    ridgeStrength = smoothProfile(ridgeStrength, smoothingWindow);
   }
 
-  return result;
+  // 5. Downsample if needed
+  if (brightnessProfile.length > maxSamples) {
+    brightnessProfile = downsampleProfile(brightnessProfile, maxSamples);
+    ridgeStrength = downsampleProfile(ridgeStrength, maxSamples);
+  }
+
+  // 6. Compute depth profile from local contrast
+  const depthProfile = computeSimpleDepthProfile(brightnessProfile);
+
+  return {
+    width,
+    height,
+    brightnessProfile,
+    ridgeStrength,
+    depthProfile,
+    metadata: {
+      samplingMethod: 'sobel-depth-ridge',
+      rowIndex: centerRow,
+      timestamp: Date.now(),
+      edgeDetectionMethod: 'sobel',
+    },
+  };
 }
 
 /**

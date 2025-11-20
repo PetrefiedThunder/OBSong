@@ -23,6 +23,8 @@ export {
   computeSimpleDepthProfile,
   detectRidges,
   smoothProfile,
+  applySobelEdgeDetection,
+  extractEdgeProfile,
 } from './depth';
 
 // Export main analyzers

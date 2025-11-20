@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
 import { API_URL } from '../config';
 import { useAuth } from '../auth/AuthProvider';
+
+const COMPOSITIONS_CACHE_KEY = '@toposonics:compositions_cache';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
@@ -21,6 +24,7 @@ export default function CompositionsScreen({ navigation }: Props) {
   const [compositions, setCompositions] = useState<Composition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUsingCache, setIsUsingCache] = useState(false);
   const { token, loading: authLoading, signInWithApple } = useAuth();
 
   useEffect(() => {
@@ -34,19 +38,55 @@ export default function CompositionsScreen({ navigation }: Props) {
     }
 
     setLoading(true);
+    setError(null);
+    setIsUsingCache(false);
+
     try {
+      // Try to fetch from API
       const response = await fetch(`${API_URL}/compositions`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();
-      setCompositions(data.data || []);
+      const fetchedCompositions = data.data || [];
+
+      setCompositions(fetchedCompositions);
+      setIsUsingCache(false);
+
+      // Cache the successfully fetched data
+      try {
+        await AsyncStorage.setItem(
+          COMPOSITIONS_CACHE_KEY,
+          JSON.stringify({
+            compositions: fetchedCompositions,
+            cachedAt: new Date().toISOString(),
+          })
+        );
+      } catch (cacheErr) {
+        console.warn('Failed to cache compositions:', cacheErr);
+      }
     } catch (err) {
-      setError('Failed to load compositions. Is the API running?');
-      console.error(err);
+      console.error('API fetch failed:', err);
+
+      // Try to load from cache as fallback
+      try {
+        const cachedData = await AsyncStorage.getItem(COMPOSITIONS_CACHE_KEY);
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          setCompositions(parsed.compositions || []);
+          setIsUsingCache(true);
+          setError(null); // Clear error since we have cached data
+        } else {
+          setError('Failed to load compositions. No cached data available.');
+        }
+      } catch (cacheErr) {
+        console.error('Cache load failed:', cacheErr);
+        setError('Failed to load compositions. Is the API running?');
+      }
     } finally {
       setLoading(false);
     }
@@ -103,6 +143,17 @@ export default function CompositionsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      {isUsingCache && (
+        <View style={styles.cacheBanner}>
+          <Text style={styles.cacheBannerIcon}>📡</Text>
+          <View style={styles.cacheBannerContent}>
+            <Text style={styles.cacheBannerTitle}>Offline Mode</Text>
+            <Text style={styles.cacheBannerText}>
+              Showing cached compositions. Pull to refresh when online.
+            </Text>
+          </View>
+        </View>
+      )}
       <FlatList
         data={compositions}
         keyExtractor={(item) => item.id}
@@ -126,6 +177,8 @@ export default function CompositionsScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
         contentContainerStyle={styles.listContent}
+        onRefresh={loadCompositions}
+        refreshing={loading}
       />
     </View>
   );
@@ -134,6 +187,32 @@ export default function CompositionsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  cacheBanner: {
+    backgroundColor: '#fbbf24',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f59e0b',
+  },
+  cacheBannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  cacheBannerContent: {
+    flex: 1,
+  },
+  cacheBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#78350f',
+    marginBottom: 2,
+  },
+  cacheBannerText: {
+    fontSize: 12,
+    color: '#92400e',
   },
   centerContainer: {
     flex: 1,
