@@ -2,14 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * TopoSonics Global Styles
+ * Dieter Rams-inspired: Minimal, functional, precise
+ */
+
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border-primary;
+  }
+
+  html {
+    @apply antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1, "kern" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     @apply bg-background-primary text-text-primary;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Typography scale - Rams precision */
+  h1 {
+    @apply text-4xl font-bold tracking-tight text-text-primary;
+  }
+
+  h2 {
+    @apply text-3xl font-semibold tracking-tight text-text-primary;
+  }
+
+  h3 {
+    @apply text-2xl font-semibold tracking-tight text-text-primary;
+  }
+
+  h4 {
+    @apply text-xl font-medium tracking-tight text-text-primary;
+  }
+
+  h5 {
+    @apply text-lg font-medium text-text-primary;
+  }
+
+  h6 {
+    @apply text-base font-medium text-text-primary;
+  }
+
+  p {
+    @apply text-base text-text-secondary leading-relaxed;
+  }
+
+  /* Focus states - consistent, functional */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-background-primary;
+  }
+
+  /* Selection - musical notation cream */
+  ::selection {
+    @apply bg-notation-400 text-graphite-950;
+  }
+
+  ::-moz-selection {
+    @apply bg-notation-400 text-graphite-950;
   }
 }
 
@@ -17,27 +73,56 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Rams-inspired utility: precise spacing */
+  .rams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  /* Functional gradient overlays */
+  .gradient-sonic {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%);
+  }
+
+  .gradient-amber {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, transparent 100%);
+  }
+
+  .gradient-spectrum {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
+  }
 }
 
-/* Custom scrollbar */
+/**
+ * Custom Scrollbar - Minimal, functional
+ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-surface-primary;
+  @apply bg-surface-subtle;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
+  @apply bg-graphite-600 rounded-full;
+  transition: background-color 200ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply bg-graphite-500;
 }
 
-/* Loading spinner animation */
+::-webkit-scrollbar-thumb:active {
+  @apply bg-graphite-400;
+}
+
+/**
+ * Loading Spinner - Functional animation
+ */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -48,16 +133,255 @@
   animation: spin 1s linear infinite;
 }
 
-/* Pulse animation */
+/**
+ * Pulse - Subtle attention
+ */
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.6;
   }
 }
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/**
+ * Fade In - Gentle entrance
+ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 300ms ease-out;
+}
+
+/**
+ * Slide In - Directional entrance
+ */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 300ms ease-out;
+}
+
+/**
+ * Glow - Active state emphasis
+ */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.4);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/**
+ * Form Elements - Rams precision
+ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+textarea,
+select {
+  @apply
+    w-full
+    px-4 py-2
+    bg-surface-primary
+    border border-border-primary
+    rounded-lg
+    text-text-primary
+    placeholder:text-text-disabled
+    transition-all duration-200
+    focus:outline-none
+    focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary
+    focus:border-primary-500
+    disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+input[type="range"] {
+  @apply
+    w-full h-2
+    bg-graphite-700
+    rounded-full
+    appearance-none
+    cursor-pointer
+    transition-all duration-200;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  @apply
+    appearance-none
+    w-4 h-4
+    bg-sonic-500
+    rounded-full
+    cursor-pointer
+    transition-all duration-200
+    hover:bg-sonic-400
+    hover:scale-110
+    active:scale-95;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb {
+  @apply
+    w-4 h-4
+    bg-sonic-500
+    rounded-full
+    border-0
+    cursor-pointer
+    transition-all duration-200;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  @apply bg-sonic-400 scale-110;
+}
+
+input[type="range"]::-moz-range-thumb:active {
+  @apply scale-95;
+}
+
+/**
+ * Checkbox & Radio - Functional indicators
+ */
+input[type="checkbox"],
+input[type="radio"] {
+  @apply
+    w-4 h-4
+    border border-border-primary
+    bg-surface-primary
+    transition-all duration-200
+    cursor-pointer
+    focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  @apply
+    bg-sonic-500
+    border-sonic-500;
+}
+
+input[type="checkbox"] {
+  @apply rounded-sm;
+}
+
+input[type="radio"] {
+  @apply rounded-full;
+}
+
+/**
+ * Code Blocks - Monospace precision
+ */
+code,
+pre {
+  font-family: "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+}
+
+code {
+  @apply
+    px-1.5 py-0.5
+    bg-surface-secondary
+    text-notation-400
+    rounded
+    text-sm;
+}
+
+pre {
+  @apply
+    p-4
+    bg-surface-secondary
+    border border-border-subtle
+    rounded-lg
+    overflow-x-auto
+    text-sm;
+}
+
+pre code {
+  @apply p-0 bg-transparent;
+}
+
+/**
+ * Links - Subtle, functional
+ */
+a {
+  @apply
+    text-primary-400
+    transition-colors duration-200
+    hover:text-primary-300
+    focus:outline-none
+    focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary
+    active:text-primary-500;
+}
+
+/**
+ * Tables - Structured data
+ */
+table {
+  @apply w-full border-collapse;
+}
+
+th {
+  @apply
+    px-4 py-3
+    bg-surface-secondary
+    text-left text-sm font-semibold text-text-primary
+    border-b border-border-primary;
+}
+
+td {
+  @apply
+    px-4 py-3
+    text-sm text-text-secondary
+    border-b border-border-subtle;
+}
+
+tr:hover {
+  @apply bg-surface-subtle;
+}
+
+/**
+ * Disabled State - Universal
+ */
+[disabled] {
+  @apply opacity-40 cursor-not-allowed pointer-events-none;
+}
+
+/**
+ * Reduced Motion - Accessibility
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
