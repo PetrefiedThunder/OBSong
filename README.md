@@ -172,11 +172,21 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
+**apps/mobile/.env** (used by Expo for builds and local development):
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:3001
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
+
 **apps/mobile/src/config.ts:**
 ```typescript
-export const API_URL = 'http://localhost:3001';
-export const SUPABASE_URL = 'your_supabase_url';
-export const SUPABASE_ANON_KEY = 'your_anon_key';
+const env =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+
+export const API_URL = env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
+export const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+export const SUPABASE_ANON_KEY = env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 ```
 
 ### Installation
