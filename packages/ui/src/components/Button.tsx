@@ -1,6 +1,7 @@
 /**
- * Button component
- * Basic button implementation for web (can be adapted for React Native)
+ * Button Component
+ * Dieter Rams-inspired: Minimal, functional, precise
+ * "Less but better" - only essential visual elements
  */
 
 import React from 'react';
@@ -32,10 +33,16 @@ export interface ButtonProps {
 
   /** Loading state */
   loading?: boolean;
+
+  /** Icon before text */
+  iconBefore?: React.ReactNode;
+
+  /** Icon after text */
+  iconAfter?: React.ReactNode;
 }
 
 /**
- * Button component with multiple variants and sizes
+ * Button component following Dieter Rams design principles
  */
 export const Button: React.FC<ButtonProps> = ({
   children,
@@ -47,47 +54,66 @@ export const Button: React.FC<ButtonProps> = ({
   type = 'button',
   className = '',
   loading = false,
+  iconBefore,
+  iconAfter,
 }) => {
+  // Base styles: minimal, functional, precise
   const baseStyles = `
-    inline-flex items-center justify-center
-    font-medium rounded-lg
+    inline-flex items-center justify-center gap-2
+    font-medium tracking-wide
     transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-offset-2
-    disabled:opacity-50 disabled:cursor-not-allowed
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background-primary
+    disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
+    select-none
   `.trim();
 
+  // Variant styles: functional color coding
   const variantStyles = {
+    // Primary: Sonic green (active/play state)
     primary: `
-      bg-blue-600 text-white
-      hover:bg-blue-700 active:bg-blue-800
-      focus:ring-blue-500
+      bg-sonic-500 text-graphite-950
+      hover:bg-sonic-400 hover:shadow-glow-sonic
+      active:bg-sonic-600 active:scale-[0.98]
+      focus:ring-sonic-400
+      font-semibold
     `,
+    // Secondary: Amber accent (creative actions)
     secondary: `
-      bg-purple-600 text-white
-      hover:bg-purple-700 active:bg-purple-800
-      focus:ring-purple-500
+      bg-accent-500 text-graphite-950
+      hover:bg-accent-400 hover:shadow-glow-amber
+      active:bg-accent-600 active:scale-[0.98]
+      focus:ring-accent-400
+      font-semibold
     `,
+    // Outline: Subtle, functional (secondary actions)
     outline: `
-      bg-transparent border-2 border-gray-600 text-gray-100
-      hover:bg-gray-800 active:bg-gray-700
-      focus:ring-gray-500
+      bg-transparent border border-border-primary text-text-primary
+      hover:bg-surface-primary hover:border-border-secondary
+      active:bg-surface-secondary active:scale-[0.98]
+      focus:ring-primary-500
     `,
+    // Ghost: Minimal (tertiary actions)
     ghost: `
-      bg-transparent text-gray-300
-      hover:bg-gray-800 active:bg-gray-700
-      focus:ring-gray-500
+      bg-transparent text-text-secondary
+      hover:bg-surface-subtle hover:text-text-primary
+      active:bg-surface-primary active:scale-[0.98]
+      focus:ring-graphite-600
     `,
+    // Danger: Error state (destructive actions)
     danger: `
-      bg-red-600 text-white
-      hover:bg-red-700 active:bg-red-800
-      focus:ring-red-500
+      bg-error-DEFAULT text-white
+      hover:bg-error-light hover:shadow-md
+      active:bg-error-dark active:scale-[0.98]
+      focus:ring-error-light
+      font-semibold
     `,
   };
 
+  // Size styles: precise, systematic
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'h-8 px-3 text-sm rounded-md min-w-16',
+    md: 'h-10 px-4 text-base rounded-lg min-w-20',
+    lg: 'h-12 px-6 text-lg rounded-lg min-w-24',
   };
 
   const widthStyle = fullWidth ? 'w-full' : '';
@@ -110,13 +136,15 @@ export const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled || loading}
       className={allStyles}
+      aria-busy={loading}
     >
       {loading && (
         <svg
-          className="animate-spin -ml-1 mr-2 h-4 w-4"
+          className="animate-spin h-4 w-4"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <circle
             className="opacity-25"
@@ -124,7 +152,7 @@ export const Button: React.FC<ButtonProps> = ({
             cy="12"
             r="10"
             stroke="currentColor"
-            strokeWidth="4"
+            strokeWidth="3"
           />
           <path
             className="opacity-75"
@@ -133,7 +161,9 @@ export const Button: React.FC<ButtonProps> = ({
           />
         </svg>
       )}
-      {children}
+      {!loading && iconBefore && <span className="inline-flex">{iconBefore}</span>}
+      <span className="inline-flex items-center">{children}</span>
+      {!loading && iconAfter && <span className="inline-flex">{iconAfter}</span>}
     </button>
   );
 };

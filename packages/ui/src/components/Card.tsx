@@ -1,6 +1,7 @@
 /**
- * Card component
- * Container component for grouping related content
+ * Card Component
+ * Dieter Rams-inspired: Clean containers with functional hierarchy
+ * "Good design is unobtrusive" - cards organize without dominating
  */
 
 import React from 'react';
@@ -32,7 +33,7 @@ export interface CardProps {
 }
 
 /**
- * Card component for grouping and organizing content
+ * Card component following Rams principles: functional, unobtrusive, precise
  */
 export const Card: React.FC<CardProps> = ({
   children,
@@ -44,26 +45,34 @@ export const Card: React.FC<CardProps> = ({
   className = '',
   headerActions,
 }) => {
+  // Base styles: minimal, functional
   const baseStyles = `
-    rounded-xl
+    rounded-lg
     transition-all duration-200
   `.trim();
 
+  // Variant styles: functional depth hierarchy
   const variantStyles = {
+    // Default: standard card surface
     default: `
-      bg-gray-800 border border-gray-700
+      bg-surface-primary border border-border-subtle
     `,
+    // Elevated: prominent cards (active/focused)
     elevated: `
-      bg-gray-800 shadow-lg
+      bg-surface-primary border border-border-primary shadow-lg
+      hover:shadow-xl
     `,
+    // Bordered: emphasized boundary
     bordered: `
-      bg-transparent border-2 border-gray-700
+      bg-surface-subtle border border-border-primary
     `,
+    // Ghost: minimal, content-first
     ghost: `
       bg-transparent
     `,
   };
 
+  // Padding styles: systematic spacing
   const paddingStyles = {
     none: '',
     sm: 'p-3',
@@ -71,8 +80,9 @@ export const Card: React.FC<CardProps> = ({
     lg: 'p-6',
   };
 
+  // Interactive styles: subtle, functional feedback
   const interactiveStyles = onClick
-    ? 'cursor-pointer hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+    ? 'cursor-pointer hover:border-border-secondary hover:bg-surface-secondary active:scale-[0.99]'
     : '';
 
   const allStyles = `
@@ -88,14 +98,29 @@ export const Card: React.FC<CardProps> = ({
     .join(' ');
 
   return (
-    <div className={allStyles} onClick={onClick} role={onClick ? 'button' : undefined}>
+    <div
+      className={allStyles}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       {(title || subtitle || headerActions) && (
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            {title && <h3 className="text-lg font-semibold text-gray-100">{title}</h3>}
-            {subtitle && <p className="mt-1 text-sm text-gray-400">{subtitle}</p>}
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            {title && (
+              <h3 className="text-lg font-semibold text-text-primary tracking-tight">
+                {title}
+              </h3>
+            )}
+            {subtitle && (
+              <p className="mt-1 text-sm text-text-tertiary leading-relaxed">
+                {subtitle}
+              </p>
+            )}
           </div>
-          {headerActions && <div className="ml-4">{headerActions}</div>}
+          {headerActions && (
+            <div className="flex-shrink-0">{headerActions}</div>
+          )}
         </div>
       )}
       {children}
