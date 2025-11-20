@@ -8,6 +8,7 @@ Next.js 14 web application for TopoSonics - turn images into musical soundscapes
 - **Real-time Analysis**: Extracts brightness and depth profiles from images
 - **Musical Mapping**: Convert visual features to notes, scales, and effects
 - **Tone.js Playback**: Browser-based synthesis with reverb, panning, and filters
+- **MIDI Export**: Download compositions as `.mid` files for use in any DAW
 - **Timeline Visualization**: See your composition as pitch vs. time
 - **Composition Library**: Save and replay your creations
 - **Responsive Design**: Works on desktop and mobile browsers
@@ -107,13 +108,24 @@ Initializes Tone.js, creates synth and effects, handles playback.
 
 ## Future Enhancements
 
-- Camera capture for live input
-- Real-time mode with streaming audio
-- Multiple track/layer support
-- MIDI export
-- Social sharing
-- Collaborative sessions
-- 3D visualization
+### Planned Features
+
+- [ ] Advanced mapping modes (depth-based, ridge detection)
+- [ ] Real-time camera input with live synthesis
+- [ ] Multiple instrument layers and track mixing
+- [ ] User accounts and cloud storage
+- [ ] Social sharing and composition discovery
+- [x] MIDI export functionality
+- [ ] Advanced synthesis engines (granular, FM, additive)
+- [ ] Machine learning for intelligent mapping
+- [ ] Collaborative composition sessions
+
+### Known Limitations
+
+- Mobile audio uses simplified playback (full synthesis planned)
+- No user authentication (stub implementation only)
+- In-memory persistence (database integration planned)
+- Basic visualization (advanced 3D rendering planned)
 
 ## Troubleshooting
 

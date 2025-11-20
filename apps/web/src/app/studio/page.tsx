@@ -16,7 +16,6 @@ import {
   getPresetById,
   getDefaultPreset,
   getAllTopoPresets,
-  getDefaultTopoPreset,
   getScenePreset,
   getAllScenePacks,
   type TopoPreset,
@@ -31,13 +30,13 @@ import { MappingControls } from '@/components/MappingControls';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { TimelineVisualizer } from '@/components/TimelineVisualizer';
 import { ScenePackSelector } from '@/components/ScenePackSelector';
+import { exportNoteEventsToMidi } from '@/lib/midiExport';
 
 export default function StudioPage() {
   const { user, token, login } = useAuth();
   const searchParams = useSearchParams();
 
   // State
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -81,13 +80,10 @@ export default function StudioPage() {
         handleScenePackSelect(targetScenePack);
       }
     }
-    // Only run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle image selection
   const handleImageSelected = async (file: File) => {
-    setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
 
     // Auto-analyze using the appropriate analyzer based on mode
@@ -246,6 +242,21 @@ export default function StudioPage() {
     }
   };
 
+  // Export composition as MIDI
+  const handleExportMidi = () => {
+    if (!noteEvents.length) {
+      alert('Generate a composition first');
+      return;
+    }
+
+    try {
+      exportNoteEventsToMidi(noteEvents, tempo, title || 'TopoSonics Composition');
+    } catch (error) {
+      console.error('Failed to export MIDI', error);
+      alert('Unable to export MIDI');
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -349,6 +360,9 @@ export default function StudioPage() {
                   loading={isSaving}
                 >
                   Save to Library
+                </Button>
+                <Button variant="outline" size="lg" fullWidth onClick={handleExportMidi}>
+                  Export as MIDI
                 </Button>
               </div>
             </Card>
