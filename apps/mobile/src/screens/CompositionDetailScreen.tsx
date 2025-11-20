@@ -11,8 +11,9 @@ import {
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
-import { API_URL } from '../config';
 import { useAuth } from '../auth/AuthProvider';
+import { useCompositions } from '../state/CompositionsProvider';
+import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CompositionDetail'>;
@@ -22,28 +23,23 @@ export default function CompositionDetailScreen({ route }: Props) {
   const { id } = route.params;
   const [composition, setComposition] = useState<Composition | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const { token, signInWithApple, loading: authLoading } = useAuth();
+  const { loadComposition: loadCompositionRecord } = useCompositions();
 
   useEffect(() => {
-    loadComposition();
+    loadCompositionData();
   }, [id, token]);
 
-  const loadComposition = async () => {
+  const loadCompositionData = async () => {
     if (!token) {
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/compositions/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch');
-
-      const data = await response.json();
-      setComposition(data.data);
+      const data = await loadCompositionFromStore();
+      setComposition(data);
     } catch (err) {
       Alert.alert('Error', 'Failed to load composition');
       console.error(err);
@@ -52,12 +48,25 @@ export default function CompositionDetailScreen({ route }: Props) {
     }
   };
 
-  const playComposition = () => {
-    Alert.alert(
-      'Playback',
-      'Audio playback would use expo-av to play simplified tones for each note event.\n\n' +
-        'Full synthesis engine integration is planned for future releases.'
-    );
+  const loadCompositionFromStore = async () => {
+    const data = await loadCompositionRecord(id);
+    if (!data) {
+      throw new Error('Composition not found');
+    }
+    return data;
+  };
+
+  const playComposition = async () => {
+    if (!composition) return;
+
+    try {
+      setIsPlaying(true);
+      await playNoteEvents(composition.noteEvents, { tempo: composition.tempo ?? 90 });
+    } catch (error) {
+      Alert.alert('Playback failed', (error as Error).message);
+    } finally {
+      setIsPlaying(false);
+    }
   };
 
   if (authLoading || loading) {
@@ -120,6 +129,12 @@ export default function CompositionDetailScreen({ route }: Props) {
             <Text style={styles.detailValue}>{composition.tempo || 90} BPM</Text>
           </View>
           <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Length</Text>
+            <Text style={styles.detailValue}>
+              {formatNoteEventsDuration(composition.noteEvents, composition.tempo || 90).toFixed(1)}s
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Created</Text>
             <Text style={styles.detailValue}>
               {new Date(composition.createdAt).toLocaleDateString()}
@@ -129,8 +144,14 @@ export default function CompositionDetailScreen({ route }: Props) {
       </View>
 
       <View style={styles.section}>
-        <TouchableOpacity style={styles.playButton} onPress={playComposition}>
-          <Text style={styles.playButtonText}>▶ Play Composition</Text>
+        <TouchableOpacity
+          style={[styles.playButton, isPlaying && styles.playButtonDisabled]}
+          onPress={playComposition}
+          disabled={isPlaying}
+        >
+          <Text style={styles.playButtonText}>
+            {isPlaying ? 'Playing…' : '▶ Play Composition'}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -150,6 +171,17 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ef4444',
     fontSize: 16,
+  },
+  retryButton: {
+    backgroundColor: '#4b5563',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
   },
   header: {
     marginBottom: 24,
@@ -199,6 +231,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  playButtonDisabled: {
+    opacity: 0.7,
   },
   playButtonText: {
     color: '#ffffff',

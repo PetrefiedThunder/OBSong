@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,90 +7,22 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
-import type { Composition } from '@toposonics/types';
-import { API_URL } from '../config';
 import { useAuth } from '../auth/AuthProvider';
-
-const COMPOSITIONS_CACHE_KEY = '@toposonics:compositions_cache';
+import { useCompositions } from '../state/CompositionsProvider';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
 };
 
 export default function CompositionsScreen({ navigation }: Props) {
-  const [compositions, setCompositions] = useState<Composition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isUsingCache, setIsUsingCache] = useState(false);
-  const { token, loading: authLoading, signInWithApple } = useAuth();
+  const { loading: authLoading, signInWithApple, token } = useAuth();
+  const { compositions, loading, refresh, usingCache } = useCompositions();
 
   useEffect(() => {
-    loadCompositions();
-  }, [token]);
-
-  const loadCompositions = async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setIsUsingCache(false);
-
-    try {
-      // Try to fetch from API
-      const response = await fetch(`${API_URL}/compositions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch');
-
-      const data = await response.json();
-      const fetchedCompositions = data.data || [];
-
-      setCompositions(fetchedCompositions);
-      setIsUsingCache(false);
-
-      // Cache the successfully fetched data
-      try {
-        await AsyncStorage.setItem(
-          COMPOSITIONS_CACHE_KEY,
-          JSON.stringify({
-            compositions: fetchedCompositions,
-            cachedAt: new Date().toISOString(),
-          })
-        );
-      } catch (cacheErr) {
-        console.warn('Failed to cache compositions:', cacheErr);
-      }
-    } catch (err) {
-      console.error('API fetch failed:', err);
-
-      // Try to load from cache as fallback
-      try {
-        const cachedData = await AsyncStorage.getItem(COMPOSITIONS_CACHE_KEY);
-        if (cachedData) {
-          const parsed = JSON.parse(cachedData);
-          setCompositions(parsed.compositions || []);
-          setIsUsingCache(true);
-          setError(null); // Clear error since we have cached data
-        } else {
-          setError('Failed to load compositions. No cached data available.');
-        }
-      } catch (cacheErr) {
-        console.error('Cache load failed:', cacheErr);
-        setError('Failed to load compositions. Is the API running?');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    refresh();
+  }, [refresh, token]);
 
   if (authLoading || loading) {
     return (
@@ -107,17 +39,6 @@ export default function CompositionsScreen({ navigation }: Props) {
         <Text style={styles.errorText}>Sign in to view your compositions</Text>
         <TouchableOpacity style={styles.retryButton} onPress={signInWithApple}>
           <Text style={styles.retryButtonText}>Sign in with Apple</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadCompositions}>
-          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -143,7 +64,7 @@ export default function CompositionsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {isUsingCache && (
+      {usingCache && (
         <View style={styles.cacheBanner}>
           <Text style={styles.cacheBannerIcon}>📡</Text>
           <View style={styles.cacheBannerContent}>
@@ -177,7 +98,7 @@ export default function CompositionsScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
         contentContainerStyle={styles.listContent}
-        onRefresh={loadCompositions}
+        onRefresh={refresh}
         refreshing={loading}
       />
     </View>
