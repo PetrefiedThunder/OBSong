@@ -149,9 +149,21 @@ packages/types      → any runtime logic (types/schemas only)
 
 ### Prerequisites
 
+> **⚠️ IMPORTANT:** This project requires **pnpm** (NOT npm or yarn). Using npm will fail.
+
 ```bash
 node --version   # >= 18.0.0 required
-pnpm --version   # >= 8.0.0 required
+pnpm --version   # >= 8.0.0 required (install if missing: npm install -g pnpm@8.15.0)
+```
+
+**If you don't have pnpm installed:**
+
+```bash
+# Install pnpm globally using npm
+npm install -g pnpm@8.15.0
+
+# Verify installation
+pnpm --version
 ```
 
 ### Environment Configuration
@@ -193,13 +205,61 @@ export const SUPABASE_ANON_KEY = env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 ### Installation
 
 ```bash
-# Install pnpm globally
-npm install -g pnpm@8.15.0
+# ⚠️ DO NOT use npm install - it will fail!
+# This project requires pnpm
 
 # Install all workspace dependencies
 pnpm install
 
 # Build shared packages
+pnpm build
+```
+
+### Troubleshooting Installation Issues
+
+#### "npm install" fails or hangs
+
+**Problem:** You're using npm instead of pnpm.
+
+**Solution:**
+```bash
+# Install pnpm globally
+npm install -g pnpm@8.15.0
+
+# Then use pnpm instead
+pnpm install
+```
+
+#### "command not found: pnpm"
+
+**Problem:** pnpm is not installed on your system.
+
+**Solution:**
+```bash
+# Install pnpm globally
+npm install -g pnpm@8.15.0
+
+# Verify it's installed
+pnpm --version  # Should show 8.15.0 or higher
+```
+
+#### "This project requires pnpm" error when running npm commands
+
+**Problem:** The project has safeguards to prevent using npm.
+
+**Solution:** This is expected behavior. Install and use pnpm as shown above.
+
+#### Workspace dependencies not resolving
+
+**Problem:** pnpm workspace symlinks may not be created.
+
+**Solution:**
+```bash
+# Clean and reinstall
+pnpm clean
+rm -rf node_modules
+rm pnpm-lock.yaml  # Only if you have persistent issues
+pnpm install
 pnpm build
 ```
 

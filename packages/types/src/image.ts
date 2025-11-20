@@ -24,5 +24,7 @@ export interface ImageAnalysisResult {
     rowIndex?: number;
     /** Timestamp when the analysis was generated. */
     timestamp?: number;
+    /** Edge detection method used (if applicable). */
+    edgeDetectionMethod?: string;
   };
 }
