@@ -6,9 +6,13 @@ import { Button } from '@toposonics/ui';
 interface ImageUploaderProps {
   onImageSelected: (file: File) => void;
   preview: string | null;
+  /**
+   * Percentage (0-1) representing the current playback position for the scanline overlay
+   */
+  scanlineProgress?: number;
 }
 
-export function ImageUploader({ onImageSelected, preview }: ImageUploaderProps) {
+export function ImageUploader({ onImageSelected, preview, scanlineProgress = 0 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,12 +45,21 @@ export function ImageUploader({ onImageSelected, preview }: ImageUploaderProps) 
   return (
     <div className="space-y-4">
       {preview ? (
-        <div className="relative">
+        <div className="relative overflow-hidden rounded-xl">
           <img
             src={preview}
             alt="Selected image"
             className="w-full h-64 object-cover rounded-xl"
           />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            aria-hidden
+          >
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-transform duration-75"
+              style={{ transform: `translateX(${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%)` }}
+            />
+          </div>
           <Button
             variant="ghost"
             size="sm"
