@@ -4,7 +4,11 @@
  */
 
 import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
+import underPressure from '@fastify/under-pressure';
 import { config } from './config';
 import { healthRoutes } from './routes/health';
 import { authRoutes } from './routes/auth';
@@ -13,7 +17,7 @@ import { compositionRoutes } from './routes/compositions';
 /**
  * Create and configure the Fastify server
  */
-async function createServer() {
+async function createServer(): Promise<FastifyInstance> {
   const fastify = Fastify({
     logger: {
       level: config.logLevel,
@@ -27,18 +31,95 @@ async function createServer() {
           }
         : undefined,
     },
+    trustProxy: config.trustProxy,
   });
+
+  const allowedOrigins = new Set(config.corsOrigins);
+
+  await fastify.register(helmet, {
+    global: true,
+    contentSecurityPolicy: false,
+    hsts:
+      config.enforceHttps && config.isProduction
+        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+        : false,
+  });
+
+  if (config.enforceHttps && config.isProduction) {
+    fastify.addHook('onRequest', (request, reply, done) => {
+      const forwardedProto = request.headers['x-forwarded-proto'];
+      const protocol = Array.isArray(forwardedProto)
+        ? forwardedProto[0]
+        : forwardedProto || request.protocol;
+
+      if (protocol !== 'https' && request.headers.host) {
+        reply.redirect(301, `https://${request.headers.host}${request.url}`);
+        return;
+      }
+
+      done();
+    });
+  }
 
   // Register CORS
   await fastify.register(cors, {
-    origin: config.corsOrigin,
+    origin: (origin, cb) => {
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+
+      if (allowedOrigins.has(origin)) {
+        cb(null, true);
+        return;
+      }
+
+      try {
+        const requestUrl = new URL(origin);
+        const isAllowed = Array.from(allowedOrigins).some((allowed) => {
+          const allowedUrl = new URL(allowed);
+          return allowedUrl.hostname === requestUrl.hostname;
+        });
+
+        if (isAllowed) {
+          cb(null, true);
+          return;
+        }
+      } catch (error) {
+        fastify.log.warn({ err: error, origin }, 'Invalid origin provided for CORS');
+      }
+
+      cb(new Error('Origin not allowed by CORS policy'), false);
+    },
     credentials: true,
   });
+
+  if (config.rateLimit.enabled) {
+    await fastify.register(rateLimit, {
+      global: true,
+      max: config.rateLimit.max,
+      timeWindow: config.rateLimit.timeWindow,
+      allowList: config.rateLimit.allowList,
+    });
+  }
 
   // Register routes
   await fastify.register(healthRoutes);
   await fastify.register(authRoutes);
   await fastify.register(compositionRoutes);
+
+  await fastify.register(underPressure, {
+    maxEventLoopDelay: config.monitoring.maxEventLoopDelay,
+    maxHeapUsedBytes: config.monitoring.maxHeapUsedBytes,
+    maxRssBytes: config.monitoring.maxRssBytes,
+    exposeStatusRoute: config.monitoring.statusRoute,
+    healthCheck: async () => {
+      const health = await fastify.inject('/health');
+      return health.statusCode === 200;
+    },
+    onExceeding: () => fastify.log.warn('Server nearing resource limits'),
+    onExceeded: () => fastify.log.error('Server resource limits exceeded'),
+  });
 
   // Root route
   fastify.get('/', async (_request, reply) => {

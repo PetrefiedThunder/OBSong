@@ -9,6 +9,8 @@ Fastify-based backend API for TopoSonics with Supabase-backed authentication and
 - **Composition CRUD**: Create, read, update, delete compositions stored in Postgres
 - **Persistent storage**: Supabase Postgres table `compositions` (JSON payload per row)
 - **CORS support**: Configurable cross-origin access
+- **Security hardening**: HTTPS enforcement, rate limiting, and DDoS protections
+- **Operational visibility**: Built-in health and status endpoints for monitoring
 - **Type-safe**: Full TypeScript with shared types
 
 ## Development
@@ -65,9 +67,25 @@ All composition endpoints require `Authorization: Bearer <accessToken>` using a 
 - `PUT /compositions/:id` - Update composition (requires auth + ownership)
 - `DELETE /compositions/:id` - Delete composition (requires auth + ownership)
 
+## Security, Performance, and Monitoring
+
+- **CORS**: Strict origin allow-list derived from `CORS_ORIGINS` (includes localhost + `toposonics.com` by default).
+- **HTTPS enforcement**: Production requests are redirected to HTTPS when `ENFORCE_HTTPS=true`.
+- **Rate limiting**: Global limiter (default 120 req/min per client) with IP allow-list for trusted systems.
+- **Overload protection**: `/status` endpoint (configurable) with `@fastify/under-pressure` thresholds and alerts in logs.
+
 ## Environment Variables
 
-See `.env.example` for configuration options.
+See `.env.example` for configuration options. Key security/operations settings:
+
+- `CORS_ORIGINS` – Comma-separated list of allowed frontend origins (defaults include localhost and toposonics.com).
+- `ENFORCE_HTTPS` – Redirect HTTP traffic to HTTPS in production (default: `true`).
+- `TRUST_PROXY` – Respect `X-Forwarded-*` headers when running behind a proxy (default: `true` when HTTPS enforcement is enabled).
+- `RATE_LIMIT_MAX` – Maximum requests per `RATE_LIMIT_WINDOW` per client (default: `120`).
+- `RATE_LIMIT_WINDOW` – Sliding window for rate limiting, e.g. `1 minute`.
+- `RATE_LIMIT_ALLOW_LIST` – Comma-separated IPs that bypass rate limiting (monitoring probes, internal services).
+- `STATUS_ROUTE` – Path for the operational status endpoint (default: `/status`).
+- `MAX_EVENT_LOOP_DELAY`, `MAX_HEAP_USED_BYTES`, `MAX_RSS_BYTES` – Thresholds for the overload protection monitor.
 
 ## Authentication Flow
 
@@ -87,7 +105,6 @@ Compositions are stored in Supabase Postgres using the `compositions` table. Eac
 - [ ] Optional Auth0/Clerk adapters
 - [ ] File upload for images
 - [ ] Image storage (S3, Cloudinary)
-- [ ] Rate limiting
 - [ ] API documentation (Swagger/OpenAPI)
 - [ ] Composition sharing/public galleries
 - [ ] Analytics and usage tracking
