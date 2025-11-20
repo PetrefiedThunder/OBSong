@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tonejs/midi": "^2.0.30",
+    "@tonejs/midi": "^2.0.28",
     "@toposonics/types": "workspace:*"
   },
   "devDependencies": {

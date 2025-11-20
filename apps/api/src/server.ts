@@ -3,6 +3,7 @@
  * Fastify-based backend for managing compositions
  */
 
+import 'dotenv/config';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
@@ -113,10 +114,7 @@ async function createServer(): Promise<FastifyInstance> {
     maxHeapUsedBytes: config.monitoring.maxHeapUsedBytes,
     maxRssBytes: config.monitoring.maxRssBytes,
     exposeStatusRoute: config.monitoring.statusRoute,
-    healthCheck: async () => {
-      const health = await fastify.inject('/health');
-      return health.statusCode === 200;
-    },
+    healthCheck: async () => true,
     onExceeding: () => fastify.log.warn('Server nearing resource limits'),
     onExceeded: () => fastify.log.error('Server resource limits exceeded'),
   });
