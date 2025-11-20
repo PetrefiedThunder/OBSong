@@ -30,7 +30,7 @@ import { MappingControls } from '@/components/MappingControls';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { TimelineVisualizer } from '@/components/TimelineVisualizer';
 import { ScenePackSelector } from '@/components/ScenePackSelector';
-import { exportNoteEventsToMidi } from '@/lib/midiExport';
+import { exportCompositionToMidi } from '@/lib/midiExport';
 
 export default function StudioPage() {
   const { user, token, login } = useAuth();
@@ -265,7 +265,20 @@ export default function StudioPage() {
     }
 
     try {
-      exportNoteEventsToMidi(noteEvents, tempo, title || 'TopoSonics Composition');
+      exportCompositionToMidi({
+        noteEvents,
+        tempoBpm: tempo,
+        title: title || 'TopoSonics Composition',
+        description,
+        mappingMode,
+        key,
+        scale,
+        presetId,
+        userId: user?.id,
+        metadata: {
+          duration: compositionDurationSeconds,
+        },
+      });
     } catch (error) {
       console.error('Failed to export MIDI', error);
       alert('Unable to export MIDI');

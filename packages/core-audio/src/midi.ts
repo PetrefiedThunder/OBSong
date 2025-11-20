@@ -3,6 +3,12 @@ import { noteNameToMidi } from './scales';
 import type { Composition, NoteEvent } from '@toposonics/types';
 
 const TICKS_PER_BEAT = 480;
+const DEFAULT_TEMPO = 120;
+
+function clampVelocity(velocity?: number) {
+  const normalized = velocity ?? 0.8;
+  return Math.min(127, Math.max(1, Math.round(normalized * 127)));
+}
 
 function encodeVarLength(value: number): number[] {
   const bytes = [value & 0x7f];
@@ -25,21 +31,17 @@ function writeUint32BE(value: number): number[] {
   ];
 }
 
-function tempoChunk(tempoBpm: number): number[] {
-  const microsecondsPerBeat = Math.round(60000000 / Math.max(1, tempoBpm));
-  const tempoBytes = [
+function tempoChunk(tempoBpm: number, title?: string): number[] {
+  const microsecondsPerBeat = Math.round(60000000 / Math.max(1, tempoBpm || DEFAULT_TEMPO));
+  const trackData: number[] = [
+    0x00,
     0xff,
     0x51,
     0x03,
     (microsecondsPerBeat >> 16) & 0xff,
     (microsecondsPerBeat >> 8) & 0xff,
     microsecondsPerBeat & 0xff,
-  ];
-
-  const trackData = [
-    0x00,
-    ...tempoBytes,
-    // Time signature 4/4 for DAWs that expect it
+    // Time signature 4/4 to keep DAWs happy
     0x00,
     0xff,
     0x58,
@@ -48,12 +50,15 @@ function tempoChunk(tempoBpm: number): number[] {
     0x02,
     0x18,
     0x08,
-    // End of track
-    0x00,
-    0xff,
-    0x2f,
-    0x00,
   ];
+
+  if (title) {
+    const nameBytes = Array.from(title).map((char) => char.charCodeAt(0));
+    trackData.push(0x00, 0xff, 0x03, nameBytes.length, ...nameBytes);
+  }
+
+  // End of track
+  trackData.push(0x00, 0xff, 0x2f, 0x00);
 
   return [
     0x4d,
@@ -76,8 +81,8 @@ function noteTrackChunk(noteEvents: NoteEvent[], trackName?: string): number[] {
   const events = noteEvents.flatMap((event) => {
     const startTicks = Math.max(0, Math.round(event.start * TICKS_PER_BEAT));
     const durationTicks = Math.max(1, Math.round(event.duration * TICKS_PER_BEAT));
-    const velocity = Math.min(127, Math.max(1, Math.round((event.velocity || 0.8) * 127)));
     const midi = noteNameToMidi(event.note);
+    const velocity = clampVelocity(event.velocity);
 
     return [
       { tick: startTicks, type: 'on' as const, midi, velocity },
@@ -116,7 +121,7 @@ function noteTrackChunk(noteEvents: NoteEvent[], trackName?: string): number[] {
   ];
 }
 
-function createMidiFile(noteEvents: NoteEvent[], tempoBpm: number): Uint8Array {
+function createMidiFile(noteEvents: NoteEvent[], tempoBpm: number, title?: string): Uint8Array {
   const trackGroups = new Map<string, NoteEvent[]>();
 
   noteEvents.forEach((event) => {
@@ -127,7 +132,7 @@ function createMidiFile(noteEvents: NoteEvent[], tempoBpm: number): Uint8Array {
     trackGroups.get(key)!.push(event);
   });
 
-  const trackChunks = [tempoChunk(tempoBpm)];
+  const trackChunks = [tempoChunk(tempoBpm, title)];
 
   for (const [trackName, events] of trackGroups.entries()) {
     trackChunks.push(noteTrackChunk(events, trackName));
@@ -173,12 +178,13 @@ export function noteEventsToMidiBlob(noteEvents: NoteEvent[], tempoBpm: number, 
     throw new Error('No notes to export');
   }
 
-  const midiData = createMidiFile(noteEvents, tempoBpm);
-  const filename = name?.trim() || 'composition';
-  return new Blob([midiData], { type: 'audio/midi', endings: 'transparent' });
+  const midiData = createMidiFile(noteEvents, tempoBpm || DEFAULT_TEMPO, name?.trim());
+  const midiBuffer = midiData.buffer.slice(midiData.byteOffset, midiData.byteOffset + midiData.byteLength);
+
+  return new Blob([midiBuffer], { type: 'audio/midi', endings: 'transparent' });
 }
 
 export function compositionToMidiBlob(composition: Composition, tempoOverride?: number): Blob {
-  const tempo = tempoOverride ?? composition.tempo ?? 120;
+  const tempo = tempoOverride ?? composition.tempo ?? DEFAULT_TEMPO;
   return noteEventsToMidiBlob(composition.noteEvents, tempo, composition.title);
 }
