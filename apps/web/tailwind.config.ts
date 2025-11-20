@@ -1,6 +1,11 @@
 import type { Config } from 'tailwindcss';
 import { theme as uiTheme } from '@toposonics/ui';
 
+const toPxValues = (values: Record<string, number>) =>
+  Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, `${value}px`])
+  );
+
 const config: Config = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -12,8 +17,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: uiTheme.colors,
-      spacing: uiTheme.spacing,
-      borderRadius: uiTheme.radii,
+      spacing: toPxValues(uiTheme.spacing),
+      borderRadius: toPxValues(uiTheme.radii),
       fontFamily: uiTheme.typography.fontFamily,
       fontSize: Object.entries(uiTheme.typography.fontSize).reduce(
         (acc, [key, value]) => {
@@ -24,7 +29,7 @@ const config: Config = {
       ),
       boxShadow: uiTheme.shadows,
       transitionDuration: uiTheme.transitions,
-      zIndex: uiTheme.zIndex,
+      zIndex: toPxValues(uiTheme.zIndex),
     },
   },
   plugins: [],

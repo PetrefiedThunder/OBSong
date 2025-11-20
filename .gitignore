@@ -44,6 +44,8 @@ lerna-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+# Allow committed Expo production env for mobile (non-secret API URL)
+!apps/mobile/.env
 
 # Turbo
 .turbo

@@ -10,6 +10,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
+import { API_URL } from '../config';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
