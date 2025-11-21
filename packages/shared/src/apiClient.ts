@@ -78,6 +78,7 @@ export function createApiClient(config: ApiClientConfig) {
 
     /**
      * Create a new composition
+     * Note: userId is extracted from the auth token by the API server
      */
     async createComposition(
       token: string | null,

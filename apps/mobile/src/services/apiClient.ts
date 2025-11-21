@@ -18,6 +18,3 @@ export const {
   updateComposition,
   deleteComposition,
 } = apiClient;
-
-// Re-export for convenience
-export { apiClient };
