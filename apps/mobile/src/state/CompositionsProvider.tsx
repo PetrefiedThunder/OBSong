@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Composition, CreateCompositionDTO } from '@toposonics/types';
-import { fetchComposition, fetchCompositions, postComposition } from '../services/apiClient';
+import { fetchComposition, fetchCompositions, createComposition } from '../services/apiClient';
 import { useAuth } from '../auth/AuthProvider';
 
 interface CompositionsContextValue {
@@ -118,7 +118,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
       if (!token) return null;
 
-      const created = await postComposition(token, payload);
+      const created = await createComposition(token, payload);
       setCompositions((prev) => {
         const next = [created, ...prev];
         saveToCache(next);

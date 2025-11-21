@@ -169,7 +169,6 @@ export function analyzeImageForDepthRidge(
       samplingMethod: 'sobel-depth-ridge',
       rowIndex: centerRow,
       timestamp: Date.now(),
-      edgeDetectionMethod: 'sobel',
     },
   };
 }

@@ -57,6 +57,11 @@ lerna-debug.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+# Build artifacts in source directories (packages)
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts.map
 
 # OS
 Thumbs.db
