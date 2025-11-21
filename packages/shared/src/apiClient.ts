@@ -64,6 +64,7 @@ export function createApiClient(config: ApiClientConfig) {
   return {
     /**
      * Fetch all compositions
+     * Token is optional - may return only public compositions if not authenticated
      */
     async fetchCompositions(token: string | null): Promise<Composition[]> {
       return apiRequest<Composition[]>(baseUrl, '/compositions', { token });
@@ -71,6 +72,7 @@ export function createApiClient(config: ApiClientConfig) {
 
     /**
      * Fetch a single composition by ID
+     * Token is optional - may fail for private compositions if not authenticated
      */
     async fetchComposition(id: string, token: string | null): Promise<Composition> {
       return apiRequest<Composition>(baseUrl, `/compositions/${id}`, { token });
@@ -78,11 +80,11 @@ export function createApiClient(config: ApiClientConfig) {
 
     /**
      * Create a new composition
-     * Note: userId is extracted from the auth token by the API server
+     * Requires authentication - userId is extracted from the auth token by the API server
      */
     async createComposition(
       payload: Omit<CreateCompositionDTO, 'userId'>,
-      token: string | null
+      token: string
     ): Promise<Composition> {
       return apiRequest<Composition>(baseUrl, '/compositions', {
         method: 'POST',
@@ -93,6 +95,7 @@ export function createApiClient(config: ApiClientConfig) {
 
     /**
      * Update a composition
+     * Requires authentication - only the owner can update their composition
      */
     async updateComposition(
       id: string,
@@ -108,6 +111,7 @@ export function createApiClient(config: ApiClientConfig) {
 
     /**
      * Delete a composition
+     * Requires authentication - only the owner can delete their composition
      */
     async deleteComposition(id: string, token: string): Promise<void> {
       await apiRequest<void>(baseUrl, `/compositions/${id}`, {
