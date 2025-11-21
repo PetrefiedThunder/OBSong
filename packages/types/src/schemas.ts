@@ -25,7 +25,7 @@ export const imageAnalysisResultSchema = z.object({
 /**
  * Runtime validation schema for {@link NoteEvent}.
  */
-export const noteEventSchema = z
+export const noteEventSchema: z.ZodType<NoteEvent> = z
   .object({
     note: z.string(),
     start: z.number(),
@@ -40,8 +40,7 @@ export const noteEventSchema = z
       })
       .catchall(z.number().optional())
       .optional(),
-  })
-  .satisfies<z.ZodType<NoteEvent>>(true);
+  });
 
 /**
  * Runtime-safe type derived from {@link imageAnalysisResultSchema}.
