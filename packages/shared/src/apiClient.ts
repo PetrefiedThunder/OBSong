@@ -81,8 +81,8 @@ export function createApiClient(config: ApiClientConfig) {
      * Note: userId is extracted from the auth token by the API server
      */
     async createComposition(
-      token: string | null,
-      payload: Omit<CreateCompositionDTO, 'userId'>
+      payload: Omit<CreateCompositionDTO, 'userId'>,
+      token: string | null
     ): Promise<Composition> {
       return apiRequest<Composition>(baseUrl, '/compositions', {
         method: 'POST',
@@ -95,9 +95,9 @@ export function createApiClient(config: ApiClientConfig) {
      * Update a composition
      */
     async updateComposition(
-      token: string,
       id: string,
-      updates: UpdateCompositionDTO
+      updates: UpdateCompositionDTO,
+      token: string
     ): Promise<Composition> {
       return apiRequest<Composition>(baseUrl, `/compositions/${id}`, {
         method: 'PUT',
@@ -109,7 +109,7 @@ export function createApiClient(config: ApiClientConfig) {
     /**
      * Delete a composition
      */
-    async deleteComposition(token: string, id: string): Promise<void> {
+    async deleteComposition(id: string, token: string): Promise<void> {
       await apiRequest<void>(baseUrl, `/compositions/${id}`, {
         method: 'DELETE',
         token,

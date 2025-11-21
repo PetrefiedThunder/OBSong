@@ -121,7 +121,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
       if (!token) return null;
 
-      const created = await createComposition(token, payload);
+      const created = await createComposition(payload, token);
       setCompositions((prev) => {
         const next = [created, ...prev];
         saveToCache(next);
