@@ -3,12 +3,12 @@
  * Provides a unified interface for making API requests
  */
 
-import type { 
+import type {
   ApiResponse,
   ApiErrorResponse,
-  Composition, 
-  CreateCompositionDTO, 
-  UpdateCompositionDTO 
+  Composition,
+  CreateCompositionDTO,
+  UpdateCompositionDTO,
 } from '@toposonics/types';
 
 export interface ApiClientConfig {

@@ -19,4 +19,3 @@ export const {
   updateComposition,
   deleteComposition,
 } = apiClient;
-
