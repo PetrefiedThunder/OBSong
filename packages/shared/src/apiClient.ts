@@ -72,7 +72,7 @@ export function createApiClient(config: ApiClientConfig) {
     /**
      * Fetch a single composition by ID
      */
-    async fetchComposition(token: string | null, id: string): Promise<Composition> {
+    async fetchComposition(id: string, token: string | null): Promise<Composition> {
       return apiRequest<Composition>(baseUrl, `/compositions/${id}`, { token });
     },
 
