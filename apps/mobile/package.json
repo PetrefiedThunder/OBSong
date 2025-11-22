@@ -19,6 +19,7 @@
     "@react-navigation/native-stack": "^6.9.17",
     "@toposonics/core-audio": "workspace:*",
     "@toposonics/core-image": "workspace:*",
+    "@toposonics/shared": "workspace:*",
     "@toposonics/types": "workspace:*",
     "@react-native-async-storage/async-storage": "^1.23.1",
     "@supabase/supabase-js": "^2.45.0",

@@ -93,6 +93,9 @@ importers:
       '@toposonics/core-image':
         specifier: workspace:*
         version: link:../../packages/core-image
+      '@toposonics/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@toposonics/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -157,6 +160,9 @@ importers:
       '@toposonics/core-image':
         specifier: workspace:*
         version: link:../../packages/core-image
+      '@toposonics/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@toposonics/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -221,6 +227,16 @@ importers:
         version: 5.9.3
 
   packages/core-image:
+    dependencies:
+      '@toposonics/types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/shared:
     dependencies:
       '@toposonics/types':
         specifier: workspace:*
