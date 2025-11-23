@@ -1,153 +1,31 @@
 # TopoSonics
 
-> Transform visual landscapes into musical compositions through intelligent image-to-sound mapping
+Transform images into musical soundscapes using a TypeScript monorepo built with Turborepo. The repository contains a Next.js web studio, a Fastify API, shared audio/image processing packages, and an Expo mobile proof of concept.
 
-**TopoSonics** is a production-grade platform that converts photographs and live camera feeds into generative musical soundscapes. By analyzing visual features—brightness, contrast, edges, texture—the system creates expressive compositions that translate spatial information into time-based musical structures.
+## Current State
+- **Web (Next.js 14)**: Landing page, studio workspace, composition browser, Tone.js playback, MIDI export, and demo compositions.
+- **API (Fastify)**: Health endpoints and Supabase-backed composition CRUD routes. Requires environment variables to connect to a live Supabase project.
+- **Shared packages**: `@toposonics/core-image` (brightness/depth/ridge analysis), `@toposonics/core-audio` (linear landscape mapping and partial depth-ridge support), `@toposonics/types`, and `@toposonics/ui`.
+- **Mobile (Expo 50)**: Navigation and API wiring are in place; pixel extraction and audio playback remain TODOs. Serves as a reference for consuming the shared packages.
 
----
-
-## 🎵 For Musicians: The Creative Concept
-
-### What Is This?
-
-TopoSonics is a **graphical score interpreter** for the 21st century. Instead of traditional notation, it reads the contours, textures, and intensity variations of photographs as musical gestures.
-
-Think of it as:
-- **Visual-to-sonic translation:** Mountain ridges become melodic phrases, horizon lines become basslines, textural complexity becomes harmonic density
-- **Parametric composition:** You control the musical language (key, scale, tempo) while the image provides the gestural content
-- **Generative variation:** The same image produces different results depending on your musical choices—like different performers interpreting the same graphic score
-
-### Musical Mapping Framework
-
-The system uses three primary image-to-music mappings:
-
-#### 1. **Spatial Mapping** (Geometry → Musical Space)
-- **Horizontal axis (left → right):** Time progression through the composition
-- **Vertical axis (bottom → top):** Pitch mapping (low notes at the base, high notes at peaks)
-- **Depth/contrast:** Stereo field positioning and spatial effects (reverb, delay)
-
-#### 2. **Intensity Mapping** (Visual Dynamics → Musical Dynamics)
-- **Brightness:** Note velocity and timbral brightness (filter cutoff)
-- **Contrast/edges:** Percussive emphasis and articulation
-- **Texture variance:** Harmonic complexity (from sparse dyads to dense 7th chords)
-
-#### 3. **Feature Detection** (Visual Gestures → Musical Gestures)
-- **Horizon lines:** Sustained bass movement following the contour
-- **Ridge detection (Sobel edges):** Melodic accents on prominent visual features
-- **Textural regions:** Pad/ambient layers reflecting visual complexity
-
-### Musical Control Parameters
-
-You maintain full artistic control through:
-
-- **Scale/Mode selection:** 13+ scales including Major, Minor, Pentatonic, Dorian, Phrygian, Mixolydian, Blues
-- **Key selection:** All 12 chromatic keys
-- **Voice configuration:** Enable/disable bass, melody, pad, and FX layers independently
-- **Tempo:** 40-200 BPM with real-time adjustment
-- **Scene Packs:** Pre-configured aesthetic presets (Mountain Majesty, Urban Pulse, Coastal Drift, etc.)
-- **MIDI export:** Export compositions to your DAW for further arrangement and production
-
-### Musical Output
-
-The system generates multi-voice compositions with:
-- **Bass voice:** Follows horizon/contour lines with sustained notes (typically 2-4 beat durations)
-- **Melody voice:** Triggered by visual ridges/peaks with varying velocities (0.5-1.5 beat durations)
-- **Pad voice:** Harmonic foundation based on textural complexity (4-8 beat chord progressions)
-- **Spatial effects:** Dynamic reverb, filter modulation, and stereo panning reflecting depth and position
-
-**Musical coherence** is guaranteed—all notes conform to your selected scale, ensuring harmonic consistency regardless of image content.
-
----
-
-## 🛠 For Developers: Technical Architecture
-
-### System Overview
-
-TopoSonics is a **TypeScript monorepo** built on **Turborepo**, separating concerns into pure computational logic (packages) and application interfaces (apps).
-
+## Workspace Layout
 ```
-toposonics/
-├── apps/
-│   ├── web/          Next.js 14 + Tone.js (browser-based synthesis)
-│   ├── mobile/       Expo React Native (iOS/Android with offline caching)
-│   └── api/          Fastify + Supabase (REST API with PostgreSQL)
-│
-├── packages/
-│   ├── core-image/   Pure TS image analysis (NO UI dependencies)
-│   ├── core-audio/   Pure TS mapping algorithms (NO audio libraries)
-│   ├── types/        Shared interfaces & Zod schemas
-│   └── ui/           Shared React components (web + mobile)
+apps/
+  web/      Next.js frontend (App Router, Tone.js)
+  api/      Fastify API with Supabase integration
+  mobile/   Expo demo app (foundation for full mobile experience)
+
+packages/
+  core-image/  Image analysis utilities (environment-agnostic)
+  core-audio/  Image-to-music mapping utilities
+  ui/          Shared React component library
+  types/       Shared TypeScript contracts
 ```
 
-### Technology Stack
-
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Monorepo** | pnpm + Turborepo | Workspace management, parallel builds |
-| **Language** | TypeScript 5.3+ (strict) | Type safety across all packages |
-| **Web Frontend** | Next.js 14 App Router | React framework with SSR/SSG |
-| **Web Audio** | Tone.js 14.7 | Web Audio API synthesis & scheduling |
-| **Mobile** | Expo 50 + React Native | Cross-platform iOS/Android |
-| **Mobile Audio** | expo-av | Native audio playback |
-| **Backend API** | Fastify 4.25 | High-performance REST API |
-| **Database** | Supabase (PostgreSQL) | Auth + data persistence |
-| **Authentication** | Supabase Auth | Email/password + Sign in with Apple |
-| **Mobile Cache** | AsyncStorage | Offline composition persistence |
-| **Styling** | Tailwind CSS | Utility-first CSS framework |
-
-### Package Boundary Rules
-
-```typescript
-// ✅ ALLOWED
-apps/web      → packages/* (can import all shared packages)
-apps/mobile   → packages/* (can import all shared packages)
-apps/api      → packages/* (can import all shared packages)
-
-// ❌ FORBIDDEN
-packages/core-image → any UI library (must be environment-agnostic)
-packages/core-audio → Tone.js or any audio library (pure mapping logic only)
-packages/types      → any runtime logic (types/schemas only)
-```
-
----
-
-## 🚀 Feature Status: 100% Roadmap Complete
-
-### ✅ Phase 1: Studio Upgrade (Complete)
-
-- [x] **MIDI Export** - Export compositions as standard MIDI files using `@tonejs/midi`
-- [x] **Scanline Visualization** - Real-time playhead overlay synchronized with `Tone.Transport`
-
-### ✅ Phase 2: Infrastructure & Persistence (Complete)
-
-- [x] **Supabase Integration** - PostgreSQL database with `compositions` table (jsonb storage)
-- [x] **Authentication System** - Supabase Auth with email/password + OAuth
-- [x] **Sign in with Apple** - Mobile App Store compliance via `expo-apple-authentication`
-
-### ✅ Phase 3: Algorithmic Intelligence (Complete)
-
-- [x] **Sobel Edge Detection** - Full 2D Sobel operator (Gx/Gy kernels) for ridge detection
-- [x] **DEPTH_RIDGE Mapping Mode** - Edge-emphasized composition with depth-based reverb
-- [x] **Multi-Voice Composition** - Bass (horizon), Melody (ridges), Pad (texture), FX (depth)
-
-### ✅ Phase 4: Mobile Hardening (Complete)
-
-- [x] **AsyncStorage Caching** - Offline composition persistence with API fallback
-- [x] **Pull-to-Refresh** - Manual sync when returning online
-- [x] **Offline Mode Banner** - Visual indicator when using cached data
-
-### Additional Features
-
-- [x] **Scene Pack System** - Curated presets with recommended subjects and lighting
-- [x] **TopoPreset Architecture** - Voice configuration templates with mapping biases
-- [x] **Real-time Parameter Updates** - Tempo, key, scale changes without regeneration
-- [x] **Composition Library** - User-specific composition management with metadata
-
----
-
-## 📦 Installation & Setup
-
+## Getting Started
 ### Prerequisites
+- Node.js >= 18
+- pnpm >= 8
 
 > **⚠️ IMPORTANT:** This project requires **pnpm** (NOT npm or yarn). Using npm will fail.
 
@@ -549,229 +427,41 @@ export function extractEdgeProfile(
 ): number[]; // 1D edge profile
 ```
 
-### `@toposonics/core-audio`
+### Environment Configuration
+Create environment files based on the provided examples:
+- `apps/web/.env.local` – `NEXT_PUBLIC_API_URL=http://localhost:3001`
+- `apps/api/.env` – Supabase keys and API port (see `apps/api/.env.example`)
+- `apps/mobile/.env` – `EXPO_PUBLIC_API_URL` for mobile clients
 
-**Pure mapping logic (no Tone.js or audio library dependencies)**
-
-```typescript
-// Mapping functions
-export function mapLinearLandscape(
-  analysis: ImageAnalysisResult,
-  options: LinearLandscapeOptions
-): NoteEvent[];
-
-export function mapDepthRidge(
-  analysis: ImageAnalysisResult,
-  options: DepthRidgeOptions
-): NoteEvent[];
-
-export function mapImageToMultiVoiceComposition(
-  analysis: ImageAnalysisResult,
-  options: MultiVoiceOptions,
-  preset?: TopoPreset
-): NoteEvent[];
-
-// MIDI export
-export function compositionToMidiBlob(
-  composition: Composition,
-  tempoOverride?: number
-): Blob;
-
-// Scale utilities
-export function getScaleNotes(
-  key: KeyType,
-  scale: ScaleType,
-  octaves: number,
-  startOctave: number
-): string[];
-
-export function noteNameToMidi(noteName: string): number;
-export function midiToNoteName(midiNumber: number): string;
-```
-
----
-
-## 🧩 Scene Pack System
-
-Scene Packs provide curated aesthetic starting points:
-
-**Mountain Majesty** (Nature)
-- Preset: Deep Valleys (bass-heavy, wide reverb)
-- Recommended: Mountain ranges, dramatic skylines
-- Lighting: Golden hour, high contrast
-
-**Urban Pulse** (Urban)
-- Preset: City Contours (bright, percussive)
-- Recommended: Cityscapes, architecture
-- Lighting: Night lights, neon accents
-
-**Coastal Drift** (Atmospheric)
-- Preset: Horizon Glow (smooth, ambient)
-- Recommended: Seascapes, calm horizons
-- Lighting: Soft, diffused light
-
-Each Scene Pack includes:
-- Default key/scale/tempo
-- Voice configuration presets
-- Demo compositions
-- UI theme hints (gradient colors)
-
----
-
-## 📱 Mobile Offline Architecture
-
-The mobile app implements robust offline functionality:
-
-```typescript
-// Caching strategy
-const loadCompositions = async () => {
-  try {
-    // 1. Try API fetch
-    const response = await fetch(`${API_URL}/compositions`);
-    const compositions = await response.json();
-
-    // 2. Cache successful fetch
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
-      compositions,
-      cachedAt: new Date().toISOString()
-    }));
-
-    return compositions;
-  } catch (error) {
-    // 3. Fallback to cache
-    const cached = await AsyncStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const { compositions } = JSON.parse(cached);
-      showOfflineBanner(); // Visual indicator
-      return compositions;
-    }
-    throw new Error('No offline data available');
-  }
-};
-```
-
-**User Experience:**
-- **Online:** Fresh data from API, silent background caching
-- **Offline:** Automatic cache fallback with yellow "Offline Mode" banner
-- **Recovery:** Pull-to-refresh gesture to sync when back online
-
----
-
-## 🧪 Testing
-
-See [TESTING.md](./TESTING.md) for comprehensive manual test procedures.
-
-**Quick Smoke Test:**
-
+### Run Applications
 ```bash
-# Terminal 1: Start API
-pnpm dev:api
-
-# Terminal 2: Start Web
+# Web studio (http://localhost:3000)
 pnpm dev:web
 
-# Browser: http://localhost:3000
-# 1. Upload test image (e.g., mountain landscape)
-# 2. Generate composition
-# 3. Verify playback with scanline animation
-# 4. Export MIDI and verify file download
+# API server (http://localhost:3001)
+pnpm dev:api
+
+# Mobile (Expo dev server)
+cd apps/mobile && pnpm dev
 ```
 
----
+## Features by Package
+- **core-image**: Brightness profiling, simple depth estimation, ridge detection helpers, Sobel edge utilities, and quick analyzers for previews.
+- **core-audio**: Linear landscape mapping from brightness to pitched note events, scale/key helpers, preset management, and experimental depth-ridge mapping utilities.
+- **web**: Image upload and analysis, mapping controls, timeline visualization, Tone.js playback controls, composition saving/browsing, and MIDI export.
+- **api**: Health routes, Supabase-authenticated composition CRUD, CORS and HTTPS enforcement, and rate limiting.
+- **mobile**: Demonstrates navigation and shared package imports; audio synthesis and pixel extraction are stubbed for future work.
 
-## 🧯 Troubleshooting & Known Fragile Areas
+## Testing
+Manual end-to-end scenarios are documented in [TESTING.md](./TESTING.md), covering API health checks, web studio flows (upload, generate, playback, save), and mobile navigation.
 
-These are the most common issues that break during local development and how to fix them quickly:
+## Roadmap Snapshot
+- [x] Monorepo structure with shared packages
+- [x] Web studio with Tone.js playback and MIDI export
+- [x] Fastify API routes for compositions (Supabase-backed)
+- [ ] Mobile audio pipeline and pixel extraction
+- [ ] Advanced depth/ridge mapping and additional synthesis engines
+- [ ] Collaborative features and richer visualization
 
-1. **Mobile API Connectivity (Network Errors):** Android emulators and physical devices cannot reach `localhost` on your computer. Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your machine's LAN IP (e.g., `http://192.168.x.x:3001`) and ensure the device is on the same Wi‑Fi network.
-2. **Web Audio Playback (Autoplay Policy):** Browsers keep the Tone.js `AudioContext` suspended until a user gesture. Click the page or a Play button to resume audio; `LandingDemoPlayer.tsx` and `useToneEngine.ts` attempt this automatically but manual interaction is often still required.
-3. **Mobile Audio Playback (Missing Asset):** The mobile `playNoteEvents` service depends on `apps/mobile/assets/audio/beep.wav`. If the file is missing, playback fails silently—restore the asset to fix.
-4. **Image Analysis Limitations:** The "Depth Ridge" mapping mode still falls back to a simplified linear landscape algorithm (`mapDepthRidge` TODO). Avoid relying on it for accurate depth perception until the full implementation lands.
-5. **API Server Overload:** `@fastify/under-pressure` triggers 503s when event loop delay exceeds 1000ms or heap usage exceeds 200MB. Raise limits in `apps/api/.env` if processing large images or heavy concurrency.
-6. **Image Upload Failures:** Extremely large or unsupported images can crash the browser or time out mobile extraction. Prefer JPG/PNG under ~5MB; the web analyzer resizes images >1200px but very large files can still fail.
-
----
-
-## 🚢 Deployment Checklist
-
-### Production Requirements
-
-- [ ] Configure production Supabase project with Row Level Security (RLS)
-- [ ] Set up environment variables in hosting platform
-- [ ] Configure CORS for API endpoints
-- [ ] Enable Supabase Auth email templates
-- [ ] Set up Apple Developer account for "Sign in with Apple"
-- [ ] Configure mobile app signing certificates (EAS Build)
-- [ ] Implement error tracking (Sentry recommended)
-- [ ] Set up analytics (PostHog, Mixpanel, etc.)
-- [ ] Configure CDN for static assets
-- [ ] Add rate limiting to API endpoints
-
-### Environment Variables (Production)
-
-```bash
-# Web (Vercel/Netlify)
-NEXT_PUBLIC_API_URL=https://api.toposonics.com
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
-
-# API (Railway/Render/Fly.io)
-NODE_ENV=production
-PORT=3001
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
-CORS_ORIGIN=https://toposonics.com
-```
-
----
-
-## 🤝 Contributing
-
-This project demonstrates a complete production architecture. For contributions:
-
-1. **Code Style:** Follow existing patterns (Prettier config provided)
-2. **Type Safety:** All functions must have explicit return types
-3. **Package Boundaries:** Respect the architectural constraints (no UI in core packages)
-4. **Documentation:** Update README for new features
-5. **Testing:** Include manual test scenarios in TESTING.md
-
----
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
----
-
-## 🙏 Credits & Acknowledgments
-
-### Technology Stack
-
-- **[Tone.js](https://tonejs.github.io/)** - Web Audio framework for synthesis and scheduling
-- **[Next.js](https://nextjs.org/)** - React framework with App Router
-- **[Expo](https://expo.dev/)** - React Native development platform
-- **[Fastify](https://www.fastify.io/)** - High-performance Node.js web framework
-- **[Supabase](https://supabase.com/)** - Open-source Firebase alternative (PostgreSQL + Auth)
-- **[Turborepo](https://turbo.build/)** - High-performance monorepo build system
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-
-### Inspiration
-
-TopoSonics draws inspiration from:
-- **Graphic notation** traditions (Feldman, Cardew, Oliveros)
-- **Algorithmic composition** (Xenakis, Hiller, Roads)
-- **Data sonification** research (Hermann, Hunt, Neuhoff)
-- **Visual music** pioneers (Fischinger, Whitney, Ruttmann)
-
----
-
-## 📞 Support & Documentation
-
-- **Technical Docs:** [TESTING.md](./TESTING.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
-- **API Reference:** See "Package API Reference" section above
-- **Issues:** Report bugs via GitHub Issues
-- **Discussions:** Join GitHub Discussions for feature requests
-
----
-
-**Built with ❤️ for musicians and developers**
+## Contributing
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines and workspace conventions.
