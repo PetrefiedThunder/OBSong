@@ -3,6 +3,10 @@ node_modules
 .pnp
 .pnp.js
 
+# Lock files from other package managers (use pnpm-lock.yaml only)
+package-lock.json
+yarn.lock
+
 # Testing
 coverage
 *.lcov
@@ -62,6 +66,16 @@ packages/*/src/**/*.js
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.js.map
 packages/*/src/**/*.d.ts.map
+
+# Prevent accidentally committing compiled TS files in src directories
+packages/*/src/*.js
+packages/*/src/*.js.map
+packages/*/src/*.d.ts
+packages/*/src/*.d.ts.map
+apps/*/src/*.js
+apps/*/src/*.js.map
+apps/*/src/*.d.ts
+apps/*/src/*.d.ts.map
 
 # OS
 Thumbs.db
