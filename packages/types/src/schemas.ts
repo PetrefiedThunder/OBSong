@@ -25,21 +25,22 @@ export const imageAnalysisResultSchema = z.object({
 /**
  * Runtime validation schema for {@link NoteEvent}.
  */
-export const noteEventSchema = z.object({
-  note: z.string(),
-  start: z.number(),
-  duration: z.number(),
-  velocity: z.number(),
-  pan: z.number().min(-1).max(1).optional(),
-  trackId: z.string().optional(),
-  effects: z
-    .object({
-      reverbSend: z.number().optional(),
-      filterCutoff: z.number().optional(),
-    })
-    .catchall(z.number().optional())
-    .optional(),
-}) satisfies z.ZodType<NoteEvent>;
+export const noteEventSchema: z.ZodType<NoteEvent> = z
+  .object({
+    note: z.string(),
+    start: z.number(),
+    duration: z.number(),
+    velocity: z.number(),
+    pan: z.number().min(-1).max(1).optional(),
+    trackId: z.string().optional(),
+    effects: z
+      .object({
+        reverbSend: z.number().optional(),
+        filterCutoff: z.number().optional(),
+      })
+      .catchall(z.number().optional())
+      .optional(),
+  });
 
 /**
  * Runtime-safe type derived from {@link imageAnalysisResultSchema}.

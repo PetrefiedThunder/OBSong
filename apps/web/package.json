@@ -15,6 +15,7 @@
   "dependencies": {
     "@toposonics/core-audio": "workspace:*",
     "@toposonics/core-image": "workspace:*",
+    "@toposonics/shared": "workspace:*",
     "@toposonics/types": "workspace:*",
     "@toposonics/ui": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
