@@ -393,7 +393,7 @@ function StudioPageContent() {
                   />
                 </div>
                 <Button
-                                variant="secondary"
+                  variant="secondary"
                   size="lg"
                   fullWidth
                   onClick={handleSave}
