@@ -7,6 +7,22 @@ export const metadata: Metadata = {
   description:
     'Transform static photos or live camera input into rich musical landscapes. Map visual features to pitch, time, and effects.',
   keywords: ['generative music', 'image to audio', 'sonification', 'creative tools'],
+  manifest: '/manifest.json',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
+  themeColor: '#3b82f6',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'TopoSonics',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export default function RootLayout({

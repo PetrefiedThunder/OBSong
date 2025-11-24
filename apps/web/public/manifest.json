@@ -1,0 +1,42 @@
+{
+  "name": "TopoSonics - Turn Images into Music",
+  "short_name": "TopoSonics",
+  "description": "Transform static photos or live camera input into rich musical landscapes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "creativity", "multimedia"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Studio",
+      "short_name": "Studio",
+      "description": "Create new musical composition from image",
+      "url": "/studio",
+      "icons": []
+    },
+    {
+      "name": "Compositions",
+      "short_name": "Library",
+      "description": "Browse saved compositions",
+      "url": "/compositions",
+      "icons": []
+    }
+  ]
+}

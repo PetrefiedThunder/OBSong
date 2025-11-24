@@ -26,6 +26,7 @@ export async function playNoteEvents(
 
   const sound = new Audio.Sound();
   try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     await sound.loadAsync(require('../../assets/audio/beep.wav'));
 
     for (let i = 0; i < events.length; i++) {

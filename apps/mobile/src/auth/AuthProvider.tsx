@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: credential.identityToken,
-      nonce: credential.nonce,
+      nonce: (credential as { nonce?: string }).nonce,
     });
 
     if (error) {
