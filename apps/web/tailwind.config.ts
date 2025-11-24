@@ -19,7 +19,11 @@ const config: Config = {
       colors: uiTheme.colors,
       spacing: toPxValues(uiTheme.spacing),
       borderRadius: toPxValues(uiTheme.radii),
-      fontFamily: uiTheme.typography.fontFamily,
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        mono: uiTheme.typography.fontFamily.mono,
+        display: uiTheme.typography.fontFamily.display,
+      },
       fontSize: Object.entries(uiTheme.typography.fontSize).reduce(
         (acc, [key, value]) => {
           acc[key] = `${value.size}px`;
