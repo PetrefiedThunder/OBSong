@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const syncSession = async () => {
-      const { data } = await supabaseClient.auth.getSession();
+      const { data } = await supabaseClient!.auth.getSession();
       const session = data.session;
 
       if (session) {

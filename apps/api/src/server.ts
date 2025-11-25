@@ -115,8 +115,6 @@ async function createServer(): Promise<FastifyInstance> {
     maxRssBytes: config.monitoring.maxRssBytes,
     exposeStatusRoute: config.monitoring.statusRoute,
     healthCheck: async () => true,
-    onExceeding: () => fastify.log.warn('Server nearing resource limits'),
-    onExceeded: () => fastify.log.error('Server resource limits exceeded'),
   });
 
   // Root route

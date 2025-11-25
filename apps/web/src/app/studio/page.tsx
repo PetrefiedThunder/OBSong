@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type {
@@ -32,7 +32,10 @@ import { TimelineVisualizer } from '@/components/TimelineVisualizer';
 import { ScenePackSelector } from '@/components/ScenePackSelector';
 import { exportCompositionToMidi } from '@/lib/midiExport';
 
-export default function StudioPage() {
+// Force dynamic rendering for this client-only page
+export const dynamic = 'force-dynamic';
+
+function StudioPageContent() {
   const { user, token, login } = useAuth();
   const searchParams = useSearchParams();
 
@@ -249,7 +252,6 @@ export default function StudioPage() {
           scale,
           presetId,
           tempo,
-          userId: effectiveUser.id,
         },
         effectiveToken
       );
@@ -409,5 +411,13 @@ export default function StudioPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading studio...</div>}>
+      <StudioPageContent />
+    </Suspense>
   );
 }

@@ -1,0 +1,10 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://toposonics.com/sitemap.xml
+
+# Disallow admin/private routes (if any in future)
+# User-agent: *
+# Disallow: /admin/

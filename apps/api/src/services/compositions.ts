@@ -11,7 +11,7 @@ interface CompositionRow {
 }
 
 function mapRowToComposition(row: CompositionRow): Composition {
-  const payload = row.data as Composition;
+  const payload = row.data as unknown as Composition;
   const createdAt = row.created_at ? new Date(row.created_at) : new Date();
   const updatedAt = row.updated_at ? new Date(row.updated_at) : payload.updatedAt ? new Date(payload.updatedAt) : createdAt;
 

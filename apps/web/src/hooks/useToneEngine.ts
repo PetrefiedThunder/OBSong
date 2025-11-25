@@ -257,6 +257,21 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
     return () => cancelAnimationFrame(frameId);
   }, [isPlaying]);
 
+  const stop = useCallback(() => {
+    if (stopSchedulerIdRef.current !== null) {
+      Tone.Transport.clear(stopSchedulerIdRef.current);
+      stopSchedulerIdRef.current = null;
+    }
+
+    if (partRef.current) {
+      partRef.current.stop();
+    }
+    Tone.Transport.stop();
+    Tone.Transport.position = 0;
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, []);
+
   const play = useCallback(async () => {
     await initializeAudio();
 
@@ -290,21 +305,6 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       stop();
     }, `+${durationSeconds}`);
   }, [initializeAudio, noteEvents, stop, tempo]);
-
-  const stop = useCallback(() => {
-    if (stopSchedulerIdRef.current !== null) {
-      Tone.Transport.clear(stopSchedulerIdRef.current);
-      stopSchedulerIdRef.current = null;
-    }
-
-    if (partRef.current) {
-      partRef.current.stop();
-    }
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-    setIsPlaying(false);
-    setCurrentTime(0);
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
