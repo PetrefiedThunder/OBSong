@@ -4,6 +4,12 @@
   "private": true,
   "description": "Turn static photos or live camera input into rich musical landscapes",
   "packageManager": "pnpm@8.15.0",
+  "pnpm": {
+    "overrides": {
+      "glob@^10.0.0": "10.3.12",
+      "glob@^7.0.0": "7.2.3"
+    }
+  },
   "scripts": {
     "preinstall": "node -e \"if (process.env.npm_config_user_agent && !process.env.npm_config_user_agent.includes('pnpm')) { console.error('\\n\\x1b[31m╔════════════════════════════════════════════════════════════════╗\\n║  ❌ ERROR: This project requires pnpm                         ║\\n╚════════════════════════════════════════════════════════════════╝\\x1b[0m\\n\\n\\x1b[33mPlease install pnpm:\\x1b[0m\\n  npm install -g pnpm@8.15.0\\n\\n\\x1b[33mThen run:\\x1b[0m\\n  pnpm install\\n\\n\\x1b[90mFor more info: https://pnpm.io/installation\\x1b[0m\\n'); process.exit(1); }\"",
     "dev:web": "turbo run dev --filter=@toposonics/web",
