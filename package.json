@@ -42,5 +42,10 @@
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "semver": "7.7.3"
+    }
   }
 }
