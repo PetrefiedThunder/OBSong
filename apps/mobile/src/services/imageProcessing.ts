@@ -45,12 +45,37 @@ export async function generateCompositionFromImage(
 ): Promise<CompositionGenerationResult> {
   const { pixels, width, height } = await extractPixelsFromImage(uri);
 
-  const analysis = analyzeImageForLinearLandscape(pixels, width, height, {
+  const baseAnalysis = analyzeImageForLinearLandscape(pixels, width, height, {
     averageRows: true,
     rowsToAverage: 7,
-    includeDepth: true,
+    includeDepth: false,
     includeRidges: true,
   });
+
+  const depthFrame = await requestNativeDepthMap({
+    imageUri: uri,
+    targetWidth: width,
+    targetHeight: height,
+  });
+
+  const targetLength = baseAnalysis.brightnessProfile.length;
+  const depthProfile = depthFrame
+    ? deriveDepthProfileFromFrame(depthFrame, targetLength)
+    : computeSimpleDepthProfile(baseAnalysis.brightnessProfile);
+
+  const depthSource: DepthSource = depthFrame?.source ?? (depthFrame ? 'UNKNOWN' : 'HEURISTIC');
+  const depthUnit: DepthUnit = depthFrame?.unit ?? (depthFrame ? 'meters' : 'normalized');
+
+  const analysis: ImageAnalysisResult = {
+    ...baseAnalysis,
+    depthProfile,
+    metadata: {
+      ...baseAnalysis.metadata,
+      depthSource,
+      depthUnit,
+      depthCaptureTimestamp: depthFrame?.timestamp,
+    },
+  };
 
   const noteEvents = mapLinearLandscape(analysis, {
     key: options.key,
