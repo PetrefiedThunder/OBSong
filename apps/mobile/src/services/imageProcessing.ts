@@ -1,14 +1,84 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'fast-png';
-import type { ImageAnalysisResult, NoteEvent, KeyType, ScaleType } from '@toposonics/types';
-import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
+import type {
+  DepthSource,
+  DepthUnit,
+  ImageAnalysisResult,
+  KeyType,
+  NoteEvent,
+  ScaleType,
+} from '@toposonics/types';
+import {
+  analyzeImageForLinearLandscape,
+  computeSimpleDepthProfile,
+  downsampleProfile,
+} from '@toposonics/core-image';
 import { mapLinearLandscape } from '@toposonics/core-audio';
+import { requestNativeDepthMap, type DepthFrame } from '../native/depthProvider';
 
 export interface PixelExtractionResult {
   pixels: Uint8ClampedArray;
   width: number;
   height: number;
   base64: string;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeDepthSamples(samples: number[]): number[] {
+  const valid = samples.filter((value) => Number.isFinite(value) && value > 0);
+
+  if (valid.length === 0) {
+    return samples.map(() => 0);
+  }
+
+  const minDepth = Math.min(...valid);
+  const maxDepth = Math.max(...valid);
+  const depthRange = Math.max(maxDepth - minDepth, 1e-3);
+
+  return samples.map((value) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      return 0;
+    }
+
+    const normalizedDistance = (value - minDepth) / depthRange;
+    return 1 - clamp(normalizedDistance, 0, 1);
+  });
+}
+
+function deriveDepthProfileFromFrame(
+  frame: DepthFrame,
+  targetLength: number,
+  rowsToAverage = 5
+): number[] {
+  const centerRow = Math.floor(frame.height / 2);
+  const halfWindow = Math.floor(rowsToAverage / 2);
+  const rawProfile: number[] = [];
+
+  for (let x = 0; x < frame.width; x++) {
+    let accumulator = 0;
+    let count = 0;
+
+    for (let offset = -halfWindow; offset <= halfWindow; offset++) {
+      const row = clamp(centerRow + offset, 0, frame.height - 1);
+      const index = row * frame.width + x;
+      const depthValue = frame.data[index];
+
+      if (Number.isFinite(depthValue) && depthValue > 0) {
+        accumulator += depthValue;
+        count++;
+      }
+    }
+
+    rawProfile.push(count > 0 ? accumulator / count : Number.NaN);
+  }
+
+  const normalized = normalizeDepthSamples(rawProfile);
+  return normalized.length === targetLength
+    ? normalized
+    : downsampleProfile(normalized, targetLength);
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -81,12 +151,37 @@ export async function generateCompositionFromImage(
 ): Promise<CompositionGenerationResult> {
   const { pixels, width, height, base64 } = await extractPixelsFromImage(uri);
 
-  const analysis = analyzeImageForLinearLandscape(pixels, width, height, {
+  const baseAnalysis = analyzeImageForLinearLandscape(pixels, width, height, {
     averageRows: true,
     rowsToAverage: 7,
-    includeDepth: true,
+    includeDepth: false,
     includeRidges: true,
   });
+
+  const depthFrame = await requestNativeDepthMap({
+    imageUri: uri,
+    targetWidth: width,
+    targetHeight: height,
+  });
+
+  const targetLength = baseAnalysis.brightnessProfile.length;
+  const depthProfile = depthFrame
+    ? deriveDepthProfileFromFrame(depthFrame, targetLength)
+    : computeSimpleDepthProfile(baseAnalysis.brightnessProfile);
+
+  const depthSource: DepthSource = depthFrame?.source ?? (depthFrame ? 'UNKNOWN' : 'HEURISTIC');
+  const depthUnit: DepthUnit = depthFrame?.unit ?? (depthFrame ? 'meters' : 'normalized');
+
+  const analysis: ImageAnalysisResult = {
+    ...baseAnalysis,
+    depthProfile,
+    metadata: {
+      ...baseAnalysis.metadata,
+      depthSource,
+      depthUnit,
+      depthCaptureTimestamp: depthFrame?.timestamp,
+    },
+  };
 
   const noteEvents = mapLinearLandscape(analysis, {
     key: options.key,

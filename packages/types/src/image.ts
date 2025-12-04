@@ -26,5 +26,20 @@ export interface ImageAnalysisResult {
     timestamp?: number;
     /** Edge detection method used (if applicable). */
     edgeDetectionMethod?: string;
+    /** Source of depth data, if any. */
+    depthSource?: DepthSource;
+    /** Measurement unit used by the depth provider. */
+    depthUnit?: DepthUnit;
+    /** Timestamp associated with the depth frame if provided by native module. */
+    depthCaptureTimestamp?: number;
   };
 }
+
+export type DepthUnit = 'meters' | 'millimeters' | 'normalized' | 'unknown';
+
+export type DepthSource =
+  | 'ARCORE_DEPTH_API'
+  | 'TOF_SENSOR'
+  | 'SIMULATED'
+  | 'HEURISTIC'
+  | 'UNKNOWN';
