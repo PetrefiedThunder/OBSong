@@ -1,0 +1,41 @@
+plugins {
+  id 'com.android.library'
+  id 'org.jetbrains.kotlin.android'
+}
+
+group = 'com.toposonics.nativeimageprocessing'
+version = '0.1.0'
+
+android {
+  namespace "com.toposonics.nativeimageprocessing"
+  compileSdkVersion rootProject.ext.has('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 34
+
+  defaultConfig {
+    minSdkVersion rootProject.ext.has('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+    targetSdkVersion rootProject.ext.has('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 34
+    externalNativeBuild {
+      cmake {
+        cppFlags '-std=c++17'
+      }
+    }
+  }
+
+  sourceSets {
+    main {
+      manifest.srcFile 'src/main/AndroidManifest.xml'
+      java.srcDirs = ['src/main/java']
+      res.srcDirs = ['src/main/res']
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path file('src/main/cpp/CMakeLists.txt')
+    }
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+}

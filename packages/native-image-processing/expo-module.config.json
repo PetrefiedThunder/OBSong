@@ -1,0 +1,6 @@
+{
+  "name": "@toposonics/native-image-processing",
+  "android": {
+    "modules": ["NativeImageProcessing"]
+  }
+}
