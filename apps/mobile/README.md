@@ -94,22 +94,13 @@ import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
 
 ### Image Processing
 
+The app now delegates resizing and RGBA extraction to the native OpenCV-powered module:
+
 ```typescript
-// TODO: Extract pixel data from image URI
-import * as ImageManipulator from 'expo-image-manipulator';
+import { processImage } from '@toposonics/native-image-processing';
+import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
 
-// Resize and get base64
-const manipResult = await ImageManipulator.manipulateAsync(
-  imageUri,
-  [{ resize: { width: 800 } }],
-  { format: ImageManipulator.SaveFormat.PNG, base64: true }
-);
-
-// Convert base64 to pixel array for core-image
-// Use a library like react-native-image-to-pixels or implement decoder
-const pixels = await extractPixels(manipResult.base64);
-
-// Then use core-image package
+const { pixels, width, height } = await processImage({ uri: imageUri, targetWidth: 800 });
 const analysis = analyzeImageForLinearLandscape(pixels, width, height);
 ```
 
@@ -180,7 +171,8 @@ pnpm lint
 
 ## Known Limitations
 
-1. **No pixel extraction**: Image analysis requires additional libraries
+1. **Native pipeline is Android-first**: OpenCV-backed extraction is implemented for Android; texture-based capture and iOS
+   parity still need work.
 2. **No audio playback**: Simplified alerts instead of actual synthesis
 3. **No auth**: API calls work without authentication
 4. **Placeholder controls**: Musical parameters are hard-coded
@@ -196,7 +188,7 @@ This simplified app demonstrates:
 - ⏳ Audio and advanced features marked as TODOs
 
 For a **production mobile app**, the next steps would be:
-1. Implement pixel extraction (expo-image-manipulator + custom decoder)
+1. Harden native image extraction across platforms (texture input, iOS parity)
 2. Add audio synthesis (expo-av or native audio module)
 3. Complete user authentication
 4. Add proper state management (Zustand, Redux)
