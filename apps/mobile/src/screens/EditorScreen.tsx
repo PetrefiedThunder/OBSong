@@ -19,6 +19,7 @@ import {
 } from '../services/imageProcessing';
 import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
 import { useCompositions } from '../state/CompositionsProvider';
+import * as FileSystem from 'expo-file-system';
 
 const KEYS: KeyType[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const SCALES: ScaleType[] = [
@@ -96,10 +97,15 @@ export default function EditorScreen() {
       if (!cached) return;
 
       const parsed = JSON.parse(cached) as CompositionGenerationResult & { imageUri: string };
-      setImageUri(parsed.imageUri);
-      setSelectedKey(parsed.metadata.key);
-      setSelectedScale(parsed.metadata.scale);
-      setGeneration(parsed);
+      const normalized = {
+        ...parsed,
+        sourceUri: parsed.sourceUri ?? parsed.imageUri,
+      };
+
+      setImageUri(normalized.sourceUri);
+      setSelectedKey(normalized.metadata.key);
+      setSelectedScale(normalized.metadata.scale);
+      setGeneration(normalized);
     } catch (err) {
       console.warn('Failed to hydrate draft', err);
     }
@@ -180,6 +186,10 @@ export default function EditorScreen() {
     try {
       setSaving(true);
       const duration = formatNoteEventsDuration(generation.noteEvents, tempo);
+      const imageData = imageUri
+        ? await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 })
+        : null;
+
       const payload = {
         title: `Mobile capture ${new Date().toLocaleTimeString()}`,
         description: 'Generated on-device from an image',
@@ -188,7 +198,7 @@ export default function EditorScreen() {
         key: selectedKey,
         scale: selectedScale,
         tempo,
-        imageData: `data:image/png;base64,${generation.imageBase64}`,
+        imageData: imageData ? `data:image/png;base64,${imageData}` : undefined,
         metadata: {
           imageWidth: generation.analysis.width,
           imageHeight: generation.analysis.height,
@@ -343,8 +353,9 @@ export default function EditorScreen() {
 
       <View style={styles.section}>
         <Text style={styles.infoText}>
-          The mobile editor now performs on-device pixel extraction (via expo-image-manipulator), decodes RGBA data, maps it
-          through @toposonics/core-image and @toposonics/core-audio, and plays back a simplified tone stack with expo-av.
+          The mobile editor now performs on-device pixel extraction through the native OpenCV module, decodes RGBA data,
+          maps it through @toposonics/core-image and @toposonics/core-audio, and plays back a simplified tone stack with
+          expo-av.
         </Text>
         <Text style={styles.featureList}>
           • Pixel extraction & analysis {'\n'}• Brightness-driven melody generation {'\n'}• Audio playback via expo-av
