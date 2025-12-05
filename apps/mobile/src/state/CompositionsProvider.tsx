@@ -71,7 +71,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     setLoading(true);
     setUsingCache(false);
     try {
-      const data = await fetchCompositions(token);
+      const data = await fetchCompositions();
       setCompositions(data);
       setCompositionsById((prev) => ({
         ...prev,
@@ -101,7 +101,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       }
 
       try {
-        const data = await fetchComposition(id, token);
+        const data = await fetchComposition(id);
         setCompositionsById((prev) => ({ ...prev, [id]: data }));
         await saveDetailToCache(data);
         return data;
@@ -121,7 +121,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
       if (!token) return null;
 
-      const created = await createComposition(payload, token);
+      const created = await createComposition(payload);
       setCompositions((prev) => {
         const next = [created, ...prev];
         saveToCache(next);
