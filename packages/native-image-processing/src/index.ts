@@ -7,12 +7,20 @@ export interface NativeImageProcessingOptions {
   textureId?: number;
   /** Requested resize width; aspect ratio preserved */
   targetWidth?: number;
+  /** Whether to compute ridge strength using Sobel edge detection */
+  includeRidgeStrength?: boolean;
 }
 
 export interface NativeImageProcessingResult {
   pixels: Uint8Array;
   width: number;
   height: number;
+  /** Ridge strength data (grayscale edge magnitude) if requested */
+  ridgeStrength?: Uint8Array;
+  /** Width of ridge strength data */
+  ridgeWidth?: number;
+  /** Height of ridge strength data */
+  ridgeHeight?: number;
 }
 
 const NativeImageProcessingModule = NativeModulesProxy.NativeImageProcessing;
@@ -30,11 +38,20 @@ export async function processImage(
     throw new Error('Native image processing returned an invalid payload');
   }
 
-  return {
+  const processed: NativeImageProcessingResult = {
     pixels: new Uint8Array(result.pixels),
     width: result.width,
     height: result.height,
   };
+
+  // Add ridge strength data if present
+  if (result.ridgeStrength && result.ridgeWidth && result.ridgeHeight) {
+    processed.ridgeStrength = new Uint8Array(result.ridgeStrength);
+    processed.ridgeWidth = result.ridgeWidth;
+    processed.ridgeHeight = result.ridgeHeight;
+  }
+
+  return processed;
 }
 
 export function isNativeImageProcessingAvailable() {

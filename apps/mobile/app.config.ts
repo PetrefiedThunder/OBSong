@@ -26,11 +26,29 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#0a0a0f',
     },
     package: 'com.toposonics.app',
+    permissions: [
+      'CAMERA',
+      'READ_EXTERNAL_STORAGE',
+      'WRITE_EXTERNAL_STORAGE',
+      'READ_MEDIA_IMAGES',
+      'RECORD_AUDIO',
+    ],
   },
   web: {
     favicon: './assets/favicon.png',
   },
-  plugins: ['expo-av'],
+  plugins: [
+    'expo-av',
+    'expo-secure-store',
+    'expo-apple-authentication',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow TopoSonics to access your photos to create soundscapes',
+        cameraPermission: 'Allow TopoSonics to use your camera to capture images',
+      },
+    ],
+  ],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'https://api.toposonics.com',
   },

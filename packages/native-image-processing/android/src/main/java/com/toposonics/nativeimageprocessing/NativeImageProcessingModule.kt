@@ -27,6 +27,7 @@ class NativeImageProcessingModule : Module() {
 
       val targetWidth = options.targetWidth ?: 640
       val dimensions = IntArray(2)
+      val ridgeDimensions = IntArray(2)
 
       val pixelBytes = withContext(Dispatchers.Default) {
         when {
@@ -36,20 +37,39 @@ class NativeImageProcessingModule : Module() {
         }
       }
 
-      mapOf(
+      // Compute ridge strength if requested and we have a URI
+      val ridgeStrength = if (options.includeRidgeStrength == true && options.uri != null) {
+        withContext(Dispatchers.Default) {
+          nativeComputeRidgeStrength(options.uri, targetWidth, ridgeDimensions)
+        }
+      } else {
+        null
+      }
+
+      val result = mutableMapOf(
         "pixels" to pixelBytes,
         "width" to dimensions[0],
         "height" to dimensions[1]
       )
+
+      if (ridgeStrength != null) {
+        result["ridgeStrength"] = ridgeStrength
+        result["ridgeWidth"] = ridgeDimensions[0]
+        result["ridgeHeight"] = ridgeDimensions[1]
+      }
+
+      result.toMap()
     }
   }
 
   private external fun nativeExtractFromFile(uri: String, targetWidth: Int, dimensions: IntArray): ByteArray
   private external fun nativeExtractFromTexture(textureId: Int?, targetWidth: Int, dimensions: IntArray): ByteArray
+  private external fun nativeComputeRidgeStrength(uri: String, targetWidth: Int, dimensions: IntArray): ByteArray
 }
 
 data class ImageProcessingOptions(
   val uri: String? = null,
   val textureId: Int? = null,
-  val targetWidth: Int? = null
+  val targetWidth: Int? = null,
+  val includeRidgeStrength: Boolean? = false
 )
