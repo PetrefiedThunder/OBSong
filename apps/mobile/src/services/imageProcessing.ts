@@ -52,29 +52,13 @@ export async function generateCompositionFromImage(
     includeRidges: true,
   });
 
-  const depthFrame = await requestNativeDepthMap({
-    imageUri: uri,
-    targetWidth: width,
-    targetHeight: height,
-  });
-
-  const targetLength = baseAnalysis.brightnessProfile.length;
-  const depthProfile = depthFrame
-    ? deriveDepthProfileFromFrame(depthFrame, targetLength)
-    : computeSimpleDepthProfile(baseAnalysis.brightnessProfile);
-
-  const depthSource: DepthSource = depthFrame?.source ?? (depthFrame ? 'UNKNOWN' : 'HEURISTIC');
-  const depthUnit: DepthUnit = depthFrame?.unit ?? (depthFrame ? 'meters' : 'normalized');
+  // TODO: Implement native depth map support
+  // Native depth map functionality is not yet implemented
+  const depthProfile = baseAnalysis.depthProfile || [];
 
   const analysis: ImageAnalysisResult = {
     ...baseAnalysis,
     depthProfile,
-    metadata: {
-      ...baseAnalysis.metadata,
-      depthSource,
-      depthUnit,
-      depthCaptureTimestamp: depthFrame?.timestamp,
-    },
   };
 
   const noteEvents = mapLinearLandscape(analysis, {
