@@ -51,9 +51,19 @@ export function ImageUploader({
     }
   };
 
+  // Validate that the preview URL is a safe blob or data URL
+  const isSafeUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'blob:' || parsed.protocol === 'data:';
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {preview ? (
+      {preview && isSafeUrl(preview) ? (
         <div className="relative overflow-hidden rounded-xl">
           <img
             src={preview}
