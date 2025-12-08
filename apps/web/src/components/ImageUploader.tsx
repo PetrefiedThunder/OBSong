@@ -18,12 +18,18 @@ interface ImageUploaderProps {
 
 /**
  * Validates that the URL is safe for use in an img src attribute.
- * Only allows blob: and data: URLs to prevent XSS attacks.
+ * Only allows blob: and data:image URLs to prevent XSS attacks.
  */
 function isSafeImageUrl(url: string): boolean {
   try {
     const urlObj = new URL(url, window.location.origin);
-    return urlObj.protocol === 'blob:' || urlObj.protocol === 'data:';
+    if (urlObj.protocol === 'blob:') return true;
+
+    if (urlObj.protocol === 'data:') {
+      return /^data:image\/[a-zA-Z0-9.+-]+;/.test(url);
+    }
+
+    return false;
   } catch {
     return false;
   }
@@ -67,16 +73,6 @@ export function ImageUploader({
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       onImageSelected(file);
-    }
-  };
-
-  // Validate that the preview URL is a safe blob or data URL
-  const isSafeUrl = (url: string): boolean => {
-    try {
-      const parsed = new URL(url);
-      return parsed.protocol === 'blob:' || parsed.protocol === 'data:';
-    } catch {
-      return false;
     }
   };
 
