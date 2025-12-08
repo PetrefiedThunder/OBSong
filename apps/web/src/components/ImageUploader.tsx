@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Button } from '@toposonics/ui';
 
 interface ImageUploaderProps {
@@ -16,6 +16,19 @@ interface ImageUploaderProps {
   showScanline?: boolean;
 }
 
+/**
+ * Validates that the URL is safe for use in an img src attribute.
+ * Only allows blob: and data: URLs to prevent XSS attacks.
+ */
+function isSafeImageUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    return urlObj.protocol === 'blob:' || urlObj.protocol === 'data:';
+  } catch {
+    return false;
+  }
+}
+
 export function ImageUploader({
   onImageSelected,
   preview,
@@ -24,6 +37,12 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validate the preview URL to prevent XSS
+  const safePreview = useMemo(() => {
+    if (!preview) return null;
+    return isSafeImageUrl(preview) ? preview : null;
+  }, [preview]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,10 +72,10 @@ export function ImageUploader({
 
   return (
     <div className="space-y-4">
-      {preview ? (
+      {safePreview ? (
         <div className="relative overflow-hidden rounded-xl">
           <img
-            src={preview}
+            src={safePreview}
             alt="Selected image"
             className="w-full h-64 object-cover rounded-xl"
           />

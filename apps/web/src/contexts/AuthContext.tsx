@@ -41,21 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setToken(session.access_token);
         setUser(mappedUser);
-        localStorage.setItem('toposonics_token', session.access_token);
-        localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
-      } else {
-        const storedToken = localStorage.getItem('toposonics_token');
-        const storedUser = localStorage.getItem('toposonics_user');
-        if (storedToken && storedUser) {
-          try {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-          } catch (error) {
-            console.error('Failed to parse stored user:', error);
-            localStorage.removeItem('toposonics_token');
-            localStorage.removeItem('toposonics_user');
-          }
-        }
       }
 
       setIsLoading(false);
@@ -74,13 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setToken(session.access_token);
         setUser(mappedUser);
-        localStorage.setItem('toposonics_token', session.access_token);
-        localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
       } else {
         setToken(null);
         setUser(null);
-        localStorage.removeItem('toposonics_token');
-        localStorage.removeItem('toposonics_user');
       }
     });
 
@@ -113,8 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setToken(data.session.access_token);
     setUser(mappedUser);
-    localStorage.setItem('toposonics_token', data.session.access_token);
-    localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
 
     return { token: data.session.access_token, user: mappedUser };
   };
@@ -125,8 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setToken(null);
     setUser(null);
-    localStorage.removeItem('toposonics_token');
-    localStorage.removeItem('toposonics_user');
   };
 
   return (
