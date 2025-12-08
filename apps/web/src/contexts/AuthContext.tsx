@@ -41,22 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setToken(session.access_token);
         setUser(mappedUser);
-        // Store only non-sensitive user metadata, not the token
-        // Supabase manages the session token securely
-        localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
-      } else {
-        // Try to restore session from Supabase's secure storage only
-        // Don't rely on localStorage for tokens
-        const storedUser = localStorage.getItem('toposonics_user');
-        if (storedUser) {
-          try {
-            setUser(JSON.parse(storedUser));
-            // Token will be null until Supabase session is restored
-          } catch (error) {
-            console.error('Failed to parse stored user:', error);
-            localStorage.removeItem('toposonics_user');
-          }
-        }
       }
 
       setIsLoading(false);
@@ -75,12 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setToken(session.access_token);
         setUser(mappedUser);
-        // Store only non-sensitive user metadata
-        localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
       } else {
         setToken(null);
         setUser(null);
-        localStorage.removeItem('toposonics_user');
       }
     });
 
@@ -113,8 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setToken(data.session.access_token);
     setUser(mappedUser);
-    // Store only non-sensitive user metadata
-    localStorage.setItem('toposonics_user', JSON.stringify(mappedUser));
 
     return { token: data.session.access_token, user: mappedUser };
   };
@@ -125,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setToken(null);
     setUser(null);
-    localStorage.removeItem('toposonics_user');
   };
 
   return (
