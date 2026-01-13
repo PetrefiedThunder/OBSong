@@ -1,0 +1,140 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#0ea5e9', 'primaryTextColor': '#fff', 'primaryBorderColor': '#0284c7', 'lineColor': '#64748b', 'secondaryColor': '#1e293b', 'tertiaryColor': '#334155'}}}%%
+
+graph TB
+    subgraph External["External Services"]
+        SUPABASE[(Supabase<br/>Auth & DB)]
+    end
+
+    subgraph Apps["Applications"]
+        subgraph WEB["apps/web (Next.js)"]
+            W_LAYOUT[layout.tsx<br/>Root Layout]
+            W_HOME[page.tsx<br/>Home]
+            W_STUDIO[studio/page.tsx<br/>Main Studio]
+            W_COMP[compositions/page.tsx<br/>List]
+            W_DETAIL[compositions/[id]/page.tsx<br/>Detail]
+
+            W_CTX_AUTH[AuthContext.tsx<br/>Auth State]
+            W_HOOK_TONE[useToneEngine.ts<br/>Audio Playback]
+
+            W_LIB_API[lib/api.ts]
+            W_LIB_IMG[lib/imageProcessing.ts]
+            W_LIB_MIDI[lib/midiExport.ts]
+            W_LIB_SUPA[lib/supabaseClient.ts]
+
+            W_COMP_IMG[ImageUploader.tsx]
+            W_COMP_MAP[MappingControls.tsx]
+            W_COMP_PLAY[PlaybackControls.tsx]
+            W_COMP_TIME[TimelineVisualizer.tsx]
+            W_COMP_SCENE[ScenePackSelector.tsx]
+        end
+
+        subgraph MOBILE["apps/mobile (Expo)"]
+            M_APP[App.tsx<br/>Entry Point]
+            M_HOME[HomeScreen.tsx]
+            M_EDITOR[EditorScreen.tsx]
+            M_COMP[CompositionsScreen.tsx]
+            M_DETAIL[CompositionDetailScreen.tsx]
+
+            M_AUTH_PROV[AuthProvider.tsx]
+            M_COMP_PROV[CompositionsProvider.tsx]
+            M_SUPA[supabaseClient.ts]
+            M_SECURE[secureStorage.ts]
+
+            M_SVC_API[services/apiClient.ts]
+            M_SVC_IMG[services/imageProcessing.ts]
+            M_SVC_AUDIO[services/audioPlayer.ts]
+        end
+
+        subgraph API["apps/api (Fastify)"]
+            A_SERVER[server.ts<br/>Entry Point]
+            A_CONFIG[config.ts]
+            A_AUTH[auth.ts<br/>Middleware]
+            A_SUPA[supabase.ts<br/>Admin Client]
+
+            A_RT_HEALTH[routes/health.ts]
+            A_RT_AUTH[routes/auth.ts]
+            A_RT_COMP[routes/compositions.ts]
+
+            A_SVC_COMP[services/compositions.ts]
+        end
+    end
+
+    subgraph Packages["Shared Packages"]
+        PKG_TYPES["@toposonics/types<br/>━━━━━━━━━━━━━<br/>• ImageAnalysisResult<br/>• NoteEvent<br/>• Composition<br/>• User<br/>• API Types"]
+
+        PKG_AUDIO["@toposonics/core-audio<br/>━━━━━━━━━━━━━<br/>• mapLinearLandscape()<br/>• mapImageToMultiVoice()<br/>• SCALES<br/>• presets<br/>• scenePacks"]
+
+        PKG_IMAGE["@toposonics/core-image<br/>━━━━━━━━━━━━━<br/>• analyzeImageForLinearLandscape()<br/>• analyzeImageForMultiVoice()<br/>• brightness/depth/horizon"]
+
+        PKG_SHARED["@toposonics/shared<br/>━━━━━━━━━━━━━<br/>• createApiClient()"]
+
+        PKG_UI["@toposonics/ui<br/>━━━━━━━━━━━━━<br/>• Button<br/>• Card<br/>• theme"]
+
+        PKG_NATIVE["@toposonics/native-image-processing<br/>━━━━━━━━━━━━━<br/>• processImage() (Expo Module)"]
+    end
+
+    %% Package Dependencies
+    PKG_AUDIO --> PKG_TYPES
+    PKG_IMAGE --> PKG_TYPES
+    PKG_SHARED --> PKG_TYPES
+
+    %% Web App Dependencies
+    W_STUDIO --> PKG_TYPES
+    W_STUDIO --> PKG_AUDIO
+    W_STUDIO --> PKG_UI
+    W_LIB_IMG --> PKG_IMAGE
+    W_LIB_API --> PKG_SHARED
+    W_LIB_MIDI --> PKG_AUDIO
+    W_CTX_AUTH --> W_LIB_SUPA
+    W_LIB_SUPA --> SUPABASE
+
+    W_STUDIO --> W_CTX_AUTH
+    W_STUDIO --> W_HOOK_TONE
+    W_STUDIO --> W_COMP_IMG
+    W_STUDIO --> W_COMP_MAP
+    W_STUDIO --> W_COMP_PLAY
+    W_STUDIO --> W_COMP_TIME
+    W_STUDIO --> W_COMP_SCENE
+
+    %% Mobile App Dependencies
+    M_APP --> M_AUTH_PROV
+    M_APP --> M_COMP_PROV
+    M_AUTH_PROV --> M_SUPA
+    M_SUPA --> M_SECURE
+    M_SUPA --> SUPABASE
+
+    M_SVC_API --> PKG_SHARED
+    M_SVC_IMG --> PKG_IMAGE
+    M_SVC_IMG --> PKG_AUDIO
+    M_SVC_IMG --> PKG_NATIVE
+    M_SVC_AUDIO --> PKG_AUDIO
+
+    M_EDITOR --> M_SVC_IMG
+    M_EDITOR --> M_SVC_AUDIO
+    M_COMP_PROV --> M_SVC_API
+
+    %% API App Dependencies
+    A_SERVER --> A_CONFIG
+    A_SERVER --> A_RT_HEALTH
+    A_SERVER --> A_RT_AUTH
+    A_SERVER --> A_RT_COMP
+    A_AUTH --> A_SUPA
+    A_SUPA --> SUPABASE
+    A_RT_COMP --> A_AUTH
+    A_RT_COMP --> A_SVC_COMP
+    A_SVC_COMP --> A_SUPA
+    A_SVC_COMP --> PKG_TYPES
+
+    %% Styling
+    classDef external fill:#7c3aed,stroke:#a78bfa,color:#fff
+    classDef app fill:#0369a1,stroke:#38bdf8,color:#fff
+    classDef package fill:#065f46,stroke:#34d399,color:#fff
+    classDef page fill:#1e40af,stroke:#60a5fa,color:#fff
+    classDef component fill:#1e3a8a,stroke:#93c5fd,color:#fff
+    classDef service fill:#7f1d1d,stroke:#fca5a5,color:#fff
+
+    class SUPABASE external
+    class PKG_TYPES,PKG_AUDIO,PKG_IMAGE,PKG_SHARED,PKG_UI,PKG_NATIVE package
+    class W_STUDIO,W_HOME,W_COMP,W_DETAIL,M_HOME,M_EDITOR,M_COMP,M_DETAIL page
+    class W_COMP_IMG,W_COMP_MAP,W_COMP_PLAY,W_COMP_TIME,W_COMP_SCENE component
+    class A_SVC_COMP,M_SVC_API,M_SVC_IMG,M_SVC_AUDIO service

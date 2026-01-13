@@ -1,0 +1,558 @@
+{
+  "metadata": {
+    "generated": "2026-01-13T00:00:00Z",
+    "toolVersion": "1.0.0",
+    "totalFiles": 65,
+    "totalPackages": 9
+  },
+  "monorepoStructure": {
+    "apps": ["web", "mobile", "api"],
+    "packages": ["types", "shared", "core-audio", "core-image", "ui", "native-image-processing"]
+  },
+  "externalDependencies": {
+    "root": {
+      "devDependencies": {
+        "turbo": "^2.3.3",
+        "typescript": "^5.0.0"
+      }
+    },
+    "apps/web": {
+      "dependencies": {
+        "next": "14.2.35",
+        "@supabase/supabase-js": "^2.47.22",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "tone": "^14.7.77",
+        "@toposonics/core-audio": "workspace:*",
+        "@toposonics/core-image": "workspace:*",
+        "@toposonics/shared": "workspace:*",
+        "@toposonics/types": "workspace:*",
+        "@toposonics/ui": "workspace:*"
+      },
+      "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/react": "^18.2.0",
+        "eslint": "^8.50.0",
+        "tailwindcss": "^3.4.17",
+        "typescript": "^5.0.0"
+      }
+    },
+    "apps/mobile": {
+      "dependencies": {
+        "expo": "~51.0.0",
+        "react": "18.2.0",
+        "react-native": "0.74.0",
+        "@react-navigation/native": "^6.1.18",
+        "@react-navigation/native-stack": "^6.11.0",
+        "@supabase/supabase-js": "^2.47.22",
+        "expo-apple-authentication": "~6.4.2",
+        "expo-av": "~14.0.7",
+        "expo-file-system": "~17.0.1",
+        "expo-image-picker": "~15.0.7",
+        "expo-secure-store": "~13.0.2",
+        "@react-native-async-storage/async-storage": "1.23.1",
+        "@toposonics/core-audio": "workspace:*",
+        "@toposonics/core-image": "workspace:*",
+        "@toposonics/native-image-processing": "workspace:*",
+        "@toposonics/shared": "workspace:*",
+        "@toposonics/types": "workspace:*"
+      }
+    },
+    "apps/api": {
+      "dependencies": {
+        "fastify": "^4.28.1",
+        "@fastify/cors": "^9.0.1",
+        "@fastify/helmet": "^11.1.1",
+        "@fastify/rate-limit": "^9.1.0",
+        "@fastify/under-pressure": "^8.5.1",
+        "@supabase/supabase-js": "^2.47.22",
+        "dotenv": "^16.4.7",
+        "pino-pretty": "^11.3.0",
+        "@toposonics/types": "workspace:*"
+      }
+    },
+    "packages/types": {
+      "dependencies": {
+        "zod": "^3.21.4"
+      }
+    },
+    "packages/shared": {
+      "dependencies": {
+        "@toposonics/types": "workspace:*"
+      }
+    },
+    "packages/core-audio": {
+      "dependencies": {
+        "@toposonics/types": "workspace:*"
+      }
+    },
+    "packages/core-image": {
+      "dependencies": {
+        "@toposonics/types": "workspace:*"
+      }
+    },
+    "packages/ui": {
+      "dependencies": {
+        "react": "^18.2.0"
+      },
+      "peerDependencies": {
+        "react": "^18.2.0"
+      }
+    },
+    "packages/native-image-processing": {
+      "dependencies": {
+        "expo-modules-core": "~1.12.28"
+      }
+    }
+  },
+  "internalDependencyGraph": {
+    "packages/types": {
+      "dependsOn": [],
+      "dependedByPackages": ["shared", "core-audio", "core-image", "ui"],
+      "dependedByApps": ["web", "mobile", "api"]
+    },
+    "packages/shared": {
+      "dependsOn": ["types"],
+      "dependedByPackages": [],
+      "dependedByApps": ["web", "mobile"]
+    },
+    "packages/core-audio": {
+      "dependsOn": ["types"],
+      "dependedByPackages": [],
+      "dependedByApps": ["web", "mobile"]
+    },
+    "packages/core-image": {
+      "dependsOn": ["types"],
+      "dependedByPackages": [],
+      "dependedByApps": ["web", "mobile"]
+    },
+    "packages/ui": {
+      "dependsOn": [],
+      "dependedByPackages": [],
+      "dependedByApps": ["web"]
+    },
+    "packages/native-image-processing": {
+      "dependsOn": [],
+      "dependedByPackages": [],
+      "dependedByApps": ["mobile"]
+    }
+  },
+  "fileGraph": {
+    "packages/types/src/index.ts": {
+      "imports": ["./image", "./audio", "./mapping", "./composition", "./user", "./api", "./schemas"],
+      "importedBy": ["packages/shared/src/index.ts", "packages/core-audio/src/index.ts", "packages/core-image/src/index.ts", "apps/web/src/**/*.ts", "apps/mobile/src/**/*.ts", "apps/api/src/**/*.ts"],
+      "externalDeps": [],
+      "exports": ["*"],
+      "couplingScore": 95,
+      "type": "barrel"
+    },
+    "packages/types/src/image.ts": {
+      "imports": [],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["ImageAnalysisResult", "BrightnessSample", "DepthSample", "TextureAnalysis", "HorizonData", "RidgePoint"],
+      "couplingScore": 40,
+      "type": "interface-definition"
+    },
+    "packages/types/src/audio.ts": {
+      "imports": [],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["NoteEvent", "SoundPreset", "KeyType", "ScaleType", "VoiceType", "MappingMode", "TopoPreset", "ScenePack"],
+      "couplingScore": 45,
+      "type": "interface-definition"
+    },
+    "packages/types/src/mapping.ts": {
+      "imports": [],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["MappingConfig", "LinearLandscapeConfig", "MultiVoiceConfig"],
+      "couplingScore": 25,
+      "type": "interface-definition"
+    },
+    "packages/types/src/composition.ts": {
+      "imports": ["./audio"],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["Composition", "CreateCompositionDTO", "UpdateCompositionDTO"],
+      "couplingScore": 50,
+      "type": "interface-definition"
+    },
+    "packages/types/src/user.ts": {
+      "imports": [],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["User", "AuthTokenResponse"],
+      "couplingScore": 30,
+      "type": "interface-definition"
+    },
+    "packages/types/src/api.ts": {
+      "imports": [],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["ApiResponse", "ApiErrorResponse", "HealthCheckResponse"],
+      "couplingScore": 20,
+      "type": "interface-definition"
+    },
+    "packages/types/src/schemas.ts": {
+      "imports": [],
+      "importedBy": ["packages/types/src/index.ts"],
+      "externalDeps": ["zod"],
+      "exports": ["compositionSchema", "noteEventSchema"],
+      "couplingScore": 15,
+      "type": "validation"
+    },
+    "packages/core-audio/src/index.ts": {
+      "imports": ["./scales", "./mappers", "./midi", "./presets", "./scenePacks", "./topoPresets"],
+      "importedBy": ["apps/web/src/**/*.ts", "apps/mobile/src/**/*.ts"],
+      "externalDeps": [],
+      "exports": ["*"],
+      "couplingScore": 85,
+      "type": "barrel"
+    },
+    "packages/core-audio/src/scales.ts": {
+      "imports": [],
+      "importedBy": ["packages/core-audio/src/index.ts", "packages/core-audio/src/mappers.ts"],
+      "externalDeps": [],
+      "exports": ["SCALES", "getScale", "noteToFrequency", "noteNameToMidi", "midiToNoteName"],
+      "couplingScore": 60,
+      "type": "utility"
+    },
+    "packages/core-audio/src/mappers.ts": {
+      "imports": ["@toposonics/types", "./scales"],
+      "importedBy": ["packages/core-audio/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["mapLinearLandscape", "mapImageToMultiVoiceComposition"],
+      "couplingScore": 70,
+      "type": "algorithm"
+    },
+    "packages/core-audio/src/midi.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-audio/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["compositionToMidiBlob"],
+      "couplingScore": 30,
+      "type": "utility"
+    },
+    "packages/core-audio/src/presets.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-audio/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["getAllPresets", "getPresetById", "getDefaultPreset"],
+      "couplingScore": 35,
+      "type": "data"
+    },
+    "packages/core-audio/src/scenePacks.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-audio/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["getAllScenePacks", "getScenePreset"],
+      "couplingScore": 30,
+      "type": "data"
+    },
+    "packages/core-audio/src/topoPresets.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-audio/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["getAllTopoPresets", "getTopoPresetById"],
+      "couplingScore": 25,
+      "type": "data"
+    },
+    "packages/core-image/src/index.ts": {
+      "imports": ["./analyzer", "./brightness", "./depth", "./horizon", "./texture"],
+      "importedBy": ["apps/web/src/**/*.ts", "apps/mobile/src/**/*.ts"],
+      "externalDeps": [],
+      "exports": ["*"],
+      "couplingScore": 75,
+      "type": "barrel"
+    },
+    "packages/core-image/src/analyzer.ts": {
+      "imports": ["@toposonics/types", "./brightness", "./depth", "./horizon", "./texture"],
+      "importedBy": ["packages/core-image/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["analyzeImageForLinearLandscape", "analyzeImageForMultiVoice"],
+      "couplingScore": 80,
+      "type": "algorithm"
+    },
+    "packages/core-image/src/brightness.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-image/src/analyzer.ts", "packages/core-image/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["extractBrightnessProfile", "computeAverageBrightness"],
+      "couplingScore": 45,
+      "type": "algorithm"
+    },
+    "packages/core-image/src/depth.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-image/src/analyzer.ts", "packages/core-image/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["computeDepthProfile"],
+      "couplingScore": 35,
+      "type": "algorithm"
+    },
+    "packages/core-image/src/horizon.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-image/src/analyzer.ts", "packages/core-image/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["detectHorizon"],
+      "couplingScore": 30,
+      "type": "algorithm"
+    },
+    "packages/core-image/src/texture.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/core-image/src/analyzer.ts", "packages/core-image/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["analyzeTexture"],
+      "couplingScore": 25,
+      "type": "algorithm"
+    },
+    "packages/shared/src/index.ts": {
+      "imports": ["./apiClient"],
+      "importedBy": ["apps/web/src/**/*.ts", "apps/mobile/src/**/*.ts"],
+      "externalDeps": [],
+      "exports": ["*"],
+      "couplingScore": 55,
+      "type": "barrel"
+    },
+    "packages/shared/src/apiClient.ts": {
+      "imports": ["@toposonics/types"],
+      "importedBy": ["packages/shared/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["createApiClient"],
+      "couplingScore": 50,
+      "type": "utility"
+    },
+    "packages/ui/src/index.ts": {
+      "imports": ["./theme", "./components"],
+      "importedBy": ["apps/web/src/**/*.tsx"],
+      "externalDeps": [],
+      "exports": ["*"],
+      "couplingScore": 45,
+      "type": "barrel"
+    },
+    "packages/ui/src/components/index.ts": {
+      "imports": ["./Button", "./Card"],
+      "importedBy": ["packages/ui/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["*"],
+      "couplingScore": 40,
+      "type": "barrel"
+    },
+    "packages/ui/src/components/Button.tsx": {
+      "imports": ["react"],
+      "importedBy": ["packages/ui/src/components/index.ts"],
+      "externalDeps": ["react"],
+      "exports": ["Button"],
+      "couplingScore": 30,
+      "type": "component"
+    },
+    "packages/ui/src/components/Card.tsx": {
+      "imports": ["react"],
+      "importedBy": ["packages/ui/src/components/index.ts"],
+      "externalDeps": ["react"],
+      "exports": ["Card"],
+      "couplingScore": 25,
+      "type": "component"
+    },
+    "packages/ui/src/theme.ts": {
+      "imports": [],
+      "importedBy": ["packages/ui/src/index.ts"],
+      "externalDeps": [],
+      "exports": ["theme", "colors"],
+      "couplingScore": 20,
+      "type": "config"
+    },
+    "packages/native-image-processing/src/index.ts": {
+      "imports": [],
+      "importedBy": ["apps/mobile/src/services/imageProcessing.ts"],
+      "externalDeps": ["expo-modules-core"],
+      "exports": ["processImage"],
+      "couplingScore": 35,
+      "type": "native-bridge"
+    },
+    "apps/web/src/app/studio/page.tsx": {
+      "imports": ["react", "next/navigation", "@toposonics/ui", "@toposonics/types", "@toposonics/core-audio", "@/lib/imageProcessing", "@/lib/api", "@/contexts/AuthContext", "@/hooks/useToneEngine", "@/components/ImageUploader", "@/components/MappingControls", "@/components/PlaybackControls", "@/components/TimelineVisualizer", "@/components/ScenePackSelector", "@/lib/midiExport"],
+      "importedBy": [],
+      "externalDeps": ["react", "next"],
+      "exports": ["default (StudioPage)"],
+      "couplingScore": 90,
+      "type": "page"
+    },
+    "apps/web/src/hooks/useToneEngine.ts": {
+      "imports": ["react", "tone", "@toposonics/types"],
+      "importedBy": ["apps/web/src/app/studio/page.tsx", "apps/web/src/app/compositions/[id]/page.tsx"],
+      "externalDeps": ["react", "tone"],
+      "exports": ["useToneEngine"],
+      "couplingScore": 65,
+      "type": "hook"
+    },
+    "apps/web/src/contexts/AuthContext.tsx": {
+      "imports": ["react", "@toposonics/types", "@/lib/supabaseClient"],
+      "importedBy": ["apps/web/src/**/*.tsx"],
+      "externalDeps": ["react"],
+      "exports": ["AuthProvider", "useAuth"],
+      "couplingScore": 70,
+      "type": "context"
+    },
+    "apps/web/src/lib/api.ts": {
+      "imports": ["@toposonics/shared"],
+      "importedBy": ["apps/web/src/**/*.tsx"],
+      "externalDeps": [],
+      "exports": ["fetchCompositions", "fetchComposition", "createComposition", "updateComposition", "deleteComposition"],
+      "couplingScore": 55,
+      "type": "utility"
+    },
+    "apps/web/src/lib/imageProcessing.ts": {
+      "imports": ["@toposonics/core-image", "@toposonics/types"],
+      "importedBy": ["apps/web/src/app/studio/page.tsx"],
+      "externalDeps": [],
+      "exports": ["loadImageFromFile", "extractPixelData", "analyzeImageFile", "analyzeImageFileMultiVoice"],
+      "couplingScore": 45,
+      "type": "utility"
+    },
+    "apps/web/src/lib/midiExport.ts": {
+      "imports": ["@toposonics/core-audio", "@toposonics/types"],
+      "importedBy": ["apps/web/src/app/studio/page.tsx"],
+      "externalDeps": [],
+      "exports": ["exportCompositionToMidi"],
+      "couplingScore": 30,
+      "type": "utility"
+    },
+    "apps/web/src/lib/supabaseClient.ts": {
+      "imports": ["@supabase/supabase-js"],
+      "importedBy": ["apps/web/src/contexts/AuthContext.tsx"],
+      "externalDeps": ["@supabase/supabase-js"],
+      "exports": ["supabaseClient"],
+      "couplingScore": 40,
+      "type": "singleton"
+    },
+    "apps/mobile/App.tsx": {
+      "imports": ["react", "@react-navigation/native", "@react-navigation/native-stack", "expo-status-bar", "./src/screens/HomeScreen", "./src/screens/EditorScreen", "./src/screens/CompositionsScreen", "./src/screens/CompositionDetailScreen", "./src/auth/AuthProvider", "./src/state/CompositionsProvider"],
+      "importedBy": [],
+      "externalDeps": ["react", "@react-navigation/native", "@react-navigation/native-stack", "expo-status-bar"],
+      "exports": ["default (App)"],
+      "couplingScore": 85,
+      "type": "entry-point"
+    },
+    "apps/mobile/src/auth/AuthProvider.tsx": {
+      "imports": ["react", "expo-apple-authentication", "@supabase/supabase-js", "@toposonics/types", "./supabaseClient"],
+      "importedBy": ["apps/mobile/App.tsx", "apps/mobile/src/screens/**/*.tsx"],
+      "externalDeps": ["react", "expo-apple-authentication", "@supabase/supabase-js"],
+      "exports": ["AuthProvider", "useAuth"],
+      "couplingScore": 75,
+      "type": "context"
+    },
+    "apps/mobile/src/auth/supabaseClient.ts": {
+      "imports": ["react-native-url-polyfill/auto", "@supabase/supabase-js", "../config", "./secureStorage"],
+      "importedBy": ["apps/mobile/src/auth/AuthProvider.tsx", "apps/mobile/src/services/apiClient.ts"],
+      "externalDeps": ["react-native-url-polyfill", "@supabase/supabase-js"],
+      "exports": ["supabase"],
+      "couplingScore": 55,
+      "type": "singleton"
+    },
+    "apps/mobile/src/auth/secureStorage.ts": {
+      "imports": ["expo-secure-store", "@supabase/supabase-js"],
+      "importedBy": ["apps/mobile/src/auth/supabaseClient.ts"],
+      "externalDeps": ["expo-secure-store", "@supabase/supabase-js"],
+      "exports": ["secureStorage"],
+      "couplingScore": 30,
+      "type": "adapter"
+    },
+    "apps/mobile/src/services/imageProcessing.ts": {
+      "imports": ["@toposonics/types", "@toposonics/core-image", "@toposonics/core-audio", "@toposonics/native-image-processing"],
+      "importedBy": ["apps/mobile/src/screens/EditorScreen.tsx"],
+      "externalDeps": [],
+      "exports": ["extractPixelsFromImage", "generateCompositionFromImage"],
+      "couplingScore": 60,
+      "type": "service"
+    },
+    "apps/mobile/src/services/audioPlayer.ts": {
+      "imports": ["expo-av", "@toposonics/core-audio", "@toposonics/types"],
+      "importedBy": ["apps/mobile/src/screens/EditorScreen.tsx", "apps/mobile/src/screens/CompositionDetailScreen.tsx"],
+      "externalDeps": ["expo-av"],
+      "exports": ["playNoteEvents", "formatNoteEventsDuration"],
+      "couplingScore": 45,
+      "type": "service"
+    },
+    "apps/mobile/src/services/apiClient.ts": {
+      "imports": ["@toposonics/shared", "@toposonics/types", "../config", "../auth/supabaseClient"],
+      "importedBy": ["apps/mobile/src/state/CompositionsProvider.tsx"],
+      "externalDeps": [],
+      "exports": ["apiClient", "fetchCompositions", "fetchComposition", "createComposition", "updateComposition", "deleteComposition"],
+      "couplingScore": 50,
+      "type": "adapter"
+    },
+    "apps/mobile/src/state/CompositionsProvider.tsx": {
+      "imports": ["react", "@react-native-async-storage/async-storage", "@toposonics/types", "../services/apiClient", "../auth/AuthProvider"],
+      "importedBy": ["apps/mobile/App.tsx", "apps/mobile/src/screens/**/*.tsx"],
+      "externalDeps": ["react", "@react-native-async-storage/async-storage"],
+      "exports": ["CompositionsProvider", "useCompositions"],
+      "couplingScore": 70,
+      "type": "context"
+    },
+    "apps/api/src/server.ts": {
+      "imports": ["dotenv/config", "fastify", "@fastify/cors", "@fastify/helmet", "@fastify/rate-limit", "@fastify/under-pressure", "./config", "./routes/health", "./routes/auth", "./routes/compositions"],
+      "importedBy": [],
+      "externalDeps": ["dotenv", "fastify", "@fastify/cors", "@fastify/helmet", "@fastify/rate-limit", "@fastify/under-pressure"],
+      "exports": [],
+      "couplingScore": 80,
+      "type": "entry-point"
+    },
+    "apps/api/src/auth.ts": {
+      "imports": ["fastify", "@toposonics/types", "./supabase"],
+      "importedBy": ["apps/api/src/routes/compositions.ts", "apps/api/src/routes/auth.ts"],
+      "externalDeps": ["fastify"],
+      "exports": ["getUserFromToken", "exchangeAccessToken", "requireAuth", "optionalAuth"],
+      "couplingScore": 65,
+      "type": "middleware"
+    },
+    "apps/api/src/supabase.ts": {
+      "imports": ["@supabase/supabase-js", "./config"],
+      "importedBy": ["apps/api/src/auth.ts", "apps/api/src/services/compositions.ts"],
+      "externalDeps": ["@supabase/supabase-js"],
+      "exports": ["supabaseAdmin"],
+      "couplingScore": 55,
+      "type": "singleton"
+    },
+    "apps/api/src/services/compositions.ts": {
+      "imports": ["@toposonics/types", "../supabase"],
+      "importedBy": ["apps/api/src/routes/compositions.ts"],
+      "externalDeps": [],
+      "exports": ["listCompositions", "getCompositionById", "createComposition", "updateComposition", "deleteComposition"],
+      "couplingScore": 60,
+      "type": "service"
+    },
+    "apps/api/src/routes/compositions.ts": {
+      "imports": ["fastify", "@toposonics/types", "../auth", "../services/compositions"],
+      "importedBy": ["apps/api/src/server.ts"],
+      "externalDeps": ["fastify"],
+      "exports": ["compositionRoutes"],
+      "couplingScore": 55,
+      "type": "route"
+    },
+    "apps/api/src/routes/health.ts": {
+      "imports": ["fastify", "@toposonics/types", "../config"],
+      "importedBy": ["apps/api/src/server.ts"],
+      "externalDeps": ["fastify"],
+      "exports": ["healthRoutes"],
+      "couplingScore": 25,
+      "type": "route"
+    },
+    "apps/api/src/routes/auth.ts": {
+      "imports": ["fastify", "@toposonics/types", "../auth"],
+      "importedBy": ["apps/api/src/server.ts"],
+      "externalDeps": ["fastify"],
+      "exports": ["authRoutes"],
+      "couplingScore": 35,
+      "type": "route"
+    },
+    "apps/api/src/config.ts": {
+      "imports": [],
+      "importedBy": ["apps/api/src/server.ts", "apps/api/src/supabase.ts", "apps/api/src/routes/health.ts"],
+      "externalDeps": [],
+      "exports": ["config"],
+      "couplingScore": 40,
+      "type": "config"
+    }
+  }
+}
