@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { useAuth } from '../auth/AuthProvider';
+
+const WEB_APP_URL = 'https://toposonics.com'; // Replace with your actual web app URL
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -17,6 +19,10 @@ export default function HomeScreen({ navigation }: Props) {
     } catch (error) {
       Alert.alert('Apple Sign-In failed', (error as Error).message);
     }
+  };
+
+  const handleTakeTour = () => {
+    Linking.openURL(WEB_APP_URL);
   };
 
   return (
@@ -46,6 +52,13 @@ export default function HomeScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Compositions')}
         >
           <Text style={styles.buttonText}>View Compositions</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.tertiaryButton]}
+          onPress={handleTakeTour}
+        >
+          <Text style={styles.buttonText}>Take the Tour</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -137,6 +150,11 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: '#4b5563',
+  },
+  tertiaryButton: {
+    backgroundColor: '#1f2937',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   appleButton: {
     backgroundColor: '#111827',

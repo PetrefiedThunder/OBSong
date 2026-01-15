@@ -32,6 +32,10 @@ export interface ImageAnalysisResult {
     depthUnit?: DepthUnit;
     /** Timestamp associated with the depth frame if provided by native module. */
     depthCaptureTimestamp?: number;
+    /** Optional: Width of the ridge from the native module. */
+    ridgeWidth?: number;
+    /** Optional: Height of the ridge from the native module. */
+    ridgeHeight?: number;
   };
 }
 

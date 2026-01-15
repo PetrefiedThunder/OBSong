@@ -4,8 +4,7 @@
  */
 
 // Export theme and design tokens
-export { theme, colors, spacing, radii, typography, shadows, transitions, zIndex } from './theme';
-export type { Theme } from './theme';
+export { theme } from './theme';
 
 // Export components
 export * from './components';

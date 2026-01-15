@@ -146,7 +146,7 @@ Maps image features with ridge detection (partially implemented).
 
 - `quantizeNotes(notes, gridSize)` - Snap timings to grid
 - `scaleVelocity(notes, scale)` - Multiply all velocities
-- `transposeNotes(notes, semitones)` - Transpose all notes (TODO)
+- `transposeNotes(notes, semitones)` - Transpose all notes
 
 ## Supported Scales
 

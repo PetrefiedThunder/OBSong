@@ -33,6 +33,7 @@ async function createServer(): Promise<FastifyInstance> {
         : undefined,
     },
     trustProxy: config.trustProxy,
+    bodyLimit: 10485760, // 10MB
   });
 
   const allowedOrigins = new Set(config.corsOrigins);

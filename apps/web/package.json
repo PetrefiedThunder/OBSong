@@ -10,7 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next",
-    "generate:scene-demos": "tsx scripts/generateSceneDemos.ts"
+    "generate:scene-demos": "tsx scripts/generateSceneDemos.ts",
+    "test": "node -e \"console.log('no tests')\""
   },
   "dependencies": {
     "@toposonics/core-audio": "workspace:*",

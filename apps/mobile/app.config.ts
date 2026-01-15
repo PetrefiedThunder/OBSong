@@ -19,6 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: 'com.toposonics.app',
     buildNumber: process.env.IOS_BUILD_NUMBER ?? '1.0.0',
+    googleServicesFile: process.env.GOOGLE_SERVICES_PLIST,
   },
   android: {
     adaptiveIcon: {
@@ -33,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'READ_MEDIA_IMAGES',
       'RECORD_AUDIO',
     ],
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
   },
   web: {
     favicon: './assets/favicon.png',
@@ -48,8 +50,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Allow TopoSonics to use your camera to capture images',
       },
     ],
+    'sentry-expo',
+    '@react-native-firebase/app',
   ],
+  hooks: {
+    postPublish: [
+      {
+        file: 'sentry-expo/upload-sourcemaps',
+        config: {
+          organization: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+        },
+      },
+    ],
+  },
   extra: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'https://api.toposonics.com',
+    // apiUrl is now handled by the shared config
   },
 });

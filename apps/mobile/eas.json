@@ -3,15 +3,22 @@
     "version": ">= 6.0.0"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
     "production": {
       "distribution": "store",
       "channel": "production",
-      "autoIncrement": "versionCode",
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
       },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.toposonics.com"
+      "ios": {
+        "buildConfiguration": "Release"
       }
     }
   },

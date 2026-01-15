@@ -22,7 +22,6 @@ import {
   type ScenePack,
 } from '@toposonics/core-audio';
 import { analyzeImageFile, analyzeImageFileMultiVoice } from '@/lib/imageProcessing';
-import { createComposition } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToneEngine } from '@/hooks/useToneEngine';
 import { ImageUploader } from '@/components/ImageUploader';
@@ -31,18 +30,20 @@ import { PlaybackControls } from '@/components/PlaybackControls';
 import { TimelineVisualizer } from '@/components/TimelineVisualizer';
 import { ScenePackSelector } from '@/components/ScenePackSelector';
 import { exportCompositionToMidi } from '@/lib/midiExport';
+import { logAnalyticsEvent } from '@/lib/analytics';
+import { SaveCompositionCard } from '@/components/SaveCompositionCard';
+import { logError } from '@toposonics/shared/dist/logging';
 
 // Force dynamic rendering for this client-only page
 export const dynamic = 'force-dynamic';
 
 function StudioPageContent() {
-  const { user, token, login } = useAuth();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
 
   // State
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   // Image analysis result
   const [analysis, setAnalysis] = useState<ImageAnalysisResult | null>(null);
@@ -62,8 +63,6 @@ function StudioPageContent() {
 
   // Generated composition
   const [noteEvents, setNoteEvents] = useState<NoteEvent[]>([]);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
 
   // Tone.js engine
   const preset = getPresetById(presetId) || getDefaultPreset();
@@ -106,14 +105,16 @@ function StudioPageContent() {
 
     // Auto-analyze using the appropriate analyzer based on mode
     setIsAnalyzing(true);
+    setAnalysis(null); // Clear previous analysis
     try {
       const result = mappingMode === 'MULTI_VOICE'
         ? await analyzeImageFileMultiVoice(file)
         : await analyzeImageFile(file);
       setAnalysis(result.analysis);
     } catch (error) {
-      console.error('Failed to analyze image:', error);
+      logError(error as Error, { context: 'Image Analysis' });
       alert('Failed to analyze image');
+      setAnalysis(null); // Ensure analysis is cleared on error
     } finally {
       setIsAnalyzing(false);
     }
@@ -170,9 +171,6 @@ function StudioPageContent() {
       setTempo(associatedPreset.defaultTempoBpm);
       setMappingMode(associatedPreset.mappingMode as MappingMode);
     }
-
-    // Set title
-    setTitle(`${scenePack.name} Demo`);
   };
 
   // Generate composition
@@ -185,7 +183,6 @@ function StudioPageContent() {
     let events: NoteEvent[];
 
     if (mappingMode === 'MULTI_VOICE') {
-      // Multi-voice mode: generate bass, melody, and pad voices
       events = mapImageToMultiVoiceComposition(
         analysis,
         {
@@ -199,7 +196,6 @@ function StudioPageContent() {
         selectedTopoPreset || undefined
       );
     } else {
-      // Linear landscape mode (default)
       events = mapLinearLandscape(analysis, {
         key,
         scale,
@@ -211,58 +207,7 @@ function StudioPageContent() {
     }
 
     setNoteEvents(events);
-  };
-
-  // Save composition
-  const handleSave = async () => {
-    let effectiveToken = token;
-    let effectiveUser = user;
-
-    if (!effectiveToken) {
-      // Prompt for login
-      const email = prompt('Enter your email to save:');
-      if (email) {
-        const password = prompt('Enter your Supabase password:');
-        try {
-          const loginResult = await login(email, password || undefined);
-          effectiveToken = loginResult.token;
-          effectiveUser = loginResult.user;
-        } catch (error) {
-          alert('Login failed');
-          return;
-        }
-      } else {
-        return;
-      }
-    }
-
-    if (!noteEvents.length || !effectiveToken || !effectiveUser) return;
-
-    const compositionTitle = title || `Composition ${new Date().toLocaleDateString()}`;
-
-    setIsSaving(true);
-    try {
-      await createComposition(
-        {
-          title: compositionTitle,
-          description: description || 'Generated from uploaded image',
-          noteEvents,
-          mappingMode,
-          key,
-          scale,
-          presetId,
-          tempo,
-        },
-        effectiveToken
-      );
-
-      alert('Composition saved!');
-    } catch (error) {
-      console.error('Failed to save composition:', error);
-      alert('Failed to save composition');
-    } finally {
-      setIsSaving(false);
-    }
+    logAnalyticsEvent('composition_generated', { mappingMode });
   };
 
   // Export composition as MIDI
@@ -276,8 +221,8 @@ function StudioPageContent() {
       exportCompositionToMidi({
         noteEvents,
         tempoBpm: tempo,
-        title: title || 'TopoSonics Composition',
-        description,
+        title: 'TopoSonics Composition',
+        description: '',
         mappingMode,
         key,
         scale,
@@ -288,7 +233,7 @@ function StudioPageContent() {
         },
       });
     } catch (error) {
-      console.error('Failed to export MIDI', error);
+      logError(error as Error, { context: 'MIDI Export' });
       alert('Unable to export MIDI');
     }
   };
@@ -370,43 +315,21 @@ function StudioPageContent() {
           <TimelineVisualizer noteEvents={noteEvents} currentTime={currentTime} />
 
           {noteEvents.length > 0 && (
-            <Card title="Save Composition" padding="lg">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Title</label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="My Composition"
-                    className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional description..."
-                    rows={3}
-                    className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  loading={isSaving}
-                >
-                  Save to Library
-                </Button>
+            <>
+              <SaveCompositionCard
+                noteEvents={noteEvents}
+                mappingMode={mappingMode}
+                keyType={key}
+                scale={scale}
+                presetId={presetId}
+                tempo={tempo}
+              />
+              <Card title="Export" padding="lg">
                 <Button variant="outline" size="lg" fullWidth onClick={handleExportMidi}>
                   Export as MIDI
                 </Button>
-              </div>
-            </Card>
+              </Card>
+            </>
           )}
         </div>
       </div>

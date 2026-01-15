@@ -1,15 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@toposonics/ui';
 import { getAllScenePacks } from '@toposonics/core-audio';
-import type { ScenePack, NoteEvent } from '@toposonics/types';
+import type { ScenePack, NoteEvent, ImageAnalysisResult } from '@toposonics/types';
 import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
+import { TourProvider, useTour } from '@/components/tour/TourProvider';
+import { TourPopup } from '@/components/tour/TourPopup';
+import { mockAnalysisResult, mockNoteEvents } from '@toposonics/shared/dist/demo-data';
+import { theme } from '@toposonics/ui/dist/theme';
 
 type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
 
+function TourWrapper() {
+  const { tourStep } = useTour();
+  const [demoAnalysis, setDemoAnalysis] = useState<ImageAnalysisResult | null>(null);
+  const [demoNotes, setDemoNotes] = useState<NoteEvent[] | null>(null);
+
+  useEffect(() => {
+    if (tourStep?.action === 'RUN_ANALYSIS') {
+      setDemoAnalysis(mockAnalysisResult);
+    }
+    if (tourStep?.action === 'PLAY_MUSIC') {
+      setDemoNotes(mockNoteEvents);
+    }
+  }, [tourStep]);
+
+  // This component will eventually display the analysis results and trigger playback
+  // For now, it just handles the state logic.
+
+  return null;
+}
+
 export default function HomePage() {
+  return (
+    <TourProvider>
+      <HomePageContent />
+      <TourPopup />
+      <TourWrapper />
+    </TourProvider>
+  );
+}
+
+function HomePageContent() {
   const allScenePacks = getAllScenePacks();
   const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [activeDemo, setActiveDemo] = useState<{
@@ -17,6 +51,7 @@ export default function HomePage() {
     noteEvents: NoteEvent[];
   } | null>(null);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+  const { startTour } = useTour();
 
   // Filter scene packs by category
   const scenePacks = selectedCategory === 'All'
@@ -45,7 +80,7 @@ export default function HomePage() {
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
+          <h1 id="logo" className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
             Turn Images into Musical Landscapes
           </h1>
           <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
@@ -58,16 +93,14 @@ export default function HomePage() {
                 Open Studio
               </Button>
             </Link>
-            <Link href="/compositions">
-              <Button variant="outline" size="lg">
-                Browse Compositions
-              </Button>
-            </Link>
+            <Button variant="secondary" size="lg" onClick={startTour}>
+              Take the Tour
+            </Button>
           </div>
         </div>
 
         {/* Scene Pack Showcase */}
-        <div className="mb-20">
+        <div id="image-analysis-panel" className="mb-20">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-3">Explore Scene Packs</h2>
             <p className="text-gray-400 max-w-2xl mx-auto mb-6">
@@ -76,7 +109,7 @@ export default function HomePage() {
             </p>
 
             {/* Category Filter */}
-            <div className="flex justify-center gap-2 flex-wrap">
+            <div id="mapping-mode-selector" className="flex justify-center gap-2 flex-wrap">
               {(['All', 'Nature', 'Urban', 'Atmospheric'] as Category[]).map((category) => (
                 <button
                   key={category}
@@ -84,7 +117,7 @@ export default function HomePage() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     selectedCategory === category
                       ? 'bg-primary-600 text-white'
-                      : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
+                      : 'bg-surface-elevated text-gray-300 hover:bg-surface-elevated'
                   }`}
                 >
                   {category}
@@ -99,7 +132,7 @@ export default function HomePage() {
                 key={pack.id}
                 className="group relative rounded-xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:scale-105"
                 style={{
-                  background: `linear-gradient(135deg, ${pack.uiThemeHints?.accentColor || '#A855F7'}15, transparent)`,
+                  background: `linear-gradient(135deg, ${pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT}15, transparent)`,
                 }}
               >
                 <div className="p-6 space-y-4">
@@ -124,7 +157,7 @@ export default function HomePage() {
                         key={idx}
                         className="text-xs px-2 py-1 rounded bg-surface-elevated"
                         style={{
-                          color: pack.uiThemeHints?.accentColor || '#A855F7',
+                          color: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
                         }}
                       >
                         {subject}
@@ -133,23 +166,24 @@ export default function HomePage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 pt-2">
+                  <div id="playback-controls" className="flex gap-2 pt-2">
                     <button
                       onClick={() => handlePlayDemo(pack)}
                       disabled={loadingDemo === pack.id}
                       className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
-                        backgroundColor: pack.uiThemeHints?.accentColor || '#A855F7',
+                        backgroundColor: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
                       }}
                     >
                       {loadingDemo === pack.id ? 'Loading...' : '▶ Try Demo'}
                     </button>
                     <Link
+                      id="export-button"
                       href={`/studio?scene=${pack.id}`}
                       className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors border text-center"
                       style={{
-                        borderColor: pack.uiThemeHints?.accentColor || '#A855F7',
-                        color: pack.uiThemeHints?.accentColor || '#A855F7',
+                        borderColor: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
+                        color: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
                       }}
                     >
                       Open →
@@ -161,7 +195,7 @@ export default function HomePage() {
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none"
                   style={{
-                    background: `radial-gradient(circle at top right, ${pack.uiThemeHints?.accentColor || '#A855F7'}, transparent)`,
+                    background: `radial-gradient(circle at top right, ${pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT}, transparent)`,
                   }}
                 />
               </div>
@@ -198,7 +232,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-bold">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-.bold">
                 3
               </div>
               <div>

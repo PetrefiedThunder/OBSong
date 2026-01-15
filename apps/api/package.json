@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test": "node -e \"console.log('no tests')\""
   },
   "dependencies": {
     "@toposonics/types": "workspace:*",

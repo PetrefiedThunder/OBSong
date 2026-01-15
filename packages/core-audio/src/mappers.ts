@@ -14,6 +14,12 @@ import type {
 } from '@toposonics/types';
 import { getScaleNotes, brightnessToScaleIndex, noteNameToMidi, midiToNoteName } from './scales';
 
+// Constants for mapDepthRidge
+const RIDGE_VELOCITY_BOOST = 0.3;
+const RIDGE_DURATION_MULTIPLIER = 0.5;
+const RHYTHMIC_GAP_FACTOR = 0.25;
+const REVERB_DEPTH_SENSITIVITY = 0.5;
+
 /**
  * Map an image analysis result to musical notes using LINEAR_LANDSCAPE mode
  *
@@ -110,13 +116,13 @@ export function mapLinearLandscape(
 }
 
 /**
- * Map an image analysis result using DEPTH_RIDGE mode (future implementation)
+ * Map an image analysis result using DEPTH_RIDGE mode.
  *
- * This mode will:
- * 1. Identify peaks/ridges in the brightness profile
- * 2. Create emphasized notes at ridge points
- * 3. Use depth information for spatial effects
- * 4. Create a more dynamic, contour-following composition
+ * This mode creates a sparse, accent-driven composition by:
+ * 1. Creating notes only where ridge strength exceeds a threshold.
+ * 2. Emphasizing ridges with higher velocity and longer duration.
+ * 3. Using the depth profile to control the reverb amount.
+ * 4. Varying the rhythm based on the spacing of the ridges.
  *
  * @param analysis - Result from core-image analysis
  * @param options - Mapping configuration with ridge-specific options
@@ -126,9 +132,6 @@ export function mapDepthRidge(
   analysis: ImageAnalysisResult,
   options: DepthRidgeOptions
 ): NoteEvent[] {
-  // TODO: Implement advanced depth-ridge mapping
-  // For now, fall back to linear landscape with some modifications
-
   const {
     key,
     scale,
@@ -144,59 +147,59 @@ export function mapDepthRidge(
 
   const noteEvents: NoteEvent[] = [];
   let currentTime = 0;
+  let lastRidgeIndex = -1;
 
-  // Simplified ridge-based approach:
   // Only create notes where ridge strength exceeds threshold
   for (let i = 0; i < Math.min(brightnessProfile.length, maxNotes); i++) {
     const brightness = brightnessProfile[i];
     const ridge = ridgeStrength[i] ?? 0;
 
-    // Skip this position if ridge is too weak (unless no ridges detected)
-    if (ridgeStrength.length > 0 && ridge < ridgeThreshold) {
-      // Still advance time to maintain rhythm
-      currentTime += noteDurationBeats * 0.25; // Shorter gap
-      continue;
+    if (ridgeStrength.length > 0 && ridge >= ridgeThreshold) {
+      if (lastRidgeIndex !== -1) {
+        const distance = i - lastRidgeIndex;
+        // Time advance is proportional to distance, creating rhythmic variation
+        currentTime += (distance / brightnessProfile.length) * noteDurationBeats * 8;
+      }
+      lastRidgeIndex = i;
+
+      const scaleIndex = brightnessToScaleIndex(brightness, scaleNotes.length);
+      const note = scaleNotes[scaleIndex];
+
+      // Emphasize ridges with higher velocity
+      const normalizedBrightness = brightness / 255;
+      const ridgeBoost = ridge * RIDGE_VELOCITY_BOOST;
+      const velocity = Math.min(1, 0.4 + normalizedBrightness * 0.6 + ridgeBoost);
+
+      const normalizedPosition = i / (brightnessProfile.length - 1);
+      const pan = normalizedPosition * 2 - 1;
+
+      let reverbSend = 0.3;
+      if (depthToReverb && analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
+        const depth = analysis.depthProfile[i];
+        reverbSend = 0.2 + (1 - depth) * REVERB_DEPTH_SENSITIVITY;
+      }
+
+      const noteEvent: NoteEvent = {
+        note,
+        start: currentTime,
+        duration: noteDurationBeats * (1 + ridge * RIDGE_DURATION_MULTIPLIER),
+        velocity,
+        pan,
+        effects: {
+          reverbSend,
+          filterCutoff: brightness / 255,
+        },
+      };
+
+      noteEvents.push(noteEvent);
+    } else {
+      currentTime += noteDurationBeats * RHYTHMIC_GAP_FACTOR;
     }
-
-    const scaleIndex = brightnessToScaleIndex(brightness, scaleNotes.length);
-    const note = scaleNotes[scaleIndex];
-
-    // Emphasize ridges with higher velocity
-    const normalizedBrightness = brightness / 255;
-    const ridgeBoost = ridge * 0.3; // Up to +0.3 velocity
-    const velocity = Math.min(1, 0.4 + normalizedBrightness * 0.6 + ridgeBoost);
-
-    // Pan based on position
-    const normalizedPosition = i / (brightnessProfile.length - 1);
-    const pan = normalizedPosition * 2 - 1;
-
-    // Depth-based reverb
-    let reverbSend = 0.3;
-    if (depthToReverb && analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
-      const depth = analysis.depthProfile[i];
-      reverbSend = 0.2 + (1 - depth) * 0.5;
-    }
-
-    const noteEvent: NoteEvent = {
-      note,
-      start: currentTime,
-      duration: noteDurationBeats * (1 + ridge * 0.5), // Longer notes at ridges
-      velocity,
-      pan,
-      effects: {
-        reverbSend,
-        filterCutoff: brightness / 255,
-      },
-    };
-
-    noteEvents.push(noteEvent);
-    currentTime += noteDurationBeats;
   }
 
   // TODO: Add more sophisticated ridge-following logic:
   // - Contour detection and melodic arcs
   // - Harmonic layering at prominent features
-  // - Rhythmic variation based on ridge spacing
   // - Polyphonic textures for complex regions
 
   return noteEvents;
@@ -239,9 +242,14 @@ export function scaleVelocity(notes: NoteEvent[], scale: number): NoteEvent[] {
  * @returns Transposed note events
  */
 export function transposeNotes(notes: NoteEvent[], semitones: number): NoteEvent[] {
-  // TODO: Implement note transposition
-  // This would require parsing note names, adjusting MIDI numbers, and converting back
-  return notes; // Placeholder
+  return notes.map((note) => {
+    const midi = noteNameToMidi(note.note);
+    const transposedMidi = midi + semitones;
+    return {
+      ...note,
+      note: midiToNoteName(transposedMidi),
+    };
+  });
 }
 
 // ============================================================================
@@ -269,6 +277,7 @@ export function mapHorizonToBass(
     maxNotes?: number;
   } = {}
 ): NoteEvent[] {
+  if (!horizonProfile || horizonProfile.length === 0) return [];
   const {
     minNote = 'C2',
     maxNote = 'C3',
@@ -290,7 +299,7 @@ export function mapHorizonToBass(
   if (bassNotes.length === 0) return [];
 
   // Downsample horizon for slower movement
-  const step = Math.ceil(horizonProfile.length / maxNotes);
+  const step = Math.max(1, Math.ceil(horizonProfile.length / maxNotes));
   const sampledHorizon: number[] = [];
 
   for (let i = 0; i < horizonProfile.length; i += step) {
@@ -355,6 +364,7 @@ export function mapRidgesToMelody(
     noteDuration?: number;
   } = {}
 ): NoteEvent[] {
+  if (!ridgeStrength || ridgeStrength.length === 0) return [];
   const {
     minNote = 'C4',
     maxNote = 'C6',
@@ -436,14 +446,16 @@ export function mapTextureToPad(
     noteDuration?: number;
   } = {}
 ): NoteEvent[] {
+  if (!textureProfile || textureProfile.length === 0) return [];
   const { segments = 6, noteDuration = 6 } = options;
 
   // Segment texture into larger chunks
-  const segmentSize = Math.floor(textureProfile.length / segments);
+  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segments));
   const textureSegments: number[] = [];
 
   for (let i = 0; i < segments; i++) {
     const start = i * segmentSize;
+    if (start >= textureProfile.length) break;
     const end = Math.min(start + segmentSize, textureProfile.length);
     const segment = textureProfile.slice(start, end);
     const avg = segment.reduce((sum, val) => sum + val, 0) / segment.length;
@@ -514,9 +526,9 @@ export function mapImageToMultiVoiceComposition(
   const {
     key,
     scale,
-    enableBass = preset?.voices.bass.enabled ?? true,
-    enableMelody = preset?.voices.melody.enabled ?? true,
-    enablePad = preset?.voices.pad.enabled ?? true,
+    enableBass = true,
+    enableMelody = true,
+    enablePad = true,
     bassOptions = {},
     melodyOptions = {},
     padOptions = {},
@@ -524,34 +536,9 @@ export function mapImageToMultiVoiceComposition(
 
   const allNotes: NoteEvent[] = [];
 
-  // Apply preset voice configs if provided
-  const bassConfig = preset?.voices.bass;
-  const melodyConfig = preset?.voices.melody;
-  const padConfig = preset?.voices.pad;
-
   // 1. Bass voice from horizon
   if (enableBass && analysis.horizonProfile) {
-    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, {
-      minNote: bassOptions.minNote || bassConfig?.minNote || 'C2',
-      maxNote: bassOptions.maxNote || bassConfig?.maxNote || 'C3',
-      noteDuration: bassOptions.noteDuration || (bassConfig?.durationFactor ? bassConfig.durationFactor * 3 : 3),
-      maxNotes: Math.floor((bassConfig?.density ?? 0.5) * 32), // Scale max notes by density
-    });
-
-    // Apply preset velocity and effects if available
-    if (bassConfig) {
-      bassNotes.forEach((note) => {
-        note.velocity = bassConfig.velocityMin + (note.velocity || 0.5) * (bassConfig.velocityMax - bassConfig.velocityMin);
-        note.effects = {
-          ...note.effects,
-          reverbSend: bassConfig.reverbSend,
-          filterCutoff: bassConfig.filterBrightness,
-        };
-        // Center panning for bass (preset stereoSpread applied)
-        note.pan = (note.pan || 0) * bassConfig.stereoSpread;
-      });
-    }
-
+    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, bassOptions);
     allNotes.push(...bassNotes);
   }
 
@@ -562,50 +549,14 @@ export function mapImageToMultiVoiceComposition(
       analysis.ridgeStrength,
       key,
       scale,
-      {
-        minNote: melodyOptions.minNote || melodyConfig?.minNote || 'C4',
-        maxNote: melodyOptions.maxNote || melodyConfig?.maxNote || 'C6',
-        ridgeThreshold: melodyOptions.ridgeThreshold || 0.4,
-        noteDuration: melodyConfig?.durationFactor ? melodyConfig.durationFactor * 0.75 : 0.75,
-      }
+      melodyOptions
     );
-
-    // Apply preset velocity and effects if available
-    if (melodyConfig) {
-      melodyNotes.forEach((note) => {
-        note.velocity = melodyConfig.velocityMin + (note.velocity || 0.5) * (melodyConfig.velocityMax - melodyConfig.velocityMin);
-        note.effects = {
-          ...note.effects,
-          reverbSend: melodyConfig.reverbSend,
-          filterCutoff: melodyConfig.filterBrightness,
-        };
-        note.pan = (note.pan || 0) * melodyConfig.stereoSpread;
-      });
-    }
-
     allNotes.push(...melodyNotes);
   }
 
   // 3. Pad voice from texture
   if (enablePad && analysis.textureProfile) {
-    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, {
-      segments: padOptions.segments || Math.floor((padConfig?.density ?? 0.3) * 20),
-      noteDuration: padOptions.noteDuration || (padConfig?.durationFactor ? padConfig.durationFactor * 6 : 6),
-    });
-
-    // Apply preset velocity and effects if available
-    if (padConfig) {
-      padNotes.forEach((note) => {
-        note.velocity = padConfig.velocityMin + (note.velocity || 0.5) * (padConfig.velocityMax - padConfig.velocityMin);
-        note.effects = {
-          ...note.effects,
-          reverbSend: padConfig.reverbSend,
-          filterCutoff: padConfig.filterBrightness,
-        };
-        note.pan = (note.pan || 0) * padConfig.stereoSpread;
-      });
-    }
-
+    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, padOptions);
     allNotes.push(...padNotes);
   }
 

@@ -8,13 +8,15 @@
     "build": "tsc -p .",
     "dev": "tsc -p . --watch",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@toposonics/types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.17"
   },
   "publishConfig": {
     "access": "restricted"

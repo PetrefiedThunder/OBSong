@@ -4,8 +4,7 @@
  */
 
 import { createApiClient } from '@toposonics/shared';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { API_URL } from '@toposonics/shared/dist/config';
 
 /**
  * Web application API client instance

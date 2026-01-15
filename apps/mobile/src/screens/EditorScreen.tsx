@@ -8,6 +8,8 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +22,9 @@ import {
 import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
 import { useCompositions } from '../state/CompositionsProvider';
 import * as FileSystem from 'expo-file-system';
+import analytics from '@react-native-firebase/analytics';
+import { logError } from '@toposonics/shared/dist/logging';
+import { theme } from '@toposonics/ui/dist/theme';
 
 const KEYS: KeyType[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const SCALES: ScaleType[] = [
@@ -47,11 +52,21 @@ export default function EditorScreen() {
   const tempo = 90;
 
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Permission to access camera roll is required');
-      return;
+    let permissionResult;
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      permissionResult = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+      );
+      if (permissionResult !== 'granted') {
+        Alert.alert('Permission Required', 'Permission to access camera roll is required');
+        return;
+      }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera roll is required');
+        return;
+      }
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -87,7 +102,7 @@ export default function EditorScreen() {
     try {
       await AsyncStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(payload));
     } catch (err) {
-      console.warn('Failed to cache draft', err);
+      logError(err as Error, { context: 'Cache Draft' });
     }
   };
 
@@ -107,7 +122,7 @@ export default function EditorScreen() {
       setSelectedScale(normalized.metadata.scale);
       setGeneration(normalized);
     } catch (err) {
-      console.warn('Failed to hydrate draft', err);
+      logError(err as Error, { context: 'Hydrate Draft' });
     }
   };
 
@@ -121,7 +136,7 @@ export default function EditorScreen() {
     try {
       await AsyncStorage.removeItem(DRAFT_CACHE_KEY);
     } catch (err) {
-      console.warn('Failed to clear draft', err);
+      logError(err as Error, { context: 'Clear Draft' });
     }
   };
 
@@ -141,7 +156,13 @@ export default function EditorScreen() {
       });
       setGeneration(result);
       await storeDraft({ ...result, imageUri });
+      await analytics().logEvent('composition_generated', {
+        key: selectedKey,
+        scale: selectedScale,
+        noteCount: result.noteEvents.length,
+      });
     } catch (error) {
+      logError(error as Error, { context: 'Generate Composition' });
       Alert.alert('Generation failed', (error as Error).message);
     } finally {
       setProcessing(false);
@@ -163,6 +184,7 @@ export default function EditorScreen() {
         },
       });
     } catch (error) {
+      logError(error as Error, { context: 'Play Notes' });
       Alert.alert('Playback failed', (error as Error).message);
     } finally {
       setPlaybackStatus(null);
@@ -210,10 +232,15 @@ export default function EditorScreen() {
       const saved = await saveComposition(payload);
       if (saved) {
         Alert.alert('Saved', 'Composition synced to backend');
+        await analytics().logEvent('composition_saved', {
+          noteCount: generation.noteEvents.length,
+          duration,
+        });
       } else {
         Alert.alert('Save skipped', 'Unable to save without an authenticated session');
       }
     } catch (error) {
+      logError(error as Error, { context: 'Save to Backend' });
       Alert.alert('Save failed', (error as Error).message);
     } finally {
       setSaving(false);
@@ -377,7 +404,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#f9fafb',
+    color: theme.colors.primary[50],
     marginBottom: 12,
   },
   imageContainer: {
@@ -387,7 +414,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 250,
     borderRadius: 12,
-    backgroundColor: '#1e1e26',
+    backgroundColor: theme.colors.surface.secondary,
   },
   changeImageButton: {
     position: 'absolute',
@@ -413,32 +440,32 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.colors.surface.elevated,
   },
   draftResetText: {
-    color: '#9ca3af',
+    color: theme.colors.primary[300],
     fontWeight: '600',
   },
   pickerButton: {
     flex: 1,
-    backgroundColor: '#1e1e26',
+    backgroundColor: theme.colors.surface.secondary,
     padding: 24,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#374151',
+    borderColor: theme.colors.surface.elevated,
   },
   pickerIcon: {
     fontSize: 40,
     marginBottom: 12,
   },
   pickerText: {
-    color: '#d1d5db',
+    color: theme.colors.primary[200],
     fontSize: 14,
     fontWeight: '600',
   },
   paramCard: {
-    backgroundColor: '#1e1e26',
+    backgroundColor: theme.colors.surface.secondary,
     padding: 16,
     borderRadius: 12,
     gap: 12,
@@ -454,43 +481,43 @@ const styles = StyleSheet.create({
   optionChip: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#111827',
+    backgroundColor: theme.colors.surface.primary,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.colors.surface.elevated,
     borderRadius: 8,
   },
   optionChipActive: {
-    backgroundColor: '#0284c7',
-    borderColor: '#0284c7',
+    backgroundColor: theme.colors.primary.DEFAULT,
+    borderColor: theme.colors.primary.DEFAULT,
   },
   optionChipText: {
-    color: '#e5e7eb',
+    color: theme.colors.primary[100],
     fontSize: 12,
     fontWeight: '700',
   },
   paramLabel: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: theme.colors.primary[300],
     fontWeight: '600',
   },
   paramValue: {
     fontSize: 16,
-    color: '#f9fafb',
+    color: theme.colors.primary[50],
     fontWeight: '600',
   },
   paramNote: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.colors.primary[400],
     marginTop: 4,
   },
   generateButton: {
-    backgroundColor: '#0284c7',
+    backgroundColor: theme.colors.primary.DEFAULT,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#374151',
+    backgroundColor: theme.colors.surface.elevated,
     opacity: 0.7,
   },
   generateButtonText: {
@@ -499,13 +526,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   summaryCard: {
-    backgroundColor: '#1e1e26',
+    backgroundColor: theme.colors.surface.secondary,
     padding: 16,
     borderRadius: 12,
     gap: 12,
   },
   summaryText: {
-    color: '#f9fafb',
+    color: theme.colors.primary[50],
     fontSize: 14,
   },
   previewButtons: {
@@ -514,7 +541,7 @@ const styles = StyleSheet.create({
   },
   playButton: {
     flex: 1,
-    backgroundColor: '#0ea5e9',
+    backgroundColor: theme.colors.primary[500],
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -535,7 +562,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   noteListTitle: {
-    color: '#9ca3af',
+    color: theme.colors.primary[300],
     fontSize: 12,
     fontWeight: '700',
   },
@@ -545,30 +572,30 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   notePill: {
-    backgroundColor: '#111827',
+    backgroundColor: theme.colors.surface.primary,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: theme.colors.surface.elevated,
     padding: 8,
     borderRadius: 8,
     minWidth: 70,
   },
   notePillText: {
-    color: '#f9fafb',
+    color: theme.colors.primary[50],
     fontWeight: '700',
   },
   notePillSub: {
-    color: '#9ca3af',
+    color: theme.colors.primary[300],
     fontSize: 10,
   },
   infoText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: theme.colors.primary[300],
     lineHeight: 20,
     marginBottom: 12,
   },
   featureList: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.colors.primary[400],
     lineHeight: 22,
     fontFamily: 'monospace',
   },
