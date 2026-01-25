@@ -1,240 +1,65 @@
-# 🔥 Super Prompt: Production Readiness Audit (Hostile Mode)
+# TopoSonics
 
-## Role & Mindset
+TopoSonics is a full-stack monorepo for turning images into musical soundscapes. It analyzes visual features, maps them into musical note events, and renders playback through web and mobile clients with a supporting API.
 
-You are acting as a **hostile senior staff engineer** reviewing a system that is about to be exposed to **real users, real money, and real attackers**.
+## What This Repo Contains
 
-Assume:
+- **Web app (Next.js 14)**: Upload images, preview mappings, play compositions with Tone.js, and export MIDI files.
+- **Mobile app (Expo)**: Capture or select images, generate simplified playback, and manage compositions on-device.
+- **API service (Fastify)**: Authenticated composition storage with Supabase-backed JWT verification and Postgres persistence.
+- **Core packages**:
+  - `@toposonics/core-image` for image analysis (brightness/depth profiles).
+  - `@toposonics/core-audio` for mapping analysis into note events and presets.
+  - `@toposonics/ui` for shared UI components.
+  - `@toposonics/types` for shared TypeScript contracts.
 
-* This system **will break**
-* Users **will misuse it**
-* Attackers **will probe it**
-* Founders **will not notice subtle failures**
-* You are accountable if it ships broken
+## Current Capabilities
 
-You are **not allowed** to be polite, optimistic, or abstract.
+- **Image analysis** via Canvas and shared core-image utilities.
+- **Visual-to-audio mapping** with presets, scales, and mapping modes.
+- **Browser playback** using Tone.js.
+- **MIDI export** for DAW workflows.
+- **Composition CRUD API** with Supabase-authenticated access.
+- **Shared types and UI components** across web and mobile.
 
----
+## Known Limitations (In Progress)
 
-## Scope & Standards
+- Mobile playback uses simplified audio rendering compared to the web client.
+- Real-time camera input and advanced mapping modes are planned but not fully shipped.
+- Auth flows in the web app are currently stubbed while API auth relies on Supabase.
 
-**Scope:** Full-stack application (backend, frontend, infrastructure, ops)
-**Stage:** Pre-production / pre-revenue
-**Standards to assume:**
+## Quick Start
 
-* YC production bar
-* SOC-2-lite expectations
-* OWASP Top 10
-* Reasonable fintech / data-safety hygiene (even if not regulated)
+```bash
+pnpm install
+pnpm dev:web
+```
 
-If something does not meet these bars, call it out explicitly.
+See the app-specific READMEs for deeper setup and environment configuration:
 
----
+- `apps/web/README.md`
+- `apps/mobile/README.md`
+- `apps/api/README.md`
 
-## Required Output Format (Strict)
+## Repository Layout
 
-For **every section and subsection**, you must provide:
+```
+apps/
+  api/     Fastify API service
+  web/     Next.js web client
+  mobile/  Expo mobile client
+packages/
+  core-image/  Visual feature extraction
+  core-audio/  Audio mapping and presets
+  ui/          Shared UI components
+  types/       Shared TypeScript contracts
+```
 
-1. **What Exists**
-2. **What Is Missing**
-3. **Failure Modes**
+## Documentation
 
-   * What breaks?
-   * What happens at 2 a.m.?
-   * What happens if a dependency fails?
-   * What happens if a user is malicious, confused, or careless?
-4. **Severity**
+- `PROJECT_CONTEXT.md` for architecture and dependency flow.
+- `docs/` for additional platform and audio engine notes.
 
-   * 🚫 Blocker
-   * ⚠️ High
-   * 🟡 Medium
-   * 🟢 Low
-5. **Ship Impact**
+## License
 
-   * Ship: Yes / No / Conditional
-6. **Concrete Evidence**
-
-   * File paths
-   * Routes
-   * Schemas
-   * Environment variables
-   * Missing tests
-   * Infra configs
-     (If you cannot point to artifacts, say “NOT FOUND”.)
-
-Vague answers are considered **failures**.
-
----
-
-## 1. Core Logic & Backend
-
-### Authentication & User Management
-
-* What exists:
-* What is missing:
-* Failure modes:
-* Security risks:
-* Severity:
-* Ship impact:
-* Evidence:
-
-### Authorization & Access Control
-
-* Role / permission model:
-* Privilege escalation risks:
-* Tenant isolation (if applicable):
-* Severity:
-* Ship impact:
-* Evidence:
-
-### Payments & Billing (if applicable)
-
-* PCI exposure:
-* Webhook verification:
-* Idempotency guarantees:
-* Refund / dispute handling:
-* Double-charge scenarios:
-* Severity:
-* Ship impact:
-* Evidence:
-
-### Data Models & Persistence
-
-* Schema integrity:
-* Migration strategy:
-* Backups & restore testing:
-* Data corruption scenarios:
-* Multi-tenant isolation (if relevant):
-* Severity:
-* Ship impact:
-* Evidence:
-
----
-
-## 2. Frontend & Client Behavior
-
-### Core User Flows
-
-* Happy paths vs real paths:
-* Broken or incomplete flows:
-* Error states:
-* Empty states:
-* Permission denial handling:
-* Severity:
-* Evidence:
-
-### State & Data Handling
-
-* Race conditions:
-* Stale data risks:
-* Cache invalidation:
-* Retry / timeout behavior:
-* Offline or partial failure behavior:
-* Severity:
-* Evidence:
-
-### Abuse & Misuse
-
-* Can users spam, brute force, scrape, or DOS?
-* Are limits enforced client-side only?
-* Severity:
-* Evidence:
-
----
-
-## 3. Infrastructure, Security & Ops
-
-### API & Services
-
-* Auth enforcement consistency:
-* Input validation & sanitization:
-* Rate limiting:
-* Dependency failure behavior:
-* Severity:
-* Evidence:
-
-### Secrets & Configuration
-
-* Env var handling:
-* Secret leakage risks:
-* Rotation strategy:
-* Local vs prod parity:
-* Severity:
-* Evidence:
-
-### CI/CD & Deployment
-
-* Build reproducibility:
-* Rollback strategy:
-* Migration safety:
-* One-click deploy risk:
-* Severity:
-* Evidence:
-
-### Observability & Incident Response
-
-* Logging coverage:
-* Metrics that matter:
-* Alerts that would actually fire:
-* On-call readiness:
-* Runbooks:
-* Severity:
-* Evidence:
-
----
-
-## 4. Aggregate Findings (Mandatory)
-
-### 🚫 Absolute Blockers (Ship = No)
-
-* List each blocker
-* Why it is a blocker
-* What breaks in production
-
-### ⚠️ High-Risk Issues
-
-* Likely failure scenarios
-* Business impact
-
-### 🧯 Fire Drills to Simulate
-
-Concrete scenarios to rehearse, e.g.:
-
-* Payment provider outage
-* Data corruption
-* Privilege escalation
-* Traffic spike
-* Bad deployment
-
-### 🚢 Final Ship Recommendation
-
-* Ship now: **Yes / No**
-* If conditional:
-
-  * Exact conditions required
-* Residual risk founders are implicitly accepting
-
----
-
-## Hard Rules
-
-* If something is missing, say **MISSING**
-* If something is unsafe, say **UNSAFE**
-* If you are unsure, say **UNKNOWN**
-* Do not assume intent
-* Do not soften language
-* Do not optimize for feelings
-
-Your job is not to help this ship.
-Your job is to **prevent a preventable failure**.
-
----
-
-If you want next-level leverage, next steps I can do for you:
-
-* Convert this into a **CI-enforced checklist**
-* Turn it into a **YAML / JSON schema** for automated audits
-* Tune it for **solo founder + AI engineer loops**
-* Add a **time-boxed “48-hour pre-launch kill test”**
-
-Just say where this will run (repo, PR review, CI, or live chat).
+MIT
