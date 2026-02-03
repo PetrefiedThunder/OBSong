@@ -20,7 +20,7 @@
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/under-pressure": "^8.3.0",
     "dotenv": "^16.4.5",
-    "fastify": "^4.25.2"
+    "fastify": "^5.7.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
