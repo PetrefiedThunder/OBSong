@@ -20,6 +20,12 @@ const RIDGE_DURATION_MULTIPLIER = 0.5;
 const RHYTHMIC_GAP_FACTOR = 0.25;
 const REVERB_DEPTH_SENSITIVITY = 0.5;
 
+function calculatePan(index: number, totalPoints: number, spread = 1): number {
+  if (totalPoints <= 1) return 0;
+  const normalizedPosition = index / (totalPoints - 1);
+  return (normalizedPosition * 2 - 1) * spread;
+}
+
 /**
  * Map an image analysis result to musical notes using LINEAR_LANDSCAPE mode
  *
@@ -83,8 +89,7 @@ export function mapLinearLandscape(
     // Calculate pan (-1 to 1, left to right)
     let pan = 0;
     if (enablePanning) {
-      const normalizedPosition = i / (sampledBrightness.length - 1);
-      pan = normalizedPosition * 2 - 1; // Map 0-1 to -1-1
+      pan = calculatePan(i, sampledBrightness.length);
     }
 
     // Use depth for reverb if available
@@ -170,8 +175,7 @@ export function mapDepthRidge(
       const ridgeBoost = ridge * RIDGE_VELOCITY_BOOST;
       const velocity = Math.min(1, 0.4 + normalizedBrightness * 0.6 + ridgeBoost);
 
-      const normalizedPosition = i / (brightnessProfile.length - 1);
-      const pan = normalizedPosition * 2 - 1;
+      const pan = calculatePan(i, brightnessProfile.length);
 
       let reverbSend = 0.3;
       if (depthToReverb && analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
@@ -405,8 +409,7 @@ export function mapRidgesToMelody(
     const note = melodyNotes[clampedIndex];
 
     // Pan based on position
-    const normalizedPosition = i / (brightnessProfile.length - 1);
-    const pan = (normalizedPosition * 2 - 1) * 0.6; // Less extreme than full pan
+    const pan = calculatePan(i, brightnessProfile.length, 0.6); // Less extreme than full pan
 
     noteEvents.push({
       note,

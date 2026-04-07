@@ -72,6 +72,27 @@ describe('mapLinearLandscape', () => {
     const noteEvents = mapLinearLandscape(analysis, options);
     expect(noteEvents).toHaveLength(5);
   });
+
+  it('should center pan for a single sampled note', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 1,
+      height: 100,
+      brightnessProfile: [128],
+      depthProfile: [],
+      ridgeStrength: [],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: LinearLandscapeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+    };
+
+    const noteEvents = mapLinearLandscape(analysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(noteEvents[0].pan).toBe(0);
+  });
 });
 
 describe('transposeNotes', () => {
@@ -155,6 +176,28 @@ describe('mapDepthRidge', () => {
     expect(startTimes[1]).toBeCloseTo(1.725, 3);
     expect(startTimes[2]).toBeCloseTo(2.525, 3);
   });
+
+  it('should center pan when only one ridge note is generated', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 1,
+      height: 100,
+      brightnessProfile: [128],
+      depthProfile: [],
+      ridgeStrength: [0.8],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: DepthRidgeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      ridgeThreshold: 0.5,
+    };
+
+    const noteEvents = mapDepthRidge(analysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(noteEvents[0].pan).toBe(0);
+  });
 });
 
 describe('mapImageToMultiVoiceComposition', () => {
@@ -202,5 +245,28 @@ describe('mapImageToMultiVoiceComposition', () => {
     expect(trackIds).toContain('bass');
     expect(trackIds).not.toContain('melody');
     expect(trackIds).toContain('pad');
+  });
+
+  it('should avoid NaN pan in single-point melody mapping', () => {
+    const singlePointAnalysis: ImageAnalysisResult = {
+      width: 1,
+      height: 10,
+      brightnessProfile: [150],
+      ridgeStrength: [0.9],
+      horizonProfile: [0.2],
+      textureProfile: [0.4],
+    };
+    const options: MultiVoiceOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      enableBass: false,
+      enableMelody: true,
+      enablePad: false,
+    };
+
+    const noteEvents = mapImageToMultiVoiceComposition(singlePointAnalysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(Number.isNaN(noteEvents[0].pan)).toBe(false);
+    expect(noteEvents[0].pan).toBe(0);
   });
 });
