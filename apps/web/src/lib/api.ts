@@ -3,8 +3,7 @@
  * Uses the shared API client with web-specific configuration
  */
 
-import { createApiClient } from '@toposonics/shared';
-import { API_URL } from '@toposonics/shared/dist/config';
+import { createApiClient, API_URL } from '@toposonics/shared';
 
 /**
  * Web application API client instance

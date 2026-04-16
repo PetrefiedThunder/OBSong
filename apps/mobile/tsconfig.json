@@ -2,8 +2,15 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@toposonics/core-audio": ["../../packages/core-audio/src/index.ts"],
+      "@toposonics/core-image": ["../../packages/core-image/src/index.ts"],
+      "@toposonics/native-image-processing": ["../../packages/native-image-processing/src/index.ts"],
+      "@toposonics/shared": ["../../packages/shared/src/index.ts"],
+      "@toposonics/types": ["../../packages/types/src/index.ts"],
+      "@toposonics/ui": ["../../packages/ui/src/index.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],

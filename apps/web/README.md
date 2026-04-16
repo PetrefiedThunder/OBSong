@@ -1,151 +1,85 @@
 # @toposonics/web
 
-Next.js 14 web application for TopoSonics - turn images into musical soundscapes.
+Next.js 14 web application for TopoSonics.
 
-## Features
+## What It Does
 
-- **Image Upload**: Drag & drop or file selection
-- **Real-time Analysis**: Extracts brightness and depth profiles from images
-- **Musical Mapping**: Convert visual features to notes, scales, and effects
-- **Tone.js Playback**: Browser-based synthesis with reverb, panning, and filters
-- **MIDI Export**: Download compositions as `.mid` files for use in any DAW
-- **Timeline Visualization**: See your composition as pitch vs. time
-- **Composition Library**: Save and replay your creations
-- **Responsive Design**: Works on desktop and mobile browsers
+- Uploads an image and analyzes it in the browser
+- Generates note events with three supported mapping modes:
+  - `LINEAR_LANDSCAPE`
+  - `DEPTH_RIDGE`
+  - `MULTI_VOICE`
+- Plays compositions with Tone.js
+- Exports generated note events as MIDI
+- Saves and replays private compositions through the API
+
+## Routes
+
+- `/` public landing page with static demos
+- `/studio` composition workspace
+- `/compositions` authenticated private library
+- `/compositions/[id]` authenticated private composition detail
 
 ## Development
 
 ```bash
-# Install dependencies (from monorepo root)
 pnpm install
-
-# Start development server
 pnpm dev:web
-
-# Build for production
-pnpm build:web
-
-# Start production server
-cd apps/web && pnpm start
 ```
 
-The app will be available at `http://localhost:3000`.
+The app runs at `http://localhost:3000`.
 
-## Environment Variables
+## Environment
 
-Create a `.env.local` file:
+Create `apps/web/.env.local` from the example file:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:3001
+cp apps/web/.env.local.example apps/web/.env.local
 ```
 
-## Pages
+Typical values:
 
-- **/** - Landing page with feature overview
-- **/studio** - Main workspace for creating compositions
-- **/compositions** - List of all saved compositions
-- **/compositions/[id]** - View and replay a specific composition
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-## Tech Stack
+## Auth and Library Behavior
 
-- **Framework**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS
-- **Audio**: Tone.js
-- **Image Processing**: Canvas API + @toposonics/core-image
-- **State**: React hooks + Context API
-- **Type Safety**: TypeScript (strict mode)
+- The web app uses Supabase session auth.
+- Anonymous users can use the landing page and studio.
+- Saving a composition requires sign-in.
+- The library and composition detail routes show a sign-in call to action instead of attempting anonymous fetches.
 
-## Key Components
+## Mapping Flow
 
-### `ImageUploader`
+1. User selects an image in the studio.
+2. The selected file is stored in state.
+3. Analysis is recomputed whenever the file or mapping mode changes.
+4. Generation uses the matching mapper:
+   - `LINEAR_LANDSCAPE` -> `mapLinearLandscape`
+   - `DEPTH_RIDGE` -> `mapDepthRidge`
+   - `MULTI_VOICE` -> `mapImageToMultiVoiceComposition`
 
-Handles file selection, drag-and-drop, and preview display.
+## Key Pieces
 
-### `MappingControls`
+- `src/app/studio/page.tsx` coordinates upload, analysis, generation, playback, and save flow.
+- `src/lib/imageProcessing.ts` contains browser-side image analysis helpers.
+- `src/components/LoginModal.tsx` provides the shared sign-in modal.
+- `src/hooks/useToneEngine.ts` handles browser playback.
 
-UI for selecting key, scale, mapping mode, and sound preset.
+## Validation
 
-### `PlaybackControls`
+```bash
+pnpm --filter @toposonics/web typecheck
+```
 
-Play/stop buttons and tempo slider.
+## Known Limits
 
-### `TimelineVisualizer`
-
-Canvas-based visualization of note events over time.
-
-## Hooks
-
-### `useAuth`
-
-Manages authentication state (stub implementation).
-
-### `useToneEngine`
-
-Initializes Tone.js, creates synth and effects, handles playback.
-
-## How It Works
-
-1. User uploads an image
-2. `analyzeImageFile()` extracts pixel data via Canvas API
-3. `analyzeImageForLinearLandscape()` computes brightness profile
-4. `mapLinearLandscape()` converts brightness to note events
-5. `useToneEngine` renders notes with Tone.js
-6. User can save to backend via API
-
-## Performance
-
-- Large images are resized to max 1200px before processing
-- Brightness profiles are downsampled to 64 samples
-- Canvas rendering is optimized with requestAnimationFrame
-- Tone.js uses Web Audio API for efficient synthesis
-
-## Browser Compatibility
-
-- Chrome/Edge: Full support
-- Firefox: Full support
-- Safari: Full support (requires user interaction to start audio)
-- Mobile: Works but desktop recommended for best experience
-
-## Future Enhancements
-
-### Planned Features
-
-- [ ] Advanced mapping modes (depth-based, ridge detection)
-- [ ] Real-time camera input with live synthesis
-- [ ] Multiple instrument layers and track mixing
-- [ ] User accounts and cloud storage
-- [ ] Social sharing and composition discovery
-- [x] MIDI export functionality
-- [ ] Advanced synthesis engines (granular, FM, additive)
-- [ ] Machine learning for intelligent mapping
-- [ ] Collaborative composition sessions
-
-### Known Limitations
-
-- Mobile audio uses simplified playback (full synthesis planned)
-- No user authentication (stub implementation only)
-- In-memory persistence (database integration planned)
-- Basic visualization (advanced 3D rendering planned)
-
-## Troubleshooting
-
-### No audio playback
-
-- Ensure you clicked a button to start audio (browser autoplay policy)
-- Check browser console for Tone.js errors
-- Try refreshing the page
-
-### Image won't upload
-
-- Check file is a valid image format (JPG, PNG, etc.)
-- Try a smaller file size
-- Check browser console for errors
-
-### API errors
-
-- Ensure backend is running at `http://localhost:3001`
-- Check `NEXT_PUBLIC_API_URL` in `.env.local`
-- Verify network tab in devtools for request failures
+- Safari still requires a user gesture before audio playback.
+- The landing page demos are static samples, not library-backed public content.
+- Live camera input is not part of this release.
 
 ## License
 

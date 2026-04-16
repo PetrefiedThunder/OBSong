@@ -23,8 +23,8 @@ import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlaye
 import { useCompositions } from '../state/CompositionsProvider';
 import * as FileSystem from 'expo-file-system';
 import analytics from '@react-native-firebase/analytics';
-import { logError } from '@toposonics/shared/dist/logging';
-import { theme } from '@toposonics/ui/dist/theme';
+import { logError } from '@toposonics/shared';
+import { theme } from '@toposonics/ui';
 
 const KEYS: KeyType[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const SCALES: ScaleType[] = [
@@ -50,6 +50,7 @@ export default function EditorScreen() {
   const { saveComposition } = useCompositions();
 
   const tempo = 90;
+  const isIOSGenerationUnsupported = Platform.OS === 'ios';
 
   const pickImage = async () => {
     let permissionResult;
@@ -143,6 +144,14 @@ export default function EditorScreen() {
   const generateComposition = async () => {
     if (!imageUri) {
       Alert.alert('No Image', 'Please select or capture an image first');
+      return;
+    }
+
+    if (isIOSGenerationUnsupported) {
+      Alert.alert(
+        'Android Only',
+        'On-device image generation is currently available on Android only.'
+      );
       return;
     }
 
@@ -330,15 +339,29 @@ export default function EditorScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>3. Generate</Text>
+        {isIOSGenerationUnsupported && (
+          <View style={styles.platformNotice}>
+            <Text style={styles.platformNoticeTitle}>Android-only generation</Text>
+            <Text style={styles.platformNoticeText}>
+              You can still browse your synced compositions on iOS, but on-device image-to-music
+              generation currently requires the Android native image-processing module.
+            </Text>
+          </View>
+        )}
         <TouchableOpacity
-          style={[styles.generateButton, (!imageUri || processing) && styles.disabledButton]}
+          style={[
+            styles.generateButton,
+            (!imageUri || processing || isIOSGenerationUnsupported) && styles.disabledButton,
+          ]}
           onPress={generateComposition}
-          disabled={!imageUri || processing}
+          disabled={!imageUri || processing || isIOSGenerationUnsupported}
         >
           {processing ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.generateButtonText}>Generate Composition</Text>
+            <Text style={styles.generateButtonText}>
+              {isIOSGenerationUnsupported ? 'Generation Unavailable on iOS' : 'Generate Composition'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -432,6 +455,23 @@ const styles = StyleSheet.create({
   imagePickerContainer: {
     flexDirection: 'row',
     gap: 12,
+  },
+  platformNotice: {
+    backgroundColor: theme.colors.surface.secondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.surface.elevated,
+  },
+  platformNoticeTitle: {
+    color: theme.colors.primary[300],
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  platformNoticeText: {
+    color: '#d1d5db',
+    lineHeight: 20,
   },
   draftResetButton: {
     alignSelf: 'flex-start',

@@ -5,6 +5,7 @@
 
 import {
   analyzeImageForLinearLandscape,
+  analyzeImageForDepthRidge,
   analyzeImageForMultiVoice,
 } from '@toposonics/core-image';
 import type { ImageAnalysisResult } from '@toposonics/types';
@@ -95,6 +96,39 @@ export async function analyzeImageFile(file: File): Promise<{
   });
 
   // Also get data URL for thumbnail
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+  }
+
+  return {
+    analysis,
+    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+    width,
+    height,
+  };
+}
+
+/**
+ * Full pipeline for depth/ridge: file -> depth/ridge analysis result
+ */
+export async function analyzeImageFileDepthRidge(file: File): Promise<{
+  analysis: ImageAnalysisResult;
+  imageDataUrl: string;
+  width: number;
+  height: number;
+}> {
+  const img = await loadImageFromFile(file);
+  const { pixels, width, height } = extractPixelData(img);
+
+  const analysis = analyzeImageForDepthRidge(pixels, width, height, {
+    maxSamples: 64,
+    smoothingWindow: 5,
+  });
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (ctx) {

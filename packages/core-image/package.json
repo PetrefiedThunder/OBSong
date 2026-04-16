@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Image analysis utilities for TopoSonics - environment agnostic",
   "main": "dist/index.js",
+  "react-native": "src/index.ts",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p .",

@@ -1,4 +1,4 @@
-import { API_URL as SHARED_API_URL } from '@toposonics/shared/dist/config';
+import { API_URL as SHARED_API_URL } from '@toposonics/shared';
 
 const env =
   (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};

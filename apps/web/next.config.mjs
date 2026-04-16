@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@toposonics/ui'],
+  transpilePackages: [
+    '@toposonics/core-audio',
+    '@toposonics/core-image',
+    '@toposonics/shared',
+    '@toposonics/types',
+    '@toposonics/ui',
+  ],
   // Optimize for production
   swcMinify: true,
   // Image optimization

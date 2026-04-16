@@ -10,21 +10,31 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToneEngine } from '@/hooks/useToneEngine';
 import { PlaybackControls } from '@/components/PlaybackControls';
 import { TimelineVisualizer } from '@/components/TimelineVisualizer';
+import { LoginModal } from '@/components/LoginModal';
 
 export default function CompositionDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, token } = useAuth();
+  const { user, token, login } = useAuth();
 
   const [composition, setComposition] = useState<Composition | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [tempo, setTempo] = useState(90);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const id = params.id as string;
 
   useEffect(() => {
+    if (!token) {
+      setComposition(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     loadComposition();
   }, [id, token]);
 
@@ -41,6 +51,19 @@ export default function CompositionDetailPage() {
       setError('Failed to load composition');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      await login(email, password);
+      setIsLoginModalOpen(false);
+    } catch (error) {
+      console.error('Failed to sign in for composition detail:', error);
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -71,6 +94,37 @@ export default function CompositionDetailPage() {
     tempo,
     preset,
   });
+
+  if (!token) {
+    return (
+      <>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-20">
+            <h1 className="text-3xl font-bold mb-4">Sign In Required</h1>
+            <p className="text-gray-400 mb-6">
+              This composition belongs to your private library.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button variant="primary" onClick={() => setIsLoginModalOpen(true)}>
+                Sign In
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/compositions')}>
+                Back to Library
+              </Button>
+            </div>
+          </div>
+        </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLogin={handleLogin}
+          isLoggingIn={isLoggingIn}
+          title="Sign In to View This Composition"
+          description="Your saved compositions are private. Sign in to open this detail page."
+        />
+      </>
+    );
+  }
 
   if (isLoading) {
     return (

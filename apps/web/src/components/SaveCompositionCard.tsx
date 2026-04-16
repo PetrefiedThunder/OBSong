@@ -115,6 +115,8 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
         onClose={() => setIsLoginModalOpen(false)}
         onLogin={handleLoginForSave}
         isLoggingIn={isLoggingIn}
+        title="Sign In to Save"
+        description="Enter your credentials to save this composition to your private library."
       />
     </>
   );

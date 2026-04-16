@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useState, useMemo } from 'react';
-import { tourSteps, mockAnalysisResult, mockNoteEvents } from '@toposonics/shared/dist/demo-data';
+import { tourSteps } from '@toposonics/shared';
 import { logAnalyticsEvent } from '@/lib/analytics';
 
 interface TourContextValue {

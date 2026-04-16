@@ -1,5 +1,6 @@
 import type { ImageAnalysisResult, NoteEvent, KeyType, ScaleType } from '@toposonics/types';
-import { analyzeImageForLinearLandscape, analyzeImageForDepthRidge } from '@toposonics/core-image';
+import { Platform } from 'react-native';
+import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
 import { mapLinearLandscape } from '@toposonics/core-audio';
 import { processImage } from '@toposonics/native-image-processing';
 
@@ -49,24 +50,18 @@ export async function generateCompositionFromImage(
     key: KeyType;
     scale: ScaleType;
     maxNotes?: number;
-    mappingMode?: 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE';
   }
 ): Promise<CompositionGenerationResult> {
-  const { pixels, width, height, ridgeStrength } = await extractPixelsFromImage(uri);
-
-  let analysis: ImageAnalysisResult;
-
-  // Choose analysis based on mapping mode and available data
-  if (options.mappingMode === 'DEPTH_RIDGE' && ridgeStrength) {
-    analysis = analyzeImageForDepthRidge(pixels, width, height, {
-      ridgeThreshold: 0.5, // Default threshold
-    });
-  } else {
-    analysis = analyzeImageForLinearLandscape(pixels, width, height, {
-      averageRows: true,
-      rowsToAverage: 7,
-    });
+  if (Platform.OS === 'ios') {
+    throw new Error('On-device image generation is currently available on Android only.');
   }
+
+  const { pixels, width, height } = await extractPixelsFromImage(uri);
+
+  const analysis: ImageAnalysisResult = analyzeImageForLinearLandscape(pixels, width, height, {
+    averageRows: true,
+    rowsToAverage: 7,
+  });
 
   const noteEvents = mapLinearLandscape(analysis, {
     key: options.key,
