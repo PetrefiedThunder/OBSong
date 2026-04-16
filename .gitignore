@@ -41,15 +41,11 @@ lerna-debug.log*
 .env.staging
 .env.development
 .env.test
-# Allow committing production mobile environment defaults for build pipelines
-!apps/mobile/.env
 .env*.local
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-# Allow committed Expo production env for mobile (non-secret API URL)
-!apps/mobile/.env
 
 # Turbo
 .turbo

@@ -93,7 +93,7 @@ export interface TopoPreset {
   /** Default tempo in BPM. */
   defaultTempoBpm: number;
   /** Mapping mode to use. */
-  mappingMode: 'SIMPLE' | 'MULTI_VOICE';
+  mappingMode: MappingMode;
   /** Configuration for each voice. */
   voices: {
     bass: VoiceConfig;

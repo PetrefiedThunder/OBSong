@@ -20,7 +20,7 @@
     "@toposonics/types": "workspace:*",
     "@toposonics/ui": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
-    "next": "16.1.5",
+    "next": "14.2.32",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tone": "^14.7.77"
@@ -31,7 +31,7 @@
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
-    "eslint-config-next": "14.1.0",
+    "eslint-config-next": "14.2.32",
     "eslint-plugin-react-hooks": "^4.6.2",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",

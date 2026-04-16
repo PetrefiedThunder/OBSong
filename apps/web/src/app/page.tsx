@@ -8,8 +8,8 @@ import type { ScenePack, NoteEvent, ImageAnalysisResult } from '@toposonics/type
 import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
 import { TourProvider, useTour } from '@/components/tour/TourProvider';
 import { TourPopup } from '@/components/tour/TourPopup';
-import { mockAnalysisResult, mockNoteEvents } from '@toposonics/shared/dist/demo-data';
-import { theme } from '@toposonics/ui/dist/theme';
+import { mockAnalysisResult, mockNoteEvents } from '@toposonics/shared';
+import { theme } from '@toposonics/ui';
 
 type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
 
@@ -232,7 +232,7 @@ function HomePageContent() {
               </div>
             </div>
             <div className="flex gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-.bold">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-bold">
                 3
               </div>
               <div>

@@ -6,14 +6,24 @@ import { Card, Button } from '@toposonics/ui';
 import type { Composition } from '@toposonics/types';
 import { fetchCompositions } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { LoginModal } from '@/components/LoginModal';
 
 export default function CompositionsPage() {
-  const { token } = useAuth();
+  const { token, login } = useAuth();
   const [compositions, setCompositions] = useState<Composition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
+    if (!token) {
+      setCompositions([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     loadCompositions();
   }, [token]);
 
@@ -31,6 +41,61 @@ export default function CompositionsPage() {
       setIsLoading(false);
     }
   };
+
+  const handleLogin = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      await login(email, password);
+      setIsLoginModalOpen(false);
+    } catch (error) {
+      console.error('Failed to sign in for compositions library:', error);
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <>
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Compositions</h1>
+              <p className="text-gray-400">Your library is private in this v1 release.</p>
+            </div>
+            <Link href="/studio">
+              <Button variant="primary">Open Studio</Button>
+            </Link>
+          </div>
+
+          <Card title="Sign In Required" padding="lg">
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                Sign in to browse, replay, and manage your saved compositions.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button variant="primary" onClick={() => setIsLoginModalOpen(true)}>
+                  Sign In
+                </Button>
+                <Link href="/studio">
+                  <Button variant="outline">Go to Studio</Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLogin={handleLogin}
+          isLoggingIn={isLoggingIn}
+          title="Sign In to View Your Library"
+          description="Your saved compositions are private. Sign in to browse and replay them."
+        />
+      </>
+    );
+  }
 
   if (isLoading) {
     return (

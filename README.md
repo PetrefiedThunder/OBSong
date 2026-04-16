@@ -1,64 +1,116 @@
 # TopoSonics
 
-TopoSonics is a full-stack monorepo for turning images into musical soundscapes. It analyzes visual features, maps them into musical note events, and renders playback through web and mobile clients with a supporting API.
+TopoSonics is a monorepo for turning images into musical soundscapes. It analyzes visual structure, maps that analysis into note events, and renders the result through a web studio, a mobile companion, and a Supabase-backed API.
 
-## What This Repo Contains
+## At A Glance
 
-- **Web app (Next.js 14)**: Upload images, preview mappings, play compositions with Tone.js, and export MIDI files.
-- **Mobile app (Expo)**: Capture or select images, generate simplified playback, and manage compositions on-device.
-- **API service (Fastify)**: Authenticated composition storage with Supabase-backed JWT verification and Postgres persistence.
-- **Core packages**:
-  - `@toposonics/core-image` for image analysis (brightness/depth profiles).
-  - `@toposonics/core-audio` for mapping analysis into note events and presets.
-  - `@toposonics/ui` for shared UI components.
-  - `@toposonics/types` for shared TypeScript contracts.
+- Turn images into playable musical compositions
+- Generate different results with `LINEAR_LANDSCAPE`, `DEPTH_RIDGE`, and `MULTI_VOICE`
+- Play compositions in the browser with Tone.js
+- Export MIDI for DAW workflows
+- Save private compositions with Supabase-backed authentication
+- Use the same core analysis and mapping packages across web and mobile
 
-## Current Capabilities
+## What Ships In v1
 
-- **Image analysis** via Canvas and shared core-image utilities.
-- **Visual-to-audio mapping** with presets, scales, and mapping modes.
-- **Browser playback** using Tone.js.
-- **MIDI export** for DAW workflows.
-- **Composition CRUD API** with Supabase-authenticated access.
-- **Shared types and UI components** across web and mobile.
+- **Web app (Next.js 14)**: Upload an image, choose a musical key/scale/preset, generate compositions with all supported mapping modes, play them in the browser with Tone.js, export MIDI, and save private compositions to your library.
+- **Mobile app (Expo)**: Browse and manage compositions on iOS and Android. On-device image generation is currently supported on Android only.
+- **API service (Fastify)**: Validates Supabase access tokens and stores private user compositions in Postgres.
+- **Shared packages**:
+  - `@toposonics/core-image` for image analysis
+  - `@toposonics/core-audio` for musical mapping and note generation
+  - `@toposonics/shared` for API/config/demo helpers
+  - `@toposonics/types` for shared TypeScript contracts
+  - `@toposonics/ui` for shared design tokens and UI primitives
 
-## Known Limitations (In Progress)
+## Current Product Contract
 
-- Mobile playback uses simplified audio rendering compared to the web client.
-- Real-time camera input and advanced mapping modes are planned but not fully shipped.
-- Auth flows in the web app are currently stubbed while API auth relies on Supabase.
+- **Web studio supports three mapping modes**:
+  - `LINEAR_LANDSCAPE`
+  - `DEPTH_RIDGE`
+  - `MULTI_VOICE`
+- **Composition library is private/authenticated**. `/compositions` and `/compositions/[id]` require sign-in.
+- **Landing-page demos remain public/static**.
+- **Mobile editor is Android-first** for on-device generation. iOS can browse synced content but generation is intentionally disabled until native parity exists.
 
 ## Quick Start
 
 ```bash
+corepack enable
+corepack prepare pnpm@8.15.0 --activate
 pnpm install
+pnpm dev:api
 pnpm dev:web
 ```
 
-See the app-specific READMEs for deeper setup and environment configuration:
+For full local setup, copy the example env files:
 
-- `apps/web/README.md`
-- `apps/mobile/README.md`
-- `apps/api/README.md`
-
-## Repository Layout
-
+```bash
+cp apps/web/.env.local.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env
+cp apps/mobile/.env.example apps/mobile/.env
 ```
-apps/
-  api/     Fastify API service
-  web/     Next.js web client
-  mobile/  Expo mobile client
-packages/
-  core-image/  Visual feature extraction
-  core-audio/  Audio mapping and presets
-  ui/          Shared UI components
-  types/       Shared TypeScript contracts
+
+Then fill in the Supabase values needed for authenticated save and library flows.
+
+## Local Development
+
+```bash
+# API
+pnpm dev:api
+
+# Web studio
+pnpm dev:web
+
+# Mobile app
+pnpm dev:mobile
 ```
 
 ## Documentation
 
-- `PROJECT_CONTEXT.md` for architecture and dependency flow.
-- `docs/` for additional platform and audio engine notes.
+- [Web app](apps/web/README.md)
+- [Mobile app](apps/mobile/README.md)
+- [API](apps/api/README.md)
+- [Testing guide](TESTING.md)
+- [macOS quick start](QUICKSTART_MAC.md)
+
+## Repository Layout
+
+```text
+apps/
+  api/        Fastify API service
+  web/        Next.js web client
+  mobile/     Expo mobile client
+packages/
+  core-image/ Visual feature extraction
+  core-audio/ Audio mapping and note generation
+  shared/     Shared config, API, logging, and demo helpers
+  ui/         Shared UI tokens and components
+  types/      Shared TypeScript contracts
+```
+
+## Typical Flow
+
+1. Open the web studio and upload an image.
+2. Choose a key, scale, preset, and mapping mode.
+3. Generate note events from the image analysis.
+4. Play the result in the browser or export it as MIDI.
+5. Sign in to save the composition to your private library.
+
+## Validation
+
+The repo is wired to support:
+
+- `pnpm typecheck`
+- `pnpm test`
+
+CI runs both commands with pnpm 8.15.0 on every push/PR.
+
+## Known Limits
+
+- Mobile playback uses a lightweight preview flow rather than feature-parity web synthesis.
+- iOS generation is intentionally unavailable in this release.
+- Real-time/live camera input is still future work.
 
 ## License
 

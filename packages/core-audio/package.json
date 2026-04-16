@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Audio mapping utilities for TopoSonics - converts image features to musical events",
   "main": "dist/index.js",
+  "react-native": "src/index.ts",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p .",
@@ -16,6 +17,7 @@
     "@toposonics/types": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^20.11.5",
     "typescript": "^5.3.3",
     "vitest": "^4.0.17"
   },

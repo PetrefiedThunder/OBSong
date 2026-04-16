@@ -12,6 +12,7 @@ import type {
 } from '@toposonics/types';
 import {
   mapLinearLandscape,
+  mapDepthRidge,
   mapImageToMultiVoiceComposition,
   getPresetById,
   getDefaultPreset,
@@ -21,7 +22,11 @@ import {
   type TopoPreset,
   type ScenePack,
 } from '@toposonics/core-audio';
-import { analyzeImageFile, analyzeImageFileMultiVoice } from '@/lib/imageProcessing';
+import {
+  analyzeImageFile,
+  analyzeImageFileDepthRidge,
+  analyzeImageFileMultiVoice,
+} from '@/lib/imageProcessing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToneEngine } from '@/hooks/useToneEngine';
 import { ImageUploader } from '@/components/ImageUploader';
@@ -32,7 +37,7 @@ import { ScenePackSelector } from '@/components/ScenePackSelector';
 import { exportCompositionToMidi } from '@/lib/midiExport';
 import { logAnalyticsEvent } from '@/lib/analytics';
 import { SaveCompositionCard } from '@/components/SaveCompositionCard';
-import { logError } from '@toposonics/shared/dist/logging';
+import { logError } from '@toposonics/shared';
 
 // Force dynamic rendering for this client-only page
 export const dynamic = 'force-dynamic';
@@ -42,6 +47,7 @@ function StudioPageContent() {
   const searchParams = useSearchParams();
 
   // State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -99,24 +105,91 @@ function StudioPageContent() {
     }
   }, [searchParams]);
 
-  // Handle image selection
-  const handleImageSelected = async (file: File) => {
-    setImagePreview(URL.createObjectURL(file));
+  useEffect(() => {
+    if (!selectedFile) {
+      setImagePreview(null);
+      return;
+    }
 
-    // Auto-analyze using the appropriate analyzer based on mode
-    setIsAnalyzing(true);
-    setAnalysis(null); // Clear previous analysis
-    try {
-      const result = mappingMode === 'MULTI_VOICE'
-        ? await analyzeImageFileMultiVoice(file)
-        : await analyzeImageFile(file);
-      setAnalysis(result.analysis);
-    } catch (error) {
-      logError(error as Error, { context: 'Image Analysis' });
-      alert('Failed to analyze image');
-      setAnalysis(null); // Ensure analysis is cleared on error
-    } finally {
+    const previewUrl = URL.createObjectURL(selectedFile);
+    setImagePreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [selectedFile]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setAnalysis(null);
       setIsAnalyzing(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const runAnalysis = async () => {
+      stop();
+      setNoteEvents([]);
+      setIsAnalyzing(true);
+      setAnalysis(null);
+
+      try {
+        const result = (() => {
+          switch (mappingMode) {
+            case 'DEPTH_RIDGE':
+              return analyzeImageFileDepthRidge(selectedFile);
+            case 'MULTI_VOICE':
+              return analyzeImageFileMultiVoice(selectedFile);
+            case 'LINEAR_LANDSCAPE':
+            default:
+              return analyzeImageFile(selectedFile);
+          }
+        })();
+
+        const analysisResult = await result;
+        if (!cancelled) {
+          setAnalysis(analysisResult.analysis);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          logError(error as Error, { context: 'Image Analysis', mappingMode });
+          alert('Failed to analyze image');
+          setAnalysis(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAnalyzing(false);
+        }
+      }
+    };
+
+    runAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mappingMode, selectedFile, stop]);
+
+  // Handle image selection
+  const handleImageSelected = (file: File) => {
+    setSelectedFile(file);
+  };
+
+  const applyPresetSettings = (preset: TopoPreset) => {
+    setSelectedTopoPreset(preset);
+    setKey(preset.defaultKey);
+    setScale(preset.defaultScale);
+    setTempo(preset.defaultTempoBpm);
+    setMappingMode(preset.mappingMode);
+  };
+
+  const applyScenePackSettings = (scenePack: ScenePack) => {
+    const allPresets = getAllTopoPresets();
+    const associatedPreset = getScenePreset(scenePack, allPresets);
+
+    if (associatedPreset) {
+      applyPresetSettings(associatedPreset);
     }
   };
 
@@ -125,17 +198,7 @@ function StudioPageContent() {
     setSelectedScenePack(scenePack);
 
     if (scenePack) {
-      // Find and apply the associated preset
-      const allPresets = getAllTopoPresets();
-      const associatedPreset = getScenePreset(scenePack, allPresets);
-
-      if (associatedPreset) {
-        setSelectedTopoPreset(associatedPreset);
-        setKey(associatedPreset.defaultKey);
-        setScale(associatedPreset.defaultScale);
-        setTempo(associatedPreset.defaultTempoBpm);
-        setMappingMode(associatedPreset.mappingMode as MappingMode);
-      }
+      applyScenePackSettings(scenePack);
     } else {
       // Clear preset when scene pack is cleared
       setSelectedTopoPreset(null);
@@ -144,33 +207,24 @@ function StudioPageContent() {
 
   // Handle preset selection (manual override)
   const handlePresetSelect = (preset: TopoPreset | null) => {
-    setSelectedTopoPreset(preset);
     // Clear scene pack if manually selecting preset
     setSelectedScenePack(null);
 
     if (preset) {
-      setKey(preset.defaultKey);
-      setScale(preset.defaultScale);
-      setTempo(preset.defaultTempoBpm);
-      setMappingMode(preset.mappingMode as MappingMode);
+      applyPresetSettings(preset);
+    } else {
+      setSelectedTopoPreset(null);
     }
   };
 
   // Handle demo loading
   const handleLoadDemo = (demoNotes: NoteEvent[], scenePack: ScenePack) => {
     // Load the demo composition
+    stop();
     setNoteEvents(demoNotes);
 
     // Apply scene pack preset settings
-    const allPresets = getAllTopoPresets();
-    const associatedPreset = getScenePreset(scenePack, allPresets);
-
-    if (associatedPreset) {
-      setKey(associatedPreset.defaultKey);
-      setScale(associatedPreset.defaultScale);
-      setTempo(associatedPreset.defaultTempoBpm);
-      setMappingMode(associatedPreset.mappingMode as MappingMode);
-    }
+    applyScenePackSettings(scenePack);
   };
 
   // Generate composition
@@ -182,28 +236,42 @@ function StudioPageContent() {
 
     let events: NoteEvent[];
 
-    if (mappingMode === 'MULTI_VOICE') {
-      events = mapImageToMultiVoiceComposition(
-        analysis,
-        {
+    switch (mappingMode) {
+      case 'DEPTH_RIDGE':
+        events = mapDepthRidge(analysis, {
           key,
           scale,
-          tempoBpm: tempo,
-          enableBass: true,
-          enableMelody: true,
-          enablePad: true,
-        },
-        selectedTopoPreset || undefined
-      );
-    } else {
-      events = mapLinearLandscape(analysis, {
-        key,
-        scale,
-        maxNotes: 64,
-        noteDurationBeats: 0.5,
-        enablePanning: true,
-        enableVelocityVariation: true,
-      });
+          maxNotes: 64,
+          noteDurationBeats: 0.5,
+          ridgeThreshold: 0.35,
+          depthToReverb: true,
+        });
+        break;
+      case 'MULTI_VOICE':
+        events = mapImageToMultiVoiceComposition(
+          analysis,
+          {
+            key,
+            scale,
+            tempoBpm: tempo,
+            enableBass: true,
+            enableMelody: true,
+            enablePad: true,
+          },
+          selectedTopoPreset || undefined
+        );
+        break;
+      case 'LINEAR_LANDSCAPE':
+      default:
+        events = mapLinearLandscape(analysis, {
+          key,
+          scale,
+          maxNotes: 64,
+          noteDurationBeats: 0.5,
+          enablePanning: true,
+          enableVelocityVariation: true,
+        });
+        break;
     }
 
     setNoteEvents(events);
