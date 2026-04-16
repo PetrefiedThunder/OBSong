@@ -2,6 +2,15 @@
 
 TopoSonics is a monorepo for turning images into musical soundscapes. It analyzes visual structure, maps that analysis into note events, and renders the result through a web studio, a mobile companion, and a Supabase-backed API.
 
+## At A Glance
+
+- Turn images into playable musical compositions
+- Generate different results with `LINEAR_LANDSCAPE`, `DEPTH_RIDGE`, and `MULTI_VOICE`
+- Play compositions in the browser with Tone.js
+- Export MIDI for DAW workflows
+- Save private compositions with Supabase-backed authentication
+- Use the same core analysis and mapping packages across web and mobile
+
 ## What Ships In v1
 
 - **Web app (Next.js 14)**: Upload an image, choose a musical key/scale/preset, generate compositions with all supported mapping modes, play them in the browser with Tone.js, export MIDI, and save private compositions to your library.
@@ -30,6 +39,7 @@ TopoSonics is a monorepo for turning images into musical soundscapes. It analyze
 corepack enable
 corepack prepare pnpm@8.15.0 --activate
 pnpm install
+pnpm dev:api
 pnpm dev:web
 ```
 
@@ -41,13 +51,28 @@ cp apps/api/.env.example apps/api/.env
 cp apps/mobile/.env.example apps/mobile/.env
 ```
 
-Then see:
+Then fill in the Supabase values needed for authenticated save and library flows.
 
-- [apps/web/README.md](/Users/sellers/Documents/GitHub/OBSong/apps/web/README.md)
-- [apps/mobile/README.md](/Users/sellers/Documents/GitHub/OBSong/apps/mobile/README.md)
-- [apps/api/README.md](/Users/sellers/Documents/GitHub/OBSong/apps/api/README.md)
-- [TESTING.md](/Users/sellers/Documents/GitHub/OBSong/TESTING.md)
-- [QUICKSTART_MAC.md](/Users/sellers/Documents/GitHub/OBSong/QUICKSTART_MAC.md)
+## Local Development
+
+```bash
+# API
+pnpm dev:api
+
+# Web studio
+pnpm dev:web
+
+# Mobile app
+pnpm dev:mobile
+```
+
+## Documentation
+
+- [Web app](apps/web/README.md)
+- [Mobile app](apps/mobile/README.md)
+- [API](apps/api/README.md)
+- [Testing guide](TESTING.md)
+- [macOS quick start](QUICKSTART_MAC.md)
 
 ## Repository Layout
 
@@ -63,6 +88,14 @@ packages/
   ui/         Shared UI tokens and components
   types/      Shared TypeScript contracts
 ```
+
+## Typical Flow
+
+1. Open the web studio and upload an image.
+2. Choose a key, scale, preset, and mapping mode.
+3. Generate note events from the image analysis.
+4. Play the result in the browser or export it as MIDI.
+5. Sign in to save the composition to your private library.
 
 ## Validation
 
