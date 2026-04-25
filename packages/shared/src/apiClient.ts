@@ -64,7 +64,7 @@ export function createApiClient(config: ApiClientConfig) {
   return {
     /**
      * Fetch all compositions
-     * Token is optional - may return only public compositions if not authenticated
+     * Requires authentication for private library access
      */
     async fetchCompositions(token: string | null): Promise<Composition[]> {
       return apiRequest<Composition[]>(baseUrl, '/compositions', { token });
@@ -72,7 +72,7 @@ export function createApiClient(config: ApiClientConfig) {
 
     /**
      * Fetch a single composition by ID
-     * Token is optional - may fail for private compositions if not authenticated
+     * Requires authentication for private composition access
      */
     async fetchComposition(id: string, token: string | null): Promise<Composition> {
       return apiRequest<Composition>(baseUrl, `/compositions/${id}`, { token });

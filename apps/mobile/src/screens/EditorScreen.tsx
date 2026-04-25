@@ -25,6 +25,7 @@ import * as FileSystem from 'expo-file-system';
 import analytics from '@react-native-firebase/analytics';
 import { logError } from '@toposonics/shared';
 import { theme } from '@toposonics/ui';
+import { SignInModal } from '../components/SignInModal';
 
 const KEYS: KeyType[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const SCALES: ScaleType[] = [
@@ -46,7 +47,10 @@ export default function EditorScreen() {
   const [processing, setProcessing] = useState(false);
   const [playbackStatus, setPlaybackStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const { token, signInWithApple } = useAuth();
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [pendingPostSignInAction, setPendingPostSignInAction] = useState<'save' | null>(null);
+  const { token, signInWithApple, signInWithPassword } = useAuth();
   const { saveComposition } = useCompositions();
 
   const tempo = 90;
@@ -131,6 +135,13 @@ export default function EditorScreen() {
     hydrateDraft();
   }, []);
 
+  React.useEffect(() => {
+    if (token && pendingPostSignInAction === 'save') {
+      setPendingPostSignInAction(null);
+      void saveToBackend();
+    }
+  }, [pendingPostSignInAction, token]);
+
   const clearDraft = async () => {
     setGeneration(null);
     setImageUri(null);
@@ -207,10 +218,8 @@ export default function EditorScreen() {
     }
 
     if (!token) {
-      Alert.alert('Sign in required', 'Sign in to sync compositions with the backend.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign in with Apple', onPress: signInWithApple },
-      ]);
+      setPendingPostSignInAction('save');
+      setIsSignInModalOpen(true);
       return;
     }
 
@@ -265,6 +274,32 @@ export default function EditorScreen() {
       height: generation.analysis.height,
     };
   }, [generation, tempo]);
+
+  const handlePasswordSignIn = async (email: string, password: string) => {
+    try {
+      setIsSigningIn(true);
+      await signInWithPassword(email, password);
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      setPendingPostSignInAction(null);
+      Alert.alert('Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsSigningIn(true);
+      await signInWithApple();
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      setPendingPostSignInAction(null);
+      Alert.alert('Apple Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -412,6 +447,19 @@ export default function EditorScreen() {
           {'\n'}• Offline caching for drafts {'\n'}• Authenticated save to the TopoSonics backend
         </Text>
       </View>
+
+      <SignInModal
+        visible={isSignInModalOpen}
+        isSubmitting={isSigningIn}
+        onClose={() => {
+          setIsSignInModalOpen(false);
+          setPendingPostSignInAction(null);
+        }}
+        onSubmit={handlePasswordSignIn}
+        onAppleSignIn={handleAppleSignIn}
+        title="Sign In to Save"
+        description="Sign in to sync this generated composition to your private library."
+      />
     </ScrollView>
   );
 }

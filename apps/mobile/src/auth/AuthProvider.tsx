@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import type { User } from '@toposonics/types';
 import { supabase } from './supabaseClient';
@@ -56,6 +57,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithApple = async () => {
+    if (Platform.OS !== 'ios') {
+      throw new Error('Apple Sign-In is currently available on iOS only.');
+    }
+
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.EMAIL,

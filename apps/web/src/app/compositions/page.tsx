@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoginModal } from '@/components/LoginModal';
 
 export default function CompositionsPage() {
-  const { token, login } = useAuth();
+  const { token, login, isLoading: authLoading } = useAuth();
   const [compositions, setCompositions] = useState<Composition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +17,10 @@ export default function CompositionsPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
     if (!token) {
       setCompositions([]);
       setError(null);
@@ -25,7 +29,7 @@ export default function CompositionsPage() {
     }
 
     loadCompositions();
-  }, [token]);
+  }, [authLoading, token]);
 
   const loadCompositions = async () => {
     setIsLoading(true);
@@ -54,6 +58,16 @@ export default function CompositionsPage() {
       setIsLoggingIn(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Checking your session...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!token) {
     return (

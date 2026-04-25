@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,23 +6,51 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { useAuth } from '../auth/AuthProvider';
 import { useCompositions } from '../state/CompositionsProvider';
+import { SignInModal } from '../components/SignInModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
 };
 
 export default function CompositionsScreen({ navigation }: Props) {
-  const { loading: authLoading, signInWithApple, token } = useAuth();
+  const { loading: authLoading, signInWithApple, signInWithPassword, token } = useAuth();
   const { compositions, loading, refresh, usingCache } = useCompositions();
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     refresh();
   }, [refresh, token]);
+
+  const handlePasswordSignIn = async (email: string, password: string) => {
+    try {
+      setIsSigningIn(true);
+      await signInWithPassword(email, password);
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsSigningIn(true);
+      await signInWithApple();
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Apple Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -35,12 +63,26 @@ export default function CompositionsScreen({ navigation }: Props) {
 
   if (!token) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Sign in to view your compositions</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={signInWithApple}>
-          <Text style={styles.retryButtonText}>Sign in with Apple</Text>
-        </TouchableOpacity>
-      </View>
+      <>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Sign in to view your compositions</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setIsSignInModalOpen(true)}
+          >
+            <Text style={styles.retryButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+        <SignInModal
+          visible={isSignInModalOpen}
+          isSubmitting={isSigningIn}
+          onClose={() => setIsSignInModalOpen(false)}
+          onSubmit={handlePasswordSignIn}
+          onAppleSignIn={handleAppleSignIn}
+          title="Sign In to View Your Library"
+          description="Your saved compositions are private. Sign in to browse and replay them."
+        />
+      </>
     );
   }
 
