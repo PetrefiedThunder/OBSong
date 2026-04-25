@@ -3,6 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Composition, CreateCompositionDTO } from '@toposonics/types';
 import { fetchComposition, fetchCompositions, createComposition } from '../services/apiClient';
 import { useAuth } from '../auth/AuthProvider';
+import {
+  canUseCompositionCache,
+  getCompositionDetailCacheKey,
+  getCompositionListCacheKey,
+} from './compositionCache';
 
 interface CompositionsContextValue {
   compositions: Composition[];
@@ -13,11 +18,6 @@ interface CompositionsContextValue {
   loadComposition: (id: string) => Promise<Composition | null>;
   saveComposition: (payload: Omit<CreateCompositionDTO, 'userId'>) => Promise<Composition | null>;
 }
-
-const CACHE_KEYS = {
-  list: '@toposonics:compositions:list',
-  detail: (userId: string, id: string) => `@toposonics:compositions:${userId}:${id}`,
-};
 
 const CompositionsContext = createContext<CompositionsContextValue | undefined>(undefined);
 
@@ -35,7 +35,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
 
     try {
       await AsyncStorage.setItem(
-        `${CACHE_KEYS.list}:${activeUserId}`,
+        getCompositionListCacheKey(activeUserId),
         JSON.stringify({ items, cachedAt: Date.now() })
       );
     } catch (err) {
@@ -47,10 +47,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     if (!activeUserId) return;
 
     try {
-      await AsyncStorage.setItem(
-        CACHE_KEYS.detail(activeUserId, item.id),
-        JSON.stringify(item)
-      );
+      await AsyncStorage.setItem(getCompositionDetailCacheKey(activeUserId, item.id), JSON.stringify(item));
     } catch (err) {
       console.warn('Failed to cache composition detail', err);
     }
@@ -60,7 +57,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     if (!activeUserId) return;
 
     try {
-      const cached = await AsyncStorage.getItem(`${CACHE_KEYS.list}:${activeUserId}`);
+      const cached = await AsyncStorage.getItem(getCompositionListCacheKey(activeUserId));
       if (cached) {
         const parsed = JSON.parse(cached) as { items: Composition[] };
         setCompositions(parsed.items);
@@ -82,7 +79,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
   }, [activeUserId]);
 
   const refresh = useCallback(async () => {
-    if (!token || !activeUserId) {
+    if (!canUseCompositionCache(token, activeUserId)) {
       setCompositions([]);
       setCompositionsById({});
       setUsingCache(false);
@@ -114,9 +111,11 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
 
   const loadComposition = useCallback(
     async (id: string) => {
-      if (!token || !activeUserId) {
+      if (!canUseCompositionCache(token, activeUserId)) {
         return null;
       }
+
+      const cacheUserId = activeUserId as string;
 
       try {
         const data = await fetchComposition(id);
@@ -125,7 +124,9 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
         return data;
       } catch (err) {
         console.warn('Failed to fetch composition, using cache', err);
-        const cached = await AsyncStorage.getItem(CACHE_KEYS.detail(activeUserId, id));
+        const cached = await AsyncStorage.getItem(
+          getCompositionDetailCacheKey(cacheUserId, id)
+        );
         if (cached) {
           return JSON.parse(cached) as Composition;
         }
@@ -137,7 +138,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
 
   const saveComposition = useCallback(
     async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
-      if (!token || !activeUserId) return null;
+      if (!canUseCompositionCache(token, activeUserId)) return null;
 
       const created = await createComposition(payload);
       setCompositions((prev) => {

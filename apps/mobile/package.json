@@ -12,7 +12,7 @@
     "build": "echo 'Mobile builds require EAS Build'",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('no tests')\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
@@ -45,7 +45,8 @@
     "@babel/core": "^7.23.7",
     "@types/react": "~18.2.48",
     "eslint": "^8.56.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.17"
   },
   "private": true
 }

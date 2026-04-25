@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Tone from 'tone';
 import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
+import { getAudioGraphSignature, getAudioTopology } from './useToneEngine.utils';
 
 interface UseToneEngineOptions {
   noteEvents: NoteEvent[];
@@ -36,15 +37,8 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   const graphSignatureRef = useRef<string | null>(null);
 
   // Detect if we're in multi-voice mode
-  const isMultiVoice = noteEvents.some(
-    (event) => event.trackId && ['bass', 'melody', 'pad', 'fx'].includes(event.trackId)
-  );
-
-  const graphSignature = JSON.stringify({
-    topology: isMultiVoice ? 'multi' : 'single',
-    oscillatorType: preset.oscillatorType,
-    synthesis: preset.synthesis ?? null,
-  });
+  const isMultiVoice = getAudioTopology(noteEvents) === 'multi';
+  const graphSignature = getAudioGraphSignature(noteEvents, preset);
 
   const disposePart = useCallback(() => {
     if (partRef.current) {
