@@ -18,7 +18,7 @@ interface SaveCompositionCardProps {
 }
 
 export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, presetId, tempo }: SaveCompositionCardProps) {
-  const { user, token, login } = useAuth();
+  const { token, login } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);

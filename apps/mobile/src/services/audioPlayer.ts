@@ -14,7 +14,7 @@ const soundMap = {
   melody: require('../../assets/audio/beep.wav'),
   pad: require('../../assets/audio/beep.wav'),
   default: require('../../assets/audio/beep.wav'),
-};
+} as const;
 
 export async function playNoteEvents(
   events: NoteEvent[],
@@ -35,9 +35,8 @@ export async function playNoteEvents(
 
   try {
     // Load all sounds
-    for (const trackId in soundMap) {
+    for (const trackId of Object.keys(soundMap) as Array<keyof typeof soundMap>) {
       const sound = new Audio.Sound();
-      // @ts-ignore
       await sound.loadAsync(soundMap[trackId]);
       sounds[trackId] = sound;
     }

@@ -1,8 +1,56 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as Tone from 'tone';
 import type { NoteEvent, ScenePack } from '@toposonics/types';
+
+type ToneTransport = {
+  stop: () => void;
+  start: () => void;
+};
+type ToneModule = {
+  PolySynth: new (...args: unknown[]) => ToneSynth;
+  Synth: new (...args: unknown[]) => unknown;
+  Part: new <T>(callback: (time: number, value: T) => void, events: T[]) => TonePart;
+  Transport: ToneTransport;
+  start: () => Promise<void>;
+};
+type ToneSynth = {
+  dispose: () => void;
+  toDestination: () => ToneSynth;
+  triggerAttackRelease: (
+    note: string,
+    duration: number,
+    time?: number,
+    velocity?: number
+  ) => void;
+};
+type TonePart = {
+  dispose: () => void;
+  start: (time: number) => void;
+  stop: () => void;
+};
+
+let tonePromise: Promise<ToneModule> | null = null;
+
+function loadTone() {
+  tonePromise ??= Promise.all([
+    import('tone/build/esm/instrument/PolySynth.js'),
+    import('tone/build/esm/instrument/Synth.js'),
+    import('tone/build/esm/event/Part.js'),
+    import('tone/build/esm/core/Global.js'),
+  ]).then(([polySynth, synth, part, global]) => {
+    const context = global.getContext();
+
+    return {
+      PolySynth: polySynth.PolySynth as ToneModule['PolySynth'],
+      Synth: synth.Synth as ToneModule['Synth'],
+      Part: part.Part as ToneModule['Part'],
+      Transport: context.transport as ToneTransport,
+      start: global.start,
+    };
+  });
+  return tonePromise;
+}
 
 interface LandingDemoPlayerProps {
   demoNotes: NoteEvent[];
@@ -16,34 +64,43 @@ export function LandingDemoPlayer({
   onClose,
 }: LandingDemoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const synthRef = useRef<Tone.PolySynth | null>(null);
-  const partRef = useRef<Tone.Part | null>(null);
+  const toneRef = useRef<ToneModule | null>(null);
+  const synthRef = useRef<ToneSynth | null>(null);
+  const partRef = useRef<TonePart | null>(null);
 
   useEffect(() => {
-    // Initialize synth
-    const synth = new Tone.PolySynth(Tone.Synth, {
-      envelope: {
-        attack: 0.02,
-        decay: 0.1,
-        sustain: 0.5,
-        release: 1.0,
-      },
-    }).toDestination();
+    let disposed = false;
 
-    synthRef.current = synth;
+    void loadTone().then((tone) => {
+      if (disposed) return;
+
+      toneRef.current = tone;
+      synthRef.current = new tone.PolySynth(tone.Synth, {
+        envelope: {
+          attack: 0.02,
+          decay: 0.1,
+          sustain: 0.5,
+          release: 1.0,
+        },
+      }).toDestination() as ToneSynth;
+    });
 
     return () => {
+      disposed = true;
       if (partRef.current) {
         partRef.current.dispose();
       }
-      synth.dispose();
+      synthRef.current?.dispose();
     };
   }, []);
 
   const handlePlay = async () => {
     if (!synthRef.current || demoNotes.length === 0) return;
 
-    await Tone.start();
+    const tone = toneRef.current ?? (await loadTone());
+    toneRef.current = tone;
+
+    await tone.start();
 
     // Stop any existing playback
     if (partRef.current) {
@@ -59,7 +116,7 @@ export function LandingDemoPlayer({
       velocity: note.velocity || 0.7,
     }));
 
-    const part = new Tone.Part((time, event) => {
+    const part = new tone.Part((time, event) => {
       synthRef.current?.triggerAttackRelease(
         event.note,
         event.duration,
@@ -72,13 +129,13 @@ export function LandingDemoPlayer({
     partRef.current = part;
 
     setIsPlaying(true);
-    Tone.Transport.start();
+    tone.Transport.start();
 
     // Calculate total duration and stop after
     const maxTime =
       Math.max(...demoNotes.map((n) => n.start + n.duration)) + 1;
     setTimeout(() => {
-      Tone.Transport.stop();
+      tone.Transport.stop();
       setIsPlaying(false);
     }, maxTime * 1000);
   };
@@ -87,7 +144,7 @@ export function LandingDemoPlayer({
     if (partRef.current) {
       partRef.current.stop();
     }
-    Tone.Transport.stop();
+    toneRef.current?.Transport.stop();
     setIsPlaying(false);
   };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type { Composition } from '@toposonics/types';
@@ -27,22 +27,9 @@ export default function CompositionDetailPage() {
 
   const id = params.id as string;
 
-  useEffect(() => {
-    if (authLoading) {
-      return;
-    }
+  const loadComposition = useCallback(async () => {
+    if (!token) return;
 
-    if (!token) {
-      setComposition(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    loadComposition();
-  }, [authLoading, id, token]);
-
-  const loadComposition = async () => {
     setIsLoading(true);
     setError(null);
 
@@ -56,7 +43,22 @@ export default function CompositionDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, token]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!token) {
+      setComposition(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    void loadComposition();
+  }, [authLoading, loadComposition, token]);
 
   const handleLogin = async (email: string, password?: string) => {
     setIsLoggingIn(true);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -134,13 +134,6 @@ export default function EditorScreen() {
     hydrateDraft();
   }, []);
 
-  React.useEffect(() => {
-    if (token && pendingPostSignInAction === 'save') {
-      setPendingPostSignInAction(null);
-      void saveToBackend();
-    }
-  }, [pendingPostSignInAction, token]);
-
   const clearDraft = async () => {
     setGeneration(null);
     setImageUri(null);
@@ -205,7 +198,7 @@ export default function EditorScreen() {
     }
   };
 
-  const saveToBackend = async () => {
+  const saveToBackend = useCallback(async () => {
     if (!generation) {
       Alert.alert('Nothing to save', 'Generate a composition first');
       return;
@@ -253,7 +246,14 @@ export default function EditorScreen() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [generation, imageUri, saveComposition, selectedKey, selectedScale, token]);
+
+  React.useEffect(() => {
+    if (token && pendingPostSignInAction === 'save') {
+      setPendingPostSignInAction(null);
+      void saveToBackend();
+    }
+  }, [pendingPostSignInAction, saveToBackend, token]);
 
   const generationSummary = useMemo(() => {
     if (!generation) return null;

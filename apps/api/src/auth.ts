@@ -74,8 +74,8 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     });
   }
 
-  (request as any).userId = user.id;
-  (request as any).user = user;
+  request.userId = user.id;
+  request.user = user;
 }
 
 /**
@@ -90,8 +90,8 @@ export async function optionalAuth(request: FastifyRequest, _reply: FastifyReply
       const token = parts[1];
       const user = await getUserFromToken(token);
       if (user) {
-        (request as any).userId = user.id;
-        (request as any).user = user;
+        request.userId = user.id;
+        request.user = user;
       }
     }
   }

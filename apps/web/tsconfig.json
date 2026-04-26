@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -20,14 +24,33 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@toposonics/core-audio": ["../../packages/core-audio/src/index.ts"],
-      "@toposonics/core-image": ["../../packages/core-image/src/index.ts"],
-      "@toposonics/shared": ["../../packages/shared/src/index.ts"],
-      "@toposonics/types": ["../../packages/types/src/index.ts"],
-      "@toposonics/ui": ["../../packages/ui/src/index.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@toposonics/core-audio": [
+        "../../packages/core-audio/src/index.ts"
+      ],
+      "@toposonics/core-image": [
+        "../../packages/core-image/src/index.ts"
+      ],
+      "@toposonics/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@toposonics/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@toposonics/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

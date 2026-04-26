@@ -24,13 +24,20 @@ Both are defined in `apps/mobile/app.config.ts`.
 corepack pnpm install
 ```
 
-2. Create the mobile env file:
+2. Use JDK 17 for Android release builds. For example, on macOS:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+java -version
+```
+
+3. Create the mobile env file:
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env
 ```
 
-3. Fill in the environment values required for the build:
+4. Fill in the environment values required for the build:
 
 ```env
 EXPO_PUBLIC_API_URL=https://your-api-host
@@ -40,15 +47,21 @@ ANDROID_VERSION_CODE=1
 IOS_BUILD_NUMBER=1.0.0
 ```
 
-4. Make sure the Apple and Google store accounts are set up for `com.toposonics.app`.
+5. Make sure the Apple and Google store accounts are set up for `com.toposonics.app`.
+
+6. Run the release prerequisite checks:
+
+```bash
+corepack pnpm release:check:env
+corepack pnpm release:check:mobile
+```
 
 ## Local Native Release Builds
 
 ### Android
 
 ```bash
-cd apps/mobile/android
-./gradlew bundleRelease
+corepack pnpm build:mobile:android:release
 ```
 
 Output:
@@ -58,12 +71,15 @@ Output:
 ### iOS
 
 ```bash
-cd apps/mobile/ios
-pod install
-open TopoSonics.xcworkspace
+corepack pnpm build:mobile:ios:release
 ```
 
-Then archive from Xcode using the `TopoSonics` scheme and a Release configuration.
+This archives the `TopoSonics` scheme with a Release configuration. It requires a configured Apple development team/signing profile for `com.toposonics.app`.
+If the team is not committed in the Xcode project, pass it at build time:
+
+```bash
+IOS_DEVELOPMENT_TEAM=YOURTEAMID corepack pnpm build:mobile:ios:release
+```
 
 ## EAS Production Builds
 

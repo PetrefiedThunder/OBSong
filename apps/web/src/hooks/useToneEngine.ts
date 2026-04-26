@@ -1,9 +1,85 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import * as Tone from 'tone';
 import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
 import { getAudioGraphSignature, getAudioTopology } from './useToneEngine.utils';
+
+type ToneTransport = {
+  clear: (id: number) => void;
+  stop: () => void;
+  start: () => void;
+  scheduleOnce: (callback: () => void, time: string) => number;
+  position: number | string;
+  seconds: number;
+  bpm: { value: number };
+};
+type ToneModule = {
+  PolySynth: new (...args: unknown[]) => ToneSynth;
+  Synth: new (...args: unknown[]) => unknown;
+  Reverb: new (...args: unknown[]) => ToneReverb;
+  Filter: new (...args: unknown[]) => ToneFilter;
+  Panner: new (...args: unknown[]) => TonePanner;
+  Part: new <T>(callback: (time: number, value: T) => void, events: T[]) => TonePart;
+  Destination: unknown;
+  Transport: ToneTransport;
+  start: () => Promise<void>;
+};
+type ToneNode = {
+  dispose: () => void;
+};
+type ToneSynth = ToneNode & {
+  connect: (node: unknown) => void;
+  chain: (...nodes: unknown[]) => void;
+  triggerAttackRelease: (
+    note: string,
+    duration: number,
+    time?: number,
+    velocity?: number
+  ) => void;
+};
+type ToneReverb = ToneNode & {
+  wet: { setValueAtTime: (value: number, time: number) => void };
+  generate: () => Promise<unknown>;
+  toDestination: () => void;
+};
+type ToneFilter = ToneNode;
+type TonePanner = ToneNode & {
+  pan: { setValueAtTime: (value: number, time: number) => void };
+};
+type TonePart = ToneNode & {
+  loop: boolean | number;
+  start: (time: number) => void;
+  stop: () => void;
+};
+
+let tonePromise: Promise<ToneModule> | null = null;
+
+function loadTone() {
+  tonePromise ??= Promise.all([
+    import('tone/build/esm/instrument/PolySynth.js'),
+    import('tone/build/esm/instrument/Synth.js'),
+    import('tone/build/esm/effect/Reverb.js'),
+    import('tone/build/esm/component/filter/Filter.js'),
+    import('tone/build/esm/component/channel/Panner.js'),
+    import('tone/build/esm/event/Part.js'),
+    import('tone/build/esm/core/Global.js'),
+  ]).then(([polySynth, synth, reverb, filter, panner, part, global]) => {
+    const context = global.getContext();
+
+    return {
+      PolySynth: polySynth.PolySynth as ToneModule['PolySynth'],
+      Synth: synth.Synth as ToneModule['Synth'],
+      Reverb: reverb.Reverb as ToneModule['Reverb'],
+      Filter: filter.Filter as ToneModule['Filter'],
+      Panner: panner.Panner as ToneModule['Panner'],
+      Part: part.Part as ToneModule['Part'],
+      Destination: context.destination,
+      Transport: context.transport as ToneTransport,
+      start: global.start,
+    };
+  });
+  return tonePromise;
+}
 
 interface UseToneEngineOptions {
   noteEvents: NoteEvent[];
@@ -12,10 +88,10 @@ interface UseToneEngineOptions {
 }
 
 interface VoiceSynth {
-  synth: Tone.PolySynth;
-  reverb: Tone.Reverb;
-  filter?: Tone.Filter;
-  panner?: Tone.Panner;
+  synth: ToneSynth;
+  reverb: ToneReverb;
+  filter?: ToneFilter;
+  panner?: TonePanner;
 }
 
 export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOptions) {
@@ -24,15 +100,16 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   const [currentTime, setCurrentTime] = useState(0);
 
   // Legacy single-synth refs (for backward compatibility)
-  const synthRef = useRef<Tone.PolySynth | null>(null);
-  const reverbRef = useRef<Tone.Reverb | null>(null);
-  const filterRef = useRef<Tone.Filter | null>(null);
-  const pannerRef = useRef<Tone.Panner | null>(null);
+  const toneRef = useRef<ToneModule | null>(null);
+  const synthRef = useRef<ToneSynth | null>(null);
+  const reverbRef = useRef<ToneReverb | null>(null);
+  const filterRef = useRef<ToneFilter | null>(null);
+  const pannerRef = useRef<TonePanner | null>(null);
 
   // Multi-voice synth refs
   const voiceSynthsRef = useRef<Map<VoiceType, VoiceSynth>>(new Map());
 
-  const partRef = useRef<Tone.Part | null>(null);
+  const partRef = useRef<TonePart | null>(null);
   const stopSchedulerIdRef = useRef<number | null>(null);
   const graphSignatureRef = useRef<string | null>(null);
 
@@ -79,8 +156,10 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   }, [disposePart]);
 
   const stop = useCallback(() => {
-    if (stopSchedulerIdRef.current !== null) {
-      Tone.Transport.clear(stopSchedulerIdRef.current);
+    const tone = toneRef.current;
+
+    if (tone && stopSchedulerIdRef.current !== null) {
+      tone.Transport.clear(stopSchedulerIdRef.current);
       stopSchedulerIdRef.current = null;
     }
 
@@ -88,8 +167,11 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       partRef.current.stop();
     }
 
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
+    if (tone) {
+      tone.Transport.stop();
+      tone.Transport.position = 0;
+    }
+
     setIsPlaying(false);
     setCurrentTime(0);
   }, []);
@@ -144,21 +226,24 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
           reverbConfig = { decay: 2, wet: 0.2 };
       }
 
-      const synth = new Tone.PolySynth(Tone.Synth, synthConfig);
-      const reverb = new Tone.Reverb(reverbConfig);
+      const tone = toneRef.current ?? (await loadTone());
+      toneRef.current = tone;
+
+      const synth = new tone.PolySynth(tone.Synth, synthConfig) as ToneSynth;
+      const reverb = new tone.Reverb(reverbConfig) as ToneReverb;
       await reverb.generate();
 
-      let filter: Tone.Filter | undefined;
-      let panner: Tone.Panner | undefined;
+      let filter: ToneFilter | undefined;
+      let panner: TonePanner | undefined;
 
       if (voice === 'melody') {
-        filter = new Tone.Filter({
+        filter = new tone.Filter({
           type: 'lowpass',
           frequency: 3000,
           Q: 1,
-        });
-        panner = new Tone.Panner(0);
-        synth.chain(filter, panner, reverb, Tone.Destination);
+        }) as ToneFilter;
+        panner = new tone.Panner(0) as TonePanner;
+        synth.chain(filter, panner, reverb, tone.Destination);
       } else {
         synth.connect(reverb);
         reverb.toDestination();
@@ -168,8 +253,11 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
     }
   }, [preset]);
 
-  const createSingleVoiceGraph = useCallback(() => {
-    const synth = new Tone.PolySynth(Tone.Synth, {
+  const createSingleVoiceGraph = useCallback(async () => {
+    const tone = toneRef.current ?? (await loadTone());
+    toneRef.current = tone;
+
+    const synth = new tone.PolySynth(tone.Synth, {
       oscillator: {
         type: preset.oscillatorType,
       },
@@ -179,22 +267,22 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
         sustain: 0.6,
         release: 0.8,
       },
-    });
+    }) as ToneSynth;
 
-    const reverb = new Tone.Reverb({
+    const reverb = new tone.Reverb({
       decay: preset.synthesis?.effects?.reverb?.decay || 2,
       wet: 0,
-    });
+    }) as ToneReverb;
 
-    const filter = new Tone.Filter({
+    const filter = new tone.Filter({
       type: preset.synthesis?.filter?.type || 'lowpass',
       frequency: preset.synthesis?.filter?.frequency || 2000,
       Q: preset.synthesis?.filter?.resonance || 1,
-    });
+    }) as ToneFilter;
 
-    const panner = new Tone.Panner(0);
+    const panner = new tone.Panner(0) as TonePanner;
 
-    synth.chain(filter, panner, reverb, Tone.Destination);
+    synth.chain(filter, panner, reverb, tone.Destination);
 
     synthRef.current = synth;
     reverbRef.current = reverb;
@@ -203,7 +291,10 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   }, [preset]);
 
   const ensureAudioGraph = useCallback(async () => {
-    await Tone.start();
+    const tone = await loadTone();
+    toneRef.current = tone;
+
+    await tone.start();
 
     if (graphSignatureRef.current === graphSignature) {
       return;
@@ -217,7 +308,7 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       if (isMultiVoice) {
         await createMultiVoiceGraph();
       } else {
-        createSingleVoiceGraph();
+        await createSingleVoiceGraph();
       }
 
       graphSignatureRef.current = graphSignature;
@@ -253,7 +344,12 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       voice: event.trackId as VoiceType | undefined,
     }));
 
-    const part = new Tone.Part((time, value) => {
+    const tone = toneRef.current;
+    if (!tone) {
+      return null;
+    }
+
+    const part = new tone.Part((time, value) => {
       if (isMultiVoice && value.voice) {
         const voiceSynth = voiceSynthsRef.current.get(value.voice);
         if (!voiceSynth) return;
@@ -279,13 +375,15 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
 
     part.loop = false;
     partRef.current = part;
-    Tone.Transport.bpm.value = tempo;
+    tone.Transport.bpm.value = tempo;
 
     return part;
   }, [disposePart, isMultiVoice, noteEvents, tempo]);
 
   useEffect(() => {
-    Tone.Transport.bpm.value = tempo;
+    if (toneRef.current) {
+      toneRef.current.Transport.bpm.value = tempo;
+    }
   }, [tempo]);
 
   // Update current time while playing
@@ -295,7 +393,9 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
     let frameId: number;
 
     const updateTime = () => {
-      setCurrentTime(Tone.Transport.seconds);
+      if (toneRef.current) {
+        setCurrentTime(toneRef.current.Transport.seconds);
+      }
       frameId = requestAnimationFrame(updateTime);
     };
 
@@ -320,16 +420,20 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       }
 
       if (stopSchedulerIdRef.current !== null) {
-        Tone.Transport.clear(stopSchedulerIdRef.current);
+        toneRef.current?.Transport.clear(stopSchedulerIdRef.current);
         stopSchedulerIdRef.current = null;
       }
 
-      Tone.Transport.stop();
-      Tone.Transport.position = 0;
+      if (!toneRef.current) {
+        return;
+      }
+
+      toneRef.current.Transport.stop();
+      toneRef.current.Transport.position = 0;
       setCurrentTime(0);
 
       part.start(0);
-      Tone.Transport.start();
+      toneRef.current.Transport.start();
       setIsPlaying(true);
 
       const durationBeats = noteEvents.reduce(
@@ -338,7 +442,7 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       );
       const durationSeconds = (durationBeats + 1) * (60 / tempo);
 
-      stopSchedulerIdRef.current = Tone.Transport.scheduleOnce(() => {
+      stopSchedulerIdRef.current = toneRef.current.Transport.scheduleOnce(() => {
         stop();
       }, `+${durationSeconds}`);
     } catch (error) {

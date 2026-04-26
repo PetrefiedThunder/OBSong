@@ -8,11 +8,19 @@ const nextConfig = {
     '@toposonics/types',
     '@toposonics/ui',
   ],
-  // Optimize for production
-  swcMinify: true,
   // Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
+  },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /node_modules\/tone\/build\/esm\/.*\.js$/,
+      resolve: {
+        fullySpecified: false,
+      },
+    });
+
+    return config;
   },
 };
 

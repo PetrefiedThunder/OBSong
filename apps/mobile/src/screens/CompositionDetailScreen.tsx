@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -30,11 +30,15 @@ export default function CompositionDetailScreen({ route }: Props) {
   const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
   const { loadComposition: loadCompositionRecord } = useCompositions();
 
-  useEffect(() => {
-    loadCompositionData();
-  }, [id, token]);
+  const loadCompositionFromStore = useCallback(async () => {
+    const data = await loadCompositionRecord(id);
+    if (!data) {
+      throw new Error('Composition not found');
+    }
+    return data;
+  }, [id, loadCompositionRecord]);
 
-  const loadCompositionData = async () => {
+  const loadCompositionData = useCallback(async () => {
     if (!token) {
       setLoading(false);
       return;
@@ -49,15 +53,11 @@ export default function CompositionDetailScreen({ route }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadCompositionFromStore, token]);
 
-  const loadCompositionFromStore = async () => {
-    const data = await loadCompositionRecord(id);
-    if (!data) {
-      throw new Error('Composition not found');
-    }
-    return data;
-  };
+  useEffect(() => {
+    void loadCompositionData();
+  }, [loadCompositionData]);
 
   const playComposition = async () => {
     if (!composition) return;

@@ -103,6 +103,8 @@ function StudioPageContent() {
         handleScenePackSelect(targetScenePack);
       }
     }
+    // Deep links should apply once per URL param change; preset helpers mutate local state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   useEffect(() => {

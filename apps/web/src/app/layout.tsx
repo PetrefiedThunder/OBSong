@@ -1,6 +1,12 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'TopoSonics - Turn Images into Music',
@@ -8,13 +14,9 @@ export const metadata: Metadata = {
     'Transform static photos or live camera input into rich musical landscapes. Map visual features to pitch, time, and effects.',
   keywords: ['generative music', 'image to audio', 'sonification', 'creative tools'],
   manifest: '/manifest.json',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
+  icons: {
+    icon: '/favicon.png',
   },
-  themeColor: '#3b82f6',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -25,6 +27,14 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#3b82f6',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -32,12 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-sans">
+      <body className={`${inter.className} font-sans`}>
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
             <header className="border-b border-gray-800 bg-surface-primary">

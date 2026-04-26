@@ -15,8 +15,8 @@ type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
 
 function TourWrapper() {
   const { tourStep } = useTour();
-  const [demoAnalysis, setDemoAnalysis] = useState<ImageAnalysisResult | null>(null);
-  const [demoNotes, setDemoNotes] = useState<NoteEvent[] | null>(null);
+  const [_demoAnalysis, setDemoAnalysis] = useState<ImageAnalysisResult | null>(null);
+  const [_demoNotes, setDemoNotes] = useState<NoteEvent[] | null>(null);
 
   useEffect(() => {
     if (tourStep?.action === 'RUN_ANALYSIS') {
@@ -214,7 +214,7 @@ function HomePageContent() {
               <div>
                 <h3 className="font-semibold text-lg mb-1">Choose a Scene Pack</h3>
                 <p className="text-gray-400">
-                  Start with a curated musical preset that matches your image's mood—from
+                  Start with a curated musical preset that matches your image&apos;s mood—from
                   majestic mountains to industrial cityscapes.
                 </p>
               </div>
@@ -226,7 +226,7 @@ function HomePageContent() {
               <div>
                 <h3 className="font-semibold text-lg mb-1">Upload an Image</h3>
                 <p className="text-gray-400">
-                  Choose a photo that matches the scene pack's recommendations—or experiment
+                  Choose a photo that matches the scene pack&apos;s recommendations—or experiment
                   with something unexpected.
                 </p>
               </div>

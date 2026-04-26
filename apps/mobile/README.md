@@ -83,6 +83,7 @@ cd apps/mobile/android
 ./gradlew assembleDebug
 
 # Android release App Bundle
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 ./gradlew bundleRelease
 ```
 
@@ -94,6 +95,13 @@ open TopoSonics.xcworkspace
 ```
 
 Use Xcode Archive for a release `.ipa`, or EAS for managed store builds.
+
+Before release builds, run:
+
+```bash
+corepack pnpm release:check:env
+corepack pnpm release:check:mobile
+```
 
 ## Regenerating Native Projects
 

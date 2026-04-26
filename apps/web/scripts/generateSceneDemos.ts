@@ -17,7 +17,6 @@ import {
   getAllScenePacks,
   getAllTopoPresets,
   getScenePreset,
-  mapImageToMultiVoiceComposition,
   type ScenePack,
   type TopoPreset,
   type NoteEvent,
