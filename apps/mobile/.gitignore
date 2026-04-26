@@ -1,0 +1,14 @@
+# iOS reproducible artifacts
+ios/Pods/
+ios/build/
+ios/.xcode.env.local
+ios/**/*.xcuserstate
+ios/**/xcuserdata/
+
+# Android reproducible artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/app/.cxx/
+android/local.properties

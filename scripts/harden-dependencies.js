@@ -99,5 +99,54 @@ function patchGlobCliGuard() {
   });
 }
 
+function patchExpoAppleAuthenticationSwitch() {
+  const pnpmRoot = path.join(process.cwd(), 'node_modules', '.pnpm');
+  if (!fs.existsSync(pnpmRoot)) {
+    console.warn('[harden-dependencies] Skipping expo-apple-authentication patch (pnpm store not found)');
+    return;
+  }
+
+  const targetPaths = fs
+    .readdirSync(pnpmRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('expo-apple-authentication@'))
+    .map((entry) =>
+      path.join(
+        pnpmRoot,
+        entry.name,
+        'node_modules',
+        'expo-apple-authentication',
+        'ios',
+        'AppleAuthenticationExceptions.swift'
+      )
+    );
+
+  targetPaths.forEach((targetPath) => {
+    patchFile(targetPath, (source) => {
+      if (source.includes('@unknown default:')) {
+        return source;
+      }
+
+      const marker =
+        "  case .notInteractive:\n" +
+        "    return RequestNotInteractiveException()\n" +
+        "  }\n";
+
+      if (!source.includes(marker)) {
+        return source;
+      }
+
+      const replacement =
+        "  case .notInteractive:\n" +
+        "    return RequestNotInteractiveException()\n" +
+        "  @unknown default:\n" +
+        "    return RequestUnknownException()\n" +
+        "  }\n";
+
+      return source.replace(marker, replacement);
+    });
+  });
+}
+
 patchIpPublicGuard();
 patchGlobCliGuard();
+patchExpoAppleAuthenticationSwitch();

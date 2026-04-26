@@ -22,7 +22,6 @@ import {
 import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
 import { useCompositions } from '../state/CompositionsProvider';
 import * as FileSystem from 'expo-file-system';
-import analytics from '@react-native-firebase/analytics';
 import { logError } from '@toposonics/shared';
 import { theme } from '@toposonics/ui';
 import { SignInModal } from '../components/SignInModal';
@@ -176,11 +175,6 @@ export default function EditorScreen() {
       });
       setGeneration(result);
       await storeDraft({ ...result, imageUri });
-      await analytics().logEvent('composition_generated', {
-        key: selectedKey,
-        scale: selectedScale,
-        noteCount: result.noteEvents.length,
-      });
     } catch (error) {
       logError(error as Error, { context: 'Generate Composition' });
       Alert.alert('Generation failed', (error as Error).message);
@@ -250,10 +244,6 @@ export default function EditorScreen() {
       const saved = await saveComposition(payload);
       if (saved) {
         Alert.alert('Saved', 'Composition synced to backend');
-        await analytics().logEvent('composition_saved', {
-          noteCount: generation.noteEvents.length,
-          duration,
-        });
       } else {
         Alert.alert('Save skipped', 'Unable to save without an authenticated session');
       }

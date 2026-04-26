@@ -2,7 +2,6 @@ import type { ImageAnalysisResult, NoteEvent, KeyType, ScaleType } from '@toposo
 import { Platform } from 'react-native';
 import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
 import { mapLinearLandscape } from '@toposonics/core-audio';
-import { processImage } from '@toposonics/native-image-processing';
 
 export interface PixelExtractionResult {
   pixels: Uint8ClampedArray;
@@ -18,6 +17,7 @@ export async function extractPixelsFromImage(
   options: { targetWidth?: number } = {}
 ): Promise<PixelExtractionResult> {
   const { targetWidth = 640 } = options;
+  const { processImage } = await import('@toposonics/native-image-processing');
 
   const nativeResult = await processImage({ uri, targetWidth, includeRidgeStrength: true });
   const pixels = new Uint8ClampedArray(nativeResult.pixels);
