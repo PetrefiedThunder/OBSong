@@ -1,6 +1,8 @@
 import { ConfigContext, ExpoConfig } from 'expo/config';
 import 'dotenv/config';
 
+const androidVersionCode = Number.parseInt(process.env.ANDROID_VERSION_CODE ?? '1', 10) || 1;
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'TopoSonics',
@@ -26,6 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#0a0a0f',
     },
     package: 'com.toposonics.app',
+    versionCode: androidVersionCode,
     permissions: [
       'CAMERA',
       'READ_EXTERNAL_STORAGE',

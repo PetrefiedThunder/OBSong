@@ -13,7 +13,7 @@ TopoSonics is a monorepo for turning images into musical soundscapes. It analyze
 
 ## What Ships In v1
 
-- **Web app (Next.js 14)**: Upload an image, choose a musical key/scale/preset, generate compositions with all supported mapping modes, play them in the browser with Tone.js, export MIDI, and save private compositions to your library.
+- **Web app (Next.js 15)**: Upload an image, choose a musical key/scale/preset, generate compositions with all supported mapping modes, play them in the browser with Tone.js, export MIDI, and save private compositions to your library.
 - **Mobile app (Expo)**: Browse and manage compositions on iOS and Android. On-device image generation is currently supported on Android only.
 - **API service (Fastify)**: Validates Supabase access tokens and stores private user compositions in Postgres.
 - **Shared packages**:
@@ -38,9 +38,9 @@ TopoSonics is a monorepo for turning images into musical soundscapes. It analyze
 ```bash
 corepack enable
 corepack prepare pnpm@8.15.0 --activate
-pnpm install
-pnpm dev:api
-pnpm dev:web
+corepack pnpm install
+corepack pnpm dev:api
+corepack pnpm dev:web
 ```
 
 For full local setup, copy the example env files:
@@ -57,19 +57,20 @@ Then fill in the Supabase values needed for authenticated save and library flows
 
 ```bash
 # API
-pnpm dev:api
+corepack pnpm dev:api
 
 # Web studio
-pnpm dev:web
+corepack pnpm dev:web
 
 # Mobile app
-pnpm dev:mobile
+corepack pnpm dev:mobile
 ```
 
 ## Documentation
 
 - [Web app](apps/web/README.md)
 - [Mobile app](apps/mobile/README.md)
+- [Mobile release and submission](docs/MOBILE_SUBMISSION.md)
 - [API](apps/api/README.md)
 - [Testing guide](TESTING.md)
 - [macOS quick start](QUICKSTART_MAC.md)
