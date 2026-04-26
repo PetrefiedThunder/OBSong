@@ -12,15 +12,15 @@ Fastify API for TopoSonics with Supabase-backed authentication and Postgres pers
 ## Development
 
 ```bash
-pnpm dev
+corepack pnpm dev
 ```
 
 Other useful commands:
 
 ```bash
-pnpm build
-pnpm start
-pnpm typecheck
+corepack pnpm build
+corepack pnpm start
+corepack pnpm typecheck
 ```
 
 ## Environment
@@ -82,7 +82,7 @@ Example payload:
 ## Validation
 
 ```bash
-pnpm --filter @toposonics/api typecheck
+corepack pnpm --filter @toposonics/api typecheck
 ```
 
 ## License

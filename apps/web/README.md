@@ -1,6 +1,6 @@
 # @toposonics/web
 
-Next.js 14 web application for TopoSonics.
+Next.js 15 web application for TopoSonics.
 
 ## What It Does
 
@@ -23,8 +23,8 @@ Next.js 14 web application for TopoSonics.
 ## Development
 
 ```bash
-pnpm install
-pnpm dev:web
+corepack pnpm install
+corepack pnpm dev:web
 ```
 
 The app runs at `http://localhost:3000`.
@@ -72,7 +72,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ## Validation
 
 ```bash
-pnpm --filter @toposonics/web typecheck
+corepack pnpm --filter @toposonics/web typecheck
 ```
 
 ## Known Limits

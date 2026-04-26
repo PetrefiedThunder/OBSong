@@ -90,9 +90,9 @@ if [ -d "${OPENCV_DIR}/sdk/native/libs" ] && [ -d "${OPENCV_DIR}/sdk/native/jni/
     ls -1 "${OPENCV_DIR}/sdk/native/libs"
     echo ""
     echo -e "${YELLOW}Next steps:${NC}"
-    echo -e "1. Run: ${GREEN}cd apps/mobile && pnpm install${NC}"
-    echo -e "2. Run: ${GREEN}npx expo prebuild --platform android${NC}"
-    echo -e "3. Open Android Studio and build the project"
+    echo -e "1. Run: ${GREEN}corepack pnpm install${NC}"
+    echo -e "2. Open ${GREEN}apps/mobile/android${NC} in Android Studio"
+    echo -e "3. Build locally with ${GREEN}./gradlew assembleDebug${NC} or ${GREEN}./gradlew bundleRelease${NC}"
     echo ""
 else
     echo -e "${RED}Error: OpenCV installation verification failed${NC}"

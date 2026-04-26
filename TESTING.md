@@ -8,10 +8,10 @@ Before testing:
 
 1. Run `corepack enable`
 2. Run `corepack prepare pnpm@8.15.0 --activate`
-3. Run `pnpm install`
-4. Start the API with `pnpm dev:api`
-5. Start the web app with `pnpm dev:web`
-6. Optionally start mobile with `pnpm dev:mobile`
+3. Run `corepack pnpm install`
+4. Start the API with `corepack pnpm dev:api`
+5. Start the web app with `corepack pnpm dev:web`
+6. Optionally start mobile with `corepack pnpm dev:mobile`
 7. Configure env files from the provided examples if you need authenticated flows
 
 ## Build Health
@@ -19,8 +19,8 @@ Before testing:
 Run these before manual QA:
 
 ```bash
-pnpm typecheck
-pnpm test
+corepack pnpm typecheck
+corepack pnpm test
 ```
 
 ## Web Acceptance

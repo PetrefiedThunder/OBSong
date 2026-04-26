@@ -31,7 +31,7 @@ cd OBSong
 ### 2. Install dependencies
 
 ```bash
-pnpm install
+corepack pnpm install
 ```
 
 ### 3. Configure env files
@@ -49,16 +49,16 @@ If you want authenticated save/library flows, fill in the Supabase values in the
 ### Option A: separate terminals
 
 ```bash
-pnpm dev:api
-pnpm dev:web
-pnpm dev:mobile
+corepack pnpm dev:api
+corepack pnpm dev:web
+corepack pnpm dev:mobile
 ```
 
 ### Option B: use the root scripts you prefer
 
 ```bash
-pnpm dev:api
-pnpm dev:web
+corepack pnpm dev:api
+corepack pnpm dev:web
 ```
 
 The main web app runs at `http://localhost:3000`.
@@ -99,8 +99,8 @@ The main web app runs at `http://localhost:3000`.
 Run:
 
 ```bash
-pnpm typecheck
-pnpm test
+corepack pnpm typecheck
+corepack pnpm test
 ```
 
-For manual QA, use [TESTING.md](/Users/sellers/Documents/GitHub/OBSong/TESTING.md).
+For manual QA, use [TESTING.md](TESTING.md).
