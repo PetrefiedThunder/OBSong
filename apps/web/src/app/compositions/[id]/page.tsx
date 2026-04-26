@@ -15,7 +15,7 @@ import { LoginModal } from '@/components/LoginModal';
 export default function CompositionDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, token, login } = useAuth();
+  const { user, token, login, isLoading: authLoading } = useAuth();
 
   const [composition, setComposition] = useState<Composition | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,6 +28,10 @@ export default function CompositionDetailPage() {
   const id = params.id as string;
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
     if (!token) {
       setComposition(null);
       setError(null);
@@ -36,7 +40,7 @@ export default function CompositionDetailPage() {
     }
 
     loadComposition();
-  }, [id, token]);
+  }, [authLoading, id, token]);
 
   const loadComposition = async () => {
     setIsLoading(true);
@@ -94,6 +98,16 @@ export default function CompositionDetailPage() {
     tempo,
     preset,
   });
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Checking your session...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!token) {
     return (

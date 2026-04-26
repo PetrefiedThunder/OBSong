@@ -14,6 +14,7 @@ import type { Composition } from '@toposonics/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCompositions } from '../state/CompositionsProvider';
 import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
+import { SignInModal } from '../components/SignInModal';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CompositionDetail'>;
@@ -24,7 +25,9 @@ export default function CompositionDetailScreen({ route }: Props) {
   const [composition, setComposition] = useState<Composition | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const { token, signInWithApple, loading: authLoading } = useAuth();
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
   const { loadComposition: loadCompositionRecord } = useCompositions();
 
   useEffect(() => {
@@ -69,6 +72,30 @@ export default function CompositionDetailScreen({ route }: Props) {
     }
   };
 
+  const handlePasswordSignIn = async (email: string, password: string) => {
+    try {
+      setIsSigningIn(true);
+      await signInWithPassword(email, password);
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsSigningIn(true);
+      await signInWithApple();
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Apple Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <View style={styles.centerContainer}>
@@ -79,12 +106,26 @@ export default function CompositionDetailScreen({ route }: Props) {
 
   if (!token) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Sign in to load this composition</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={signInWithApple}>
-          <Text style={styles.retryButtonText}>Sign in with Apple</Text>
-        </TouchableOpacity>
-      </View>
+      <>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Sign in to load this composition</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setIsSignInModalOpen(true)}
+          >
+            <Text style={styles.retryButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+        <SignInModal
+          visible={isSignInModalOpen}
+          isSubmitting={isSigningIn}
+          onClose={() => setIsSignInModalOpen(false)}
+          onSubmit={handlePasswordSignIn}
+          onAppleSignIn={handleAppleSignIn}
+          title="Sign In to View This Composition"
+          description="Sign in to open this composition from your private mobile library."
+        />
+      </>
     );
   }
 

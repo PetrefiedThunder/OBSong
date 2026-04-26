@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 import { useAuth } from '../auth/AuthProvider';
+import { SignInModal } from '../components/SignInModal';
 
 const WEB_APP_URL = 'https://toposonics.com'; // Replace with your actual web app URL
 
@@ -11,13 +12,31 @@ type Props = {
 };
 
 export default function HomeScreen({ navigation }: Props) {
-  const { user, signInWithApple, signOut } = useAuth();
+  const { user, signInWithApple, signInWithPassword, signOut } = useAuth();
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleAppleSignIn = async () => {
     try {
+      setIsSigningIn(true);
       await signInWithApple();
+      setIsSignInModalOpen(false);
     } catch (error) {
       Alert.alert('Apple Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handlePasswordSignIn = async (email: string, password: string) => {
+    try {
+      setIsSigningIn(true);
+      await signInWithPassword(email, password);
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -61,12 +80,14 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.buttonText}>Take the Tour</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, styles.appleButton]}
-          onPress={handleAppleSignIn}
-        >
-          <Text style={styles.buttonText}>{user ? 'Re-authenticate with Apple' : 'Sign in with Apple'}</Text>
-        </TouchableOpacity>
+        {!user && (
+          <TouchableOpacity
+            style={[styles.button, styles.appleButton]}
+            onPress={() => setIsSignInModalOpen(true)}
+          >
+            <Text style={styles.buttonText}>Sign In</Text>
+          </TouchableOpacity>
+        )}
 
         {user && (
           <TouchableOpacity style={[styles.button, styles.signOutButton]} onPress={signOut}>
@@ -100,6 +121,16 @@ export default function HomeScreen({ navigation }: Props) {
           </Text>
         </View>
       </View>
+
+      <SignInModal
+        visible={isSignInModalOpen}
+        isSubmitting={isSigningIn}
+        onClose={() => setIsSignInModalOpen(false)}
+        onSubmit={handlePasswordSignIn}
+        onAppleSignIn={handleAppleSignIn}
+        title="Sign In to Sync"
+        description="Sign in to save compositions to your private library and sync them across devices."
+      />
     </View>
   );
 }
