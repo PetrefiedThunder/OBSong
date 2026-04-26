@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import * as Sentry from 'sentry-expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -14,12 +13,7 @@ import { AuthProvider } from './src/auth/AuthProvider';
 import { CompositionsProvider } from './src/state/CompositionsProvider';
 
 const ONBOARDING_COMPLETE_KEY = '@toposonics:onboardingComplete';
-
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  enableInExpoDevelopment: true,
-  debug: true, // If `true`, Sentry will print debugging information if error sending failed.
-});
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -50,6 +44,34 @@ export default function App() {
     };
 
     checkOnboardingStatus();
+  }, []);
+
+  useEffect(() => {
+    if (!SENTRY_DSN) {
+      return;
+    }
+
+    let isActive = true;
+
+    void import('sentry-expo')
+      .then((Sentry) => {
+        if (!isActive) {
+          return;
+        }
+
+        Sentry.init({
+          dsn: SENTRY_DSN,
+          enableInExpoDevelopment: true,
+          debug: __DEV__,
+        });
+      })
+      .catch((error) => {
+        console.warn('Sentry initialization skipped', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   if (isLoading) {

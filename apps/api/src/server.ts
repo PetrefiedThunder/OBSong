@@ -55,7 +55,7 @@ async function createServer(): Promise<FastifyInstance> {
         : forwardedProto || request.protocol;
 
       if (protocol !== 'https' && request.headers.host) {
-        reply.redirect(301, `https://${request.headers.host}${request.url}`);
+        reply.redirect(`https://${request.headers.host}${request.url}`, 301);
         return;
       }
 
@@ -148,11 +148,27 @@ async function createServer(): Promise<FastifyInstance> {
   fastify.setErrorHandler((error, _request, reply) => {
     fastify.log.error(error);
 
-    return reply.status(error.statusCode || 500).send({
+    const statusCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'statusCode' in error &&
+      typeof error.statusCode === 'number'
+        ? error.statusCode
+        : 500;
+    const errorCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      typeof error.code === 'string'
+        ? error.code
+        : 'INTERNAL_ERROR';
+    const message = error instanceof Error ? error.message : 'Internal server error';
+
+    return reply.status(statusCode).send({
       success: false,
       error: {
-        code: error.code || 'INTERNAL_ERROR',
-        message: error.message || 'Internal server error',
+        code: errorCode,
+        message,
       },
     });
   });
