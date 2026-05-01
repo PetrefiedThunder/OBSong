@@ -12,10 +12,10 @@ export async function authRoutes(fastify: FastifyInstance) {
    * Validates a Supabase access token and returns the user payload
    */
   fastify.post<{
-    Body: { accessToken: string };
+    Body: { accessToken?: unknown } | undefined;
     Reply: ApiResponse<AuthTokenResponse> | ApiErrorResponse;
   }>('/auth/login', async (request, reply) => {
-    const { accessToken } = request.body;
+    const accessToken = request.body?.accessToken;
 
     if (!accessToken || typeof accessToken !== 'string') {
       return reply.status(400).send({

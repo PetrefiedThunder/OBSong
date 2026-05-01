@@ -70,11 +70,13 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   crda-scan:
     permissions:
       contents: read            # for actions/checkout to fetch code
+      pull-requests: read       # for redhat-actions/crda to inspect PR approval labels
       security-events: write    # for redhat-actions/crda to upload SARIF results
     name: Scan project vulnerabilities with CRDA
     runs-on: ubuntu-latest
