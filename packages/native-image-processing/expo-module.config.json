@@ -1,6 +1,10 @@
 {
   "name": "@toposonics/native-image-processing",
+  "platforms": ["android", "apple"],
   "android": {
-    "modules": ["NativeImageProcessing"]
+    "modules": ["com.toposonics.nativeimageprocessing.NativeImageProcessingModule"]
+  },
+  "apple": {
+    "modules": ["NativeImageProcessingModule"]
   }
 }

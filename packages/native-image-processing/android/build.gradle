@@ -13,13 +13,6 @@ android {
   defaultConfig {
     minSdkVersion rootProject.ext.has('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
     targetSdkVersion rootProject.ext.has('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 34
-    externalNativeBuild {
-      cmake {
-        cppFlags '-std=c++17'
-        arguments "-DANDROID_STL=c++_shared",
-                  "-DOpenCV_DIR=${projectDir}/libs/opencv/sdk/native/jni"
-      }
-    }
   }
 
   sourceSets {
@@ -30,11 +23,6 @@ android {
     }
   }
 
-  externalNativeBuild {
-    cmake {
-      path file('src/main/cpp/CMakeLists.txt')
-    }
-  }
 }
 
 dependencies {
