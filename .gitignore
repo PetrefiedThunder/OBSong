@@ -25,6 +25,13 @@ dist
 # Misc
 .DS_Store
 *.pem
+*.cer
+*.der
+*.jks
+*.keystore
+*.mobileprovision
+*.p12
+*.p8
 .idea
 .vscode
 
@@ -53,6 +60,13 @@ lerna-debug.log*
 # Expo
 .expo
 .expo-shared
+apps/mobile/credentials/
+apps/mobile/android/key.properties
+apps/mobile/android/app/release.keystore
+apps/mobile/android/app/upload-keystore.jks
+apps/mobile/ios/*.xcconfig.local
+apps/mobile/ios/**/*.xcconfig.local
+apps/mobile/ios/ExportOptions*.plist
 
 # TypeScript
 *.tsbuildinfo

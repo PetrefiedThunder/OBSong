@@ -4,11 +4,13 @@
 
 import type { FastifyInstance } from 'fastify';
 import type {
-  Composition,
-  CreateCompositionDTO,
-  UpdateCompositionDTO,
+  CompositionResponseDTO,
   ApiResponse,
   ApiErrorResponse,
+} from '@toposonics/types';
+import {
+  createCompositionRequestSchema,
+  updateCompositionRequestSchema,
 } from '@toposonics/types';
 import { requireAuth } from '../auth';
 import {
@@ -17,21 +19,47 @@ import {
   createComposition,
   updateComposition,
   deleteComposition,
+  CompositionDataValidationError,
 } from '../services/compositions';
+
+function invalidInput(details: unknown, message = 'Invalid composition payload'): ApiErrorResponse {
+  return {
+    success: false,
+    error: {
+      code: 'INVALID_INPUT',
+      message,
+      details,
+    },
+  };
+}
+
+function corruptComposition(error: CompositionDataValidationError): ApiErrorResponse {
+  return {
+    success: false,
+    error: {
+      code: 'COMPOSITION_DATA_INVALID',
+      message: 'Stored composition data is invalid',
+      details: {
+        compositionId: error.compositionId,
+        validation: error.details,
+      },
+    },
+  };
+}
 
 export async function compositionRoutes(fastify: FastifyInstance) {
   /**
    * GET /compositions
    * Get all compositions (optionally filtered by authenticated user)
    */
-  fastify.get<{ Reply: ApiResponse<Composition[]> | ApiErrorResponse }>(
+  fastify.get<{ Reply: ApiResponse<CompositionResponseDTO[]> | ApiErrorResponse }>(
     '/compositions',
     {
       preHandler: requireAuth,
     },
     async (request, reply) => {
       try {
-        const compositions = await listCompositions(request.userId);
+        const compositions = await listCompositions(request.userId!);
 
         return reply.send({
           success: true,
@@ -56,7 +84,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{
     Params: { id: string };
-    Reply: ApiResponse<Composition> | ApiErrorResponse;
+    Reply: ApiResponse<CompositionResponseDTO> | ApiErrorResponse;
   }>(
     '/compositions/:id',
     {
@@ -66,9 +94,9 @@ export async function compositionRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
 
       try {
-        const composition = await getCompositionById(id);
+        const composition = await getCompositionById(request.userId!, id);
 
-        if (!composition || composition.userId !== request.userId) {
+        if (!composition) {
           return reply.status(404).send({
             success: false,
             error: {
@@ -83,6 +111,10 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           data: composition,
         });
       } catch (error) {
+        if (error instanceof CompositionDataValidationError) {
+          return reply.status(409).send(corruptComposition(error));
+        }
+
         fastify.log.error(error);
         return reply.status(500).send({
           success: false,
@@ -100,29 +132,23 @@ export async function compositionRoutes(fastify: FastifyInstance) {
    * Create a new composition (requires auth)
    */
   fastify.post<{
-    Body: Omit<CreateCompositionDTO, 'userId'>;
-    Reply: ApiResponse<Composition> | ApiErrorResponse;
+    Body: unknown;
+    Reply: ApiResponse<CompositionResponseDTO> | ApiErrorResponse;
   }>(
     '/compositions',
     {
       preHandler: requireAuth,
     },
     async (request, reply) => {
-      const data = request.body;
+      const result = createCompositionRequestSchema.safeParse(request.body);
+
+      if (!result.success) {
+        return reply.status(400).send(invalidInput(result.error.flatten()));
+      }
+
+      const data = result.data;
 
       try {
-        // Validate required fields
-        if (!data.title || !data.noteEvents || !data.mappingMode || !data.key || !data.scale) {
-          return reply.status(400).send({
-            success: false,
-            error: {
-              code: 'INVALID_INPUT',
-              message: 'Missing required fields: title, noteEvents, mappingMode, key, scale',
-            },
-          });
-        }
-
-        // Create composition with authenticated user's ID
         const composition = await createComposition(request.userId!, data);
 
         return reply.status(201).send({
@@ -149,8 +175,8 @@ export async function compositionRoutes(fastify: FastifyInstance) {
    */
   fastify.put<{
     Params: { id: string };
-    Body: UpdateCompositionDTO;
-    Reply: ApiResponse<Composition> | ApiErrorResponse;
+    Body: unknown;
+    Reply: ApiResponse<CompositionResponseDTO> | ApiErrorResponse;
   }>(
     '/compositions/:id',
     {
@@ -158,40 +184,23 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { id } = request.params;
-      const data = request.body;
+      const result = updateCompositionRequestSchema.safeParse(request.body);
+
+      if (!result.success) {
+        return reply.status(400).send(invalidInput(result.error.flatten()));
+      }
+
+      const data = result.data;
 
       try {
-        const existing = await getCompositionById(id);
+        const updated = await updateComposition(request.userId!, id, data);
 
-        if (!existing) {
+        if (!updated) {
           return reply.status(404).send({
             success: false,
             error: {
               code: 'NOT_FOUND',
               message: `Composition with ID ${id} not found`,
-            },
-          });
-        }
-
-        // Check ownership
-        if (existing.userId !== request.userId) {
-          return reply.status(403).send({
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'You do not have permission to update this composition',
-            },
-          });
-        }
-
-        const updated = await updateComposition(id, data);
-
-        if (!updated) {
-          return reply.status(500).send({
-            success: false,
-            error: {
-              code: 'UPDATE_FAILED',
-              message: 'Failed to update composition',
             },
           });
         }
@@ -202,6 +211,10 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           message: 'Composition updated successfully',
         });
       } catch (error) {
+        if (error instanceof CompositionDataValidationError) {
+          return reply.status(409).send(corruptComposition(error));
+        }
+
         fastify.log.error(error);
         return reply.status(500).send({
           success: false,
@@ -230,37 +243,14 @@ export async function compositionRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
 
       try {
-        const existing = await getCompositionById(id);
+        const deleted = await deleteComposition(request.userId!, id);
 
-        if (!existing) {
+        if (!deleted) {
           return reply.status(404).send({
             success: false,
             error: {
               code: 'NOT_FOUND',
               message: `Composition with ID ${id} not found`,
-            },
-          });
-        }
-
-        // Check ownership
-        if (existing.userId !== request.userId) {
-          return reply.status(403).send({
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'You do not have permission to delete this composition',
-            },
-          });
-        }
-
-        const deleted = await deleteComposition(id);
-
-        if (!deleted) {
-          return reply.status(500).send({
-            success: false,
-            error: {
-              code: 'DELETE_FAILED',
-              message: 'Failed to delete composition',
             },
           });
         }

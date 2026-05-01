@@ -1,5 +1,39 @@
-import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition } from '../mappers';
+import {
+  mapLinearLandscape,
+  transposeNotes,
+  mapDepthRidge,
+  mapImageToMultiVoiceComposition,
+  mapTextureToPad,
+} from '../mappers';
 import type { ImageAnalysisResult, LinearLandscapeOptions, NoteEvent, DepthRidgeOptions, MultiVoiceOptions } from '@toposonics/types';
+
+function expectFiniteNoteRanges(noteEvents: NoteEvent[]) {
+  for (const note of noteEvents) {
+    expect(Number.isFinite(note.start)).toBe(true);
+    expect(Number.isFinite(note.duration)).toBe(true);
+    expect(Number.isFinite(note.velocity)).toBe(true);
+    expect(note.velocity).toBeGreaterThanOrEqual(0);
+    expect(note.velocity).toBeLessThanOrEqual(1);
+
+    if (note.pan !== undefined) {
+      expect(Number.isFinite(note.pan)).toBe(true);
+      expect(note.pan).toBeGreaterThanOrEqual(-1);
+      expect(note.pan).toBeLessThanOrEqual(1);
+    }
+
+    if (note.effects?.reverbSend !== undefined) {
+      expect(Number.isFinite(note.effects.reverbSend)).toBe(true);
+      expect(note.effects.reverbSend).toBeGreaterThanOrEqual(0);
+      expect(note.effects.reverbSend).toBeLessThanOrEqual(1);
+    }
+
+    if (note.effects?.filterCutoff !== undefined) {
+      expect(Number.isFinite(note.effects.filterCutoff)).toBe(true);
+      expect(note.effects.filterCutoff).toBeGreaterThanOrEqual(0);
+      expect(note.effects.filterCutoff).toBeLessThanOrEqual(1);
+    }
+  }
+}
 
 describe('mapLinearLandscape', () => {
   it('should generate a sequence of notes based on brightness', () => {
@@ -92,6 +126,26 @@ describe('mapLinearLandscape', () => {
     const noteEvents = mapLinearLandscape(analysis, options);
     expect(noteEvents).toHaveLength(1);
     expect(noteEvents[0].pan).toBe(0);
+  });
+
+  it('should align depth with the sampled brightness source index', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 5,
+      height: 100,
+      brightnessProfile: [0, 64, 128, 192, 255],
+      depthProfile: [0, 0, 0, 0, 1],
+    };
+
+    const options: LinearLandscapeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      maxNotes: 3,
+    };
+
+    const noteEvents = mapLinearLandscape(analysis, options);
+    expect(noteEvents).toHaveLength(3);
+    expect(noteEvents[2].effects?.reverbSend).toBeCloseTo(0.1);
+    expectFiniteNoteRanges(noteEvents);
   });
 });
 
@@ -198,6 +252,51 @@ describe('mapDepthRidge', () => {
     expect(noteEvents).toHaveLength(1);
     expect(noteEvents[0].pan).toBe(0);
   });
+
+  it('should downsample across the full profile so right-edge ridges can trigger notes', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 10,
+      height: 100,
+      brightnessProfile: [0, 0, 0, 0, 0, 0, 0, 0, 0, 255],
+      depthProfile: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      ridgeStrength: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.9],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: DepthRidgeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      maxNotes: 5,
+      ridgeThreshold: 0.5,
+      depthToReverb: true,
+    };
+
+    const noteEvents = mapDepthRidge(analysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(noteEvents[0].pan).toBe(1);
+    expect(noteEvents[0].effects?.reverbSend).toBeCloseTo(0.2);
+    expect(noteEvents[0].effects?.filterCutoff).toBe(1);
+    expectFiniteNoteRanges(noteEvents);
+  });
+});
+
+describe('mapTextureToPad', () => {
+  it('should generate deterministic finite pad mappings', () => {
+    const textureProfile = [0.1, 0.8, 0.4, 0.95, 0.2, 0.7];
+    const first = mapTextureToPad(textureProfile, 'C', 'C_MAJOR', {
+      segments: 3,
+      noteDuration: 4,
+    });
+    const second = mapTextureToPad(textureProfile, 'C', 'C_MAJOR', {
+      segments: 3,
+      noteDuration: 4,
+    });
+
+    expect(first).toEqual(second);
+    expect(first.length).toBeGreaterThan(0);
+    expectFiniteNoteRanges(first);
+  });
 });
 
 describe('mapImageToMultiVoiceComposition', () => {
@@ -245,6 +344,19 @@ describe('mapImageToMultiVoiceComposition', () => {
     expect(trackIds).toContain('bass');
     expect(trackIds).not.toContain('melody');
     expect(trackIds).toContain('pad');
+  });
+
+  it('should produce deep-equal multi-voice output for identical input', () => {
+    const options: MultiVoiceOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+    };
+
+    const first = mapImageToMultiVoiceComposition(baseAnalysis, options);
+    const second = mapImageToMultiVoiceComposition(baseAnalysis, options);
+
+    expect(first).toEqual(second);
+    expectFiniteNoteRanges(first);
   });
 
   it('should avoid NaN pan in single-point melody mapping', () => {

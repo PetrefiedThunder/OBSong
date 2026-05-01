@@ -12,6 +12,17 @@ export function getAudioTopology(noteEvents: NoteEvent[]): AudioTopology {
     : 'single';
 }
 
+export function getNoteEventsDurationBeats(noteEvents: NoteEvent[]): number {
+  return noteEvents.reduce(
+    (durationBeats, event) => Math.max(durationBeats, event.start + event.duration),
+    0
+  );
+}
+
+export function beatsToSeconds(beats: number, tempo: number): number {
+  return beats * (60 / Math.max(1, tempo));
+}
+
 export function getAudioGraphSignature(
   noteEvents: NoteEvent[],
   preset: SoundPreset

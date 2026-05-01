@@ -12,10 +12,21 @@
  * @param b - Blue channel (0-255)
  * @returns Brightness value (0-255)
  */
+function finiteChannel(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(255, value));
+}
+
+function clampRowIndex(rowIndex: number, height: number): number {
+  if (height <= 0) return 0;
+  const finiteRow = Number.isFinite(rowIndex) ? rowIndex : 0;
+  return Math.max(0, Math.min(height - 1, Math.floor(finiteRow)));
+}
+
 export function computePixelBrightness(r: number, g: number, b: number): number {
   // Weighted average based on human perception
   // Red: 21%, Green: 72%, Blue: 7%
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * finiteChannel(r) + 0.7152 * finiteChannel(g) + 0.0722 * finiteChannel(b);
 }
 
 /**
@@ -33,8 +44,11 @@ export function computeBrightnessProfileFromRow(
   height: number,
   rowIndex: number
 ): number[] {
+  if (width <= 0 || height <= 0) return [];
+
   const profile: number[] = [];
-  const rowOffset = rowIndex * width * 4; // 4 channels per pixel (RGBA)
+  const clampedRow = clampRowIndex(rowIndex, height);
+  const rowOffset = clampedRow * width * 4; // 4 channels per pixel (RGBA)
 
   for (let x = 0; x < width; x++) {
     const pixelOffset = rowOffset + x * 4;
@@ -58,8 +72,18 @@ export function computeBrightnessProfileFromRow(
 export function computeNormalizedBrightness(profile: number[]): number[] {
   if (profile.length === 0) return [];
 
-  const min = Math.min(...profile);
-  const max = Math.max(...profile);
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of profile) {
+    if (!Number.isFinite(value)) continue;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+
+  if (min === Infinity || max === -Infinity) {
+    return profile.map(() => 0.5);
+  }
+
   const range = max - min;
 
   // Avoid division by zero
@@ -79,16 +103,19 @@ export function computeNormalizedBrightness(profile: number[]): number[] {
  * @returns Downsampled profile
  */
 export function downsampleProfile(profile: number[], targetSamples: number): number[] {
-  if (profile.length <= targetSamples) {
+  const sampleCount = Math.floor(targetSamples);
+  if (sampleCount <= 0 || profile.length === 0) return [];
+
+  if (profile.length <= sampleCount) {
     return [...profile];
   }
 
   const result: number[] = [];
-  const binSize = profile.length / targetSamples;
+  const binSize = profile.length / sampleCount;
 
-  for (let i = 0; i < targetSamples; i++) {
+  for (let i = 0; i < sampleCount; i++) {
     const startIdx = Math.floor(i * binSize);
-    const endIdx = Math.floor((i + 1) * binSize);
+    const endIdx = Math.max(startIdx + 1, Math.floor((i + 1) * binSize));
     const bin = profile.slice(startIdx, endIdx);
 
     // Average the values in this bin
@@ -116,9 +143,17 @@ export function computeAveragedBrightnessProfile(
   startRow: number,
   endRow: number
 ): number[] {
+  if (width <= 0 || height <= 0) return [];
+
+  const clampedStart = clampRowIndex(startRow, height);
+  const finiteEndRow = Number.isFinite(endRow) ? endRow : clampedStart + 1;
+  const clampedEndExclusive = Math.max(
+    clampedStart + 1,
+    Math.min(height, Math.ceil(finiteEndRow))
+  );
   const profiles: number[][] = [];
 
-  for (let row = startRow; row < endRow; row++) {
+  for (let row = clampedStart; row < clampedEndExclusive; row++) {
     profiles.push(computeBrightnessProfileFromRow(pixels, width, height, row));
   }
 

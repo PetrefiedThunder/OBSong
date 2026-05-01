@@ -319,15 +319,19 @@ export default function EditorScreen() {
               <Text style={styles.pickerText}>Take Photo</Text>
             </TouchableOpacity>
           </View>
-          )}
-          {generation && (
-            <TouchableOpacity style={styles.draftResetButton} onPress={clearDraft} disabled={processing}>
-              <Text style={styles.draftResetText}>Reset draft</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
+        {generation && (
+          <TouchableOpacity
+            style={styles.draftResetButton}
+            onPress={clearDraft}
+            disabled={processing}
+          >
+            <Text style={styles.draftResetText}>Reset draft</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-        <View style={styles.section}>
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>2. Musical Parameters</Text>
         <View style={styles.paramCard}>
           <Text style={styles.paramNote}>Choose a key and scale to map brightness to pitch.</Text>
@@ -385,7 +389,9 @@ export default function EditorScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.generateButtonText}>
-              {isIOSGenerationUnsupported ? 'Generation Unavailable on iOS' : 'Generate Composition'}
+              {isIOSGenerationUnsupported
+                ? 'Generation Unavailable on iOS'
+                : 'Generate Composition'}
             </Text>
           )}
         </TouchableOpacity>
@@ -396,11 +402,15 @@ export default function EditorScreen() {
           <Text style={styles.sectionTitle}>4. Preview</Text>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryText}>
-              {generationSummary.notes} notes · {generationSummary.duration.toFixed(1)}s · {generationSummary.width}×
-              {generationSummary.height}
+              {generationSummary.notes} notes · {generationSummary.duration.toFixed(1)}s ·{' '}
+              {generationSummary.width}×{generationSummary.height}
             </Text>
             <View style={styles.previewButtons}>
-              <TouchableOpacity style={styles.playButton} onPress={playNotes} disabled={!!playbackStatus}>
+              <TouchableOpacity
+                style={styles.playButton}
+                onPress={playNotes}
+                disabled={!!playbackStatus}
+              >
                 <Text style={styles.playButtonText}>
                   {playbackStatus ? `Playing ${playbackStatus}` : '▶ Play'}
                 </Text>
@@ -428,12 +438,13 @@ export default function EditorScreen() {
 
       <View style={styles.section}>
         <Text style={styles.infoText}>
-          The mobile editor now performs on-device pixel extraction through the native OpenCV module, decodes RGBA data,
-          maps it through @toposonics/core-image and @toposonics/core-audio, and plays back a simplified tone stack with
-          expo-av.
+          The mobile editor now performs on-device pixel extraction through the native
+          image-processing module, decodes RGBA data, maps it through @toposonics/core-image and
+          @toposonics/core-audio, and plays back a simplified tone stack with expo-av.
         </Text>
         <Text style={styles.featureList}>
-          • Pixel extraction & analysis {'\n'}• Brightness-driven melody generation {'\n'}• Audio playback via expo-av
+          • Pixel extraction & analysis {'\n'}• Brightness-driven melody generation {'\n'}• Audio
+          playback via expo-av
           {'\n'}• Offline caching for drafts {'\n'}• Authenticated save to the TopoSonics backend
         </Text>
       </View>

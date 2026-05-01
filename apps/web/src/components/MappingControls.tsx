@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
 import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
 
@@ -46,6 +47,35 @@ const MAPPING_MODES: { value: MappingMode; label: string; description: string }[
   },
 ];
 
+function handleRadioKeyDown<T extends string>(
+  event: React.KeyboardEvent<HTMLButtonElement>,
+  values: T[],
+  selectedValue: T,
+  onChange: (value: T) => void,
+) {
+  const selectedIndex = values.indexOf(selectedValue);
+  let nextIndex = selectedIndex;
+
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    nextIndex = (selectedIndex + 1) % values.length;
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    nextIndex = (selectedIndex - 1 + values.length) % values.length;
+  } else if (event.key === 'Home') {
+    nextIndex = 0;
+  } else if (event.key === 'End') {
+    nextIndex = values.length - 1;
+  } else {
+    return;
+  }
+
+  event.preventDefault();
+  onChange(values[nextIndex]);
+  const radioButtons = Array.from(
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [],
+  );
+  radioButtons[nextIndex]?.focus();
+}
+
 export function MappingControls({
   key,
   scale,
@@ -58,15 +88,24 @@ export function MappingControls({
   onPresetChange,
   onTopoPresetChange,
 }: MappingControlsProps) {
+  const musicalPresetId = useId();
+  const mappingModeId = useId();
+  const keyId = useId();
+  const scaleId = useId();
+  const soundPresetId = useId();
   const presets = getAllPresets();
   const topoPresets = getAllTopoPresets();
+  const mappingModeValues = MAPPING_MODES.map((mode) => mode.value);
 
   return (
     <div className="space-y-6">
       {/* TopoSonics Preset */}
       <div>
-        <label className="block text-sm font-medium mb-2">Musical Preset</label>
+        <label htmlFor={musicalPresetId} className="block text-sm font-medium mb-2">
+          Musical Preset
+        </label>
         <select
+          id={musicalPresetId}
           value={selectedTopoPreset?.id || ''}
           onChange={(e) => {
             const preset = e.target.value
@@ -89,13 +128,27 @@ export function MappingControls({
       </div>
 
       {/* Mapping Mode */}
-      <div>
-        <label className="block text-sm font-medium mb-2">Mapping Mode</label>
-        <div className="grid grid-cols-1 gap-2">
+      <fieldset>
+        <legend id={mappingModeId} className="block text-sm font-medium mb-2">
+          Mapping Mode
+        </legend>
+        <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-labelledby={mappingModeId}>
           {MAPPING_MODES.map((mode) => (
             <button
               key={mode.value}
+              type="button"
+              role="radio"
+              aria-checked={mappingMode === mode.value}
+              tabIndex={mappingMode === mode.value ? 0 : -1}
               onClick={() => onMappingModeChange(mode.value)}
+              onKeyDown={(event) =>
+                handleRadioKeyDown(
+                  event,
+                  mappingModeValues,
+                  mappingMode,
+                  onMappingModeChange,
+                )
+              }
               className={`p-3 rounded-lg text-left transition-colors ${
                 mappingMode === mode.value
                   ? 'bg-primary-600 border-2 border-primary-500'
@@ -107,16 +160,23 @@ export function MappingControls({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Musical Key */}
-      <div>
-        <label className="block text-sm font-medium mb-2">Key</label>
-        <div className="grid grid-cols-6 gap-2">
+      <fieldset>
+        <legend id={keyId} className="block text-sm font-medium mb-2">
+          Key
+        </legend>
+        <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-labelledby={keyId}>
           {KEYS.map((k) => (
             <button
               key={k}
+              type="button"
+              role="radio"
+              aria-checked={key === k}
+              tabIndex={key === k ? 0 : -1}
               onClick={() => onKeyChange(k)}
+              onKeyDown={(event) => handleRadioKeyDown(event, KEYS, key, onKeyChange)}
               className={`py-2 px-3 rounded-lg font-medium transition-colors ${
                 key === k
                   ? 'bg-primary-600 text-white'
@@ -127,12 +187,15 @@ export function MappingControls({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Scale */}
       <div>
-        <label className="block text-sm font-medium mb-2">Scale</label>
+        <label htmlFor={scaleId} className="block text-sm font-medium mb-2">
+          Scale
+        </label>
         <select
+          id={scaleId}
           value={scale}
           onChange={(e) => onScaleChange(e.target.value as ScaleType)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -147,8 +210,11 @@ export function MappingControls({
 
       {/* Sound Preset */}
       <div>
-        <label className="block text-sm font-medium mb-2">Sound Preset</label>
+        <label htmlFor={soundPresetId} className="block text-sm font-medium mb-2">
+          Sound Preset
+        </label>
         <select
+          id={soundPresetId}
           value={presetId}
           onChange={(e) => onPresetChange(e.target.value)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"

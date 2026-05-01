@@ -19,7 +19,7 @@ export async function extractPixelsFromImage(
   const { targetWidth = 640 } = options;
   const { processImage } = await import('@toposonics/native-image-processing');
 
-  const nativeResult = await processImage({ uri, targetWidth, includeRidgeStrength: true });
+  const nativeResult = await processImage({ uri, targetWidth });
   const pixels = new Uint8ClampedArray(nativeResult.pixels);
 
   return {

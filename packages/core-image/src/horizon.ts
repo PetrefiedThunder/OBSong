@@ -25,8 +25,10 @@ export function computeHorizonProfile(
   } = {}
 ): number[] {
   const { brightnessThreshold = 30, gradientThreshold = 20 } = options;
+  if (width <= 0 || height <= 0) return [];
 
   const horizonHeights: number[] = [];
+  const heightDenominator = Math.max(1, height - 1);
 
   for (let x = 0; x < width; x++) {
     let horizonY = height - 1; // Default to bottom
@@ -60,7 +62,7 @@ export function computeHorizonProfile(
     }
 
     // Normalize to 0-1 (0 = bottom, 1 = top)
-    horizonHeights.push(1 - horizonY / (height - 1));
+    horizonHeights.push(1 - horizonY / heightDenominator);
   }
 
   return horizonHeights;

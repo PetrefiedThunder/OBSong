@@ -29,6 +29,7 @@ import {
 } from '@/lib/imageProcessing';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToneEngine } from '@/hooks/useToneEngine';
+import { getNoteEventsDurationBeats } from '@/hooks/useToneEngine.utils';
 import { ImageUploader } from '@/components/ImageUploader';
 import { MappingControls } from '@/components/MappingControls';
 import { PlaybackControls } from '@/components/PlaybackControls';
@@ -80,7 +81,7 @@ function StudioPageContent() {
 
   const compositionDurationBeats = useMemo(() => {
     if (!noteEvents.length) return 0;
-    return noteEvents.reduce((max, event) => Math.max(max, event.start + event.duration), 0);
+    return getNoteEventsDurationBeats(noteEvents);
   }, [noteEvents]);
 
   const compositionDurationSeconds = useMemo(

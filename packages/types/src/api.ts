@@ -1,4 +1,9 @@
 /**
+ * ISO-8601 timestamp used by JSON API DTOs.
+ */
+export type ISODateString = string;
+
+/**
  * Standard API success response wrapper.
  */
 export interface ApiResponse<T = unknown> {

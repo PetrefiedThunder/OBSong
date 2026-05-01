@@ -26,6 +26,27 @@ function calculatePan(index: number, totalPoints: number, spread = 1): number {
   return (normalizedPosition * 2 - 1) * spread;
 }
 
+function finiteNumber(value: number | undefined, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function getSampleIndices(sourceLength: number, maxSamples: number): number[] {
+  const sampleCount = Math.min(sourceLength, Math.max(0, Math.floor(maxSamples)));
+  if (sampleCount <= 0) return [];
+  if (sampleCount === 1) return [0];
+
+  const lastIndex = sourceLength - 1;
+  const indices: number[] = [];
+  for (let i = 0; i < sampleCount; i++) {
+    indices.push(Math.round((i * lastIndex) / (sampleCount - 1)));
+  }
+  return indices;
+}
+
 /**
  * Map an image analysis result to musical notes using LINEAR_LANDSCAPE mode
  *
@@ -58,22 +79,15 @@ export function mapLinearLandscape(
 
   // Determine how many notes to generate
   const brightnessProfile = analysis.brightnessProfile;
-  const sampleCount = Math.min(brightnessProfile.length, maxNotes);
-
-  // Downsample brightness profile if needed
-  const step = brightnessProfile.length / sampleCount;
-  const sampledBrightness: number[] = [];
-  for (let i = 0; i < sampleCount; i++) {
-    const idx = Math.floor(i * step);
-    sampledBrightness.push(brightnessProfile[idx]);
-  }
+  const sampleIndices = getSampleIndices(brightnessProfile.length, maxNotes);
 
   // Generate note events
   const noteEvents: NoteEvent[] = [];
   let currentTime = 0;
 
-  for (let i = 0; i < sampledBrightness.length; i++) {
-    const brightness = sampledBrightness[i];
+  for (let i = 0; i < sampleIndices.length; i++) {
+    const sourceIndex = sampleIndices[i];
+    const brightness = finiteNumber(brightnessProfile[sourceIndex]);
 
     // Map brightness to a note in the scale
     const scaleIndex = brightnessToScaleIndex(brightness, scaleNotes.length);
@@ -89,14 +103,14 @@ export function mapLinearLandscape(
     // Calculate pan (-1 to 1, left to right)
     let pan = 0;
     if (enablePanning) {
-      pan = calculatePan(i, sampledBrightness.length);
+      pan = calculatePan(i, sampleIndices.length);
     }
 
     // Use depth for reverb if available
     let reverbSend = 0.2; // Default light reverb
-    if (analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
+    if (analysis.depthProfile && analysis.depthProfile[sourceIndex] !== undefined) {
       // Lower depth (farther away) = more reverb
-      const depth = analysis.depthProfile[i];
+      const depth = clamp01(finiteNumber(analysis.depthProfile[sourceIndex]));
       reverbSend = 0.1 + (1 - depth) * 0.6; // Inverted: far = more reverb
     }
 
@@ -149,23 +163,25 @@ export function mapDepthRidge(
   const scaleNotes = getScaleNotes(key, scale, 3, 3);
   const brightnessProfile = analysis.brightnessProfile;
   const ridgeStrength = analysis.ridgeStrength || [];
+  const sourceLength = Math.min(brightnessProfile.length, ridgeStrength.length);
+  const sampleIndices = getSampleIndices(sourceLength, maxNotes);
 
   const noteEvents: NoteEvent[] = [];
   let currentTime = 0;
   let lastRidgeIndex = -1;
 
   // Only create notes where ridge strength exceeds threshold
-  for (let i = 0; i < Math.min(brightnessProfile.length, maxNotes); i++) {
-    const brightness = brightnessProfile[i];
-    const ridge = ridgeStrength[i] ?? 0;
+  for (const sourceIndex of sampleIndices) {
+    const brightness = finiteNumber(brightnessProfile[sourceIndex]);
+    const ridge = clamp01(finiteNumber(ridgeStrength[sourceIndex]));
 
     if (ridgeStrength.length > 0 && ridge >= ridgeThreshold) {
       if (lastRidgeIndex !== -1) {
-        const distance = i - lastRidgeIndex;
+        const distance = sourceIndex - lastRidgeIndex;
         // Time advance is proportional to distance, creating rhythmic variation
-        currentTime += (distance / brightnessProfile.length) * noteDurationBeats * 8;
+        currentTime += (distance / sourceLength) * noteDurationBeats * 8;
       }
-      lastRidgeIndex = i;
+      lastRidgeIndex = sourceIndex;
 
       const scaleIndex = brightnessToScaleIndex(brightness, scaleNotes.length);
       const note = scaleNotes[scaleIndex];
@@ -175,11 +191,15 @@ export function mapDepthRidge(
       const ridgeBoost = ridge * RIDGE_VELOCITY_BOOST;
       const velocity = Math.min(1, 0.4 + normalizedBrightness * 0.6 + ridgeBoost);
 
-      const pan = calculatePan(i, brightnessProfile.length);
+      const pan = calculatePan(sourceIndex, sourceLength);
 
       let reverbSend = 0.3;
-      if (depthToReverb && analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
-        const depth = analysis.depthProfile[i];
+      if (
+        depthToReverb &&
+        analysis.depthProfile &&
+        analysis.depthProfile[sourceIndex] !== undefined
+      ) {
+        const depth = clamp01(finiteNumber(analysis.depthProfile[sourceIndex]));
         reverbSend = 0.2 + (1 - depth) * REVERB_DEPTH_SENSITIVITY;
       }
 
@@ -451,17 +471,20 @@ export function mapTextureToPad(
 ): NoteEvent[] {
   if (!textureProfile || textureProfile.length === 0) return [];
   const { segments = 6, noteDuration = 6 } = options;
+  const segmentCount = Math.max(0, Math.floor(segments));
+  if (segmentCount === 0) return [];
 
   // Segment texture into larger chunks
-  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segments));
+  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segmentCount));
   const textureSegments: number[] = [];
 
-  for (let i = 0; i < segments; i++) {
+  for (let i = 0; i < segmentCount; i++) {
     const start = i * segmentSize;
     if (start >= textureProfile.length) break;
     const end = Math.min(start + segmentSize, textureProfile.length);
     const segment = textureProfile.slice(start, end);
-    const avg = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+    const avg =
+      segment.reduce((sum, val) => sum + finiteNumber(val), 0) / segment.length;
     textureSegments.push(avg);
   }
 
@@ -471,7 +494,8 @@ export function mapTextureToPad(
   const noteEvents: NoteEvent[] = [];
   let currentTime = 0;
 
-  for (const textureValue of textureSegments) {
+  for (let segmentIndex = 0; segmentIndex < textureSegments.length; segmentIndex++) {
+    const textureValue = clamp01(finiteNumber(textureSegments[segmentIndex]));
     // Determine chord complexity based on texture
     let chordDegrees: number[];
 
@@ -487,16 +511,18 @@ export function mapTextureToPad(
     }
 
     // Create chord notes
-    for (const degree of chordDegrees) {
+    for (let chordIndex = 0; chordIndex < chordDegrees.length; chordIndex++) {
+      const degree = chordDegrees[chordIndex];
       if (degree < scaleNotes.length) {
         const note = scaleNotes[degree];
+        const pan = calculatePan(chordIndex, chordDegrees.length, 0.4);
 
         noteEvents.push({
           note,
           start: currentTime,
           duration: noteDuration,
           velocity: 0.4 + textureValue * 0.3, // Subtle
-          pan: (Math.random() - 0.5) * 0.4, // Slight random spread
+          pan,
           trackId: 'pad',
           effects: {
             reverbSend: 0.5 + textureValue * 0.3, // More reverb for complex texture

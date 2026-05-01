@@ -19,6 +19,8 @@ Current Android setup and build workflow for the committed native mobile project
   - Android Build-Tools
   - Android Emulator
 
+Set `JAVA_HOME` to a Java 17 install in your shell or IDE. The repo does not commit a fixed `org.gradle.java.home`, so local JDK paths stay machine-specific.
+
 ## Initial Setup
 
 From the repo root:
@@ -42,16 +44,6 @@ EXPO_PUBLIC_API_URL=http://localhost:3001
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
-
-## Optional OpenCV Setup
-
-If the native image-processing module needs the OpenCV SDK on a fresh machine, run:
-
-```bash
-./scripts/setup-android-opencv.sh
-```
-
-This downloads OpenCV into `packages/native-image-processing/android/libs/opencv`.
 
 ## Open The Project
 
@@ -105,11 +97,7 @@ Use Java 17 and make sure `JAVA_HOME` points at it.
 
 ### Native image-processing build fails
 
-Check that the OpenCV SDK exists at:
-
-- `packages/native-image-processing/android/libs/opencv`
-
-If it does not, run `./scripts/setup-android-opencv.sh`.
+The Android native image-processing module is Kotlin-only and does not require a local OpenCV SDK. If it fails to compile, verify Java 17, the Android SDK, and Gradle dependency resolution first.
 
 ### API-backed mobile features do not work
 

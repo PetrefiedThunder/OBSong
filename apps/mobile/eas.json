@@ -14,6 +14,11 @@
       "distribution": "store",
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "APP_VERSION": "0.1.0",
+        "ANDROID_VERSION_CODE": "1",
+        "IOS_BUILD_NUMBER": "1.0.0"
+      },
       "android": {
         "buildType": "app-bundle"
       },

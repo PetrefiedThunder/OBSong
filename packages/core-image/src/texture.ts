@@ -17,6 +17,8 @@ export function computeTextureFromBrightness(
   brightnessProfile: number[],
   windowSize: number = 8
 ): number[] {
+  if (brightnessProfile.length === 0) return [];
+
   const texture: number[] = [];
   const halfWindow = Math.floor(windowSize / 2);
 
@@ -26,13 +28,18 @@ export function computeTextureFromBrightness(
     const window = brightnessProfile.slice(start, end);
 
     // Calculate variance
-    const mean = window.reduce((sum, val) => sum + val, 0) / window.length;
+    const mean =
+      window.reduce((sum, val) => sum + (Number.isFinite(val) ? val : 0), 0) /
+      window.length;
     const variance =
-      window.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / window.length;
+      window.reduce((sum, val) => {
+        const finiteValue = Number.isFinite(val) ? val : 0;
+        return sum + Math.pow(finiteValue - mean, 2);
+      }, 0) / window.length;
 
     // Normalize variance to 0-1 range (using standard deviation)
     const stdDev = Math.sqrt(variance);
-    texture.push(stdDev / 255); // Normalize by max possible std dev
+    texture.push(Math.min(1, stdDev / 127.5)); // Max standard deviation for 0-255 values
   }
 
   return texture;
@@ -60,13 +67,17 @@ export function computeTextureProfile(
   } = {}
 ): number[] {
   const { windowSize = 8, rowSamples = 5 } = options;
+  if (width <= 0 || height <= 0) return [];
 
   // Sample multiple rows across the image
   const textureProfiles: number[][] = [];
-  const rowStep = Math.floor(height / (rowSamples + 1));
+  const sampleCount = Math.max(1, Math.min(height, Math.floor(rowSamples)));
 
-  for (let i = 1; i <= rowSamples; i++) {
-    const rowIndex = rowStep * i;
+  for (let i = 0; i < sampleCount; i++) {
+    const rowIndex =
+      sampleCount === 1
+        ? Math.floor((height - 1) / 2)
+        : Math.round((i * (height - 1)) / (sampleCount - 1));
     const brightnessProfile = computeBrightnessProfileFromRow(
       pixels,
       width,
@@ -101,14 +112,19 @@ export function segmentTexture(
   textureProfile: number[],
   segments: number = 8
 ): number[] {
-  const segmentSize = textureProfile.length / segments;
+  if (textureProfile.length === 0 || segments <= 0) return [];
+
+  const segmentCount = Math.floor(segments);
+  const segmentSize = textureProfile.length / segmentCount;
   const segmented: number[] = [];
 
-  for (let i = 0; i < segments; i++) {
+  for (let i = 0; i < segmentCount; i++) {
     const start = Math.floor(i * segmentSize);
-    const end = Math.floor((i + 1) * segmentSize);
+    const end = Math.max(start + 1, Math.floor((i + 1) * segmentSize));
     const segment = textureProfile.slice(start, end);
-    const average = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+    const average =
+      segment.reduce((sum, val) => sum + (Number.isFinite(val) ? val : 0), 0) /
+      segment.length;
     segmented.push(average);
   }
 

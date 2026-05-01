@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import {
   ActivityIndicator,
   Modal,
@@ -33,6 +34,7 @@ export function SignInModal({
 }: SignInModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -40,6 +42,33 @@ export function SignInModal({
       setPassword('');
     }
   }, [visible]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!visible || Platform.OS !== 'ios' || !onAppleSignIn) {
+      setIsAppleAuthAvailable(false);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void AppleAuthentication.isAvailableAsync()
+      .then((isAvailable) => {
+        if (isActive) {
+          setIsAppleAuthAvailable(isAvailable);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setIsAppleAuthAvailable(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [onAppleSignIn, visible]);
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
 
@@ -49,9 +78,15 @@ export function SignInModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      accessibilityViewIsModal
     >
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <View
+          style={styles.card}
+          accessibilityLabel={title}
+          accessibilityHint={description}
+          accessibilityViewIsModal
+        >
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
 
@@ -66,6 +101,8 @@ export function SignInModal({
               placeholder="you@example.com"
               placeholderTextColor="#6b7280"
               style={styles.input}
+              accessibilityLabel="Email"
+              textContentType="emailAddress"
             />
           </View>
 
@@ -80,6 +117,8 @@ export function SignInModal({
               placeholder="Password"
               placeholderTextColor="#6b7280"
               style={styles.input}
+              accessibilityLabel="Password"
+              textContentType="password"
             />
           </View>
 
@@ -88,6 +127,7 @@ export function SignInModal({
               style={[styles.button, styles.secondaryButton]}
               onPress={onClose}
               disabled={isSubmitting}
+              accessibilityRole="button"
             >
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
@@ -96,6 +136,7 @@ export function SignInModal({
               style={[styles.button, styles.primaryButton, !canSubmit && styles.buttonDisabled]}
               onPress={() => void onSubmit(email.trim(), password)}
               disabled={!canSubmit}
+              accessibilityRole="button"
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
@@ -105,16 +146,25 @@ export function SignInModal({
             </TouchableOpacity>
           </View>
 
-          {Platform.OS === 'ios' && onAppleSignIn && (
+          {isAppleAuthAvailable && onAppleSignIn && (
             <>
               <View style={styles.divider} />
-              <TouchableOpacity
-                style={[styles.appleButton, isSubmitting && styles.buttonDisabled]}
-                onPress={() => void onAppleSignIn()}
-                disabled={isSubmitting}
+              <View
+                style={isSubmitting && styles.buttonDisabled}
+                pointerEvents={isSubmitting ? 'none' : 'auto'}
               >
-                <Text style={styles.buttonText}>Continue with Apple</Text>
-              </TouchableOpacity>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={10}
+                  style={styles.appleNativeButton}
+                  onPress={() => {
+                    if (!isSubmitting) {
+                      void onAppleSignIn();
+                    }
+                  }}
+                />
+              </View>
             </>
           )}
         </View>
@@ -184,14 +234,9 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: '#374151',
   },
-  appleButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: '#000000',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  appleNativeButton: {
+    height: 48,
+    width: '100%',
   },
   buttonText: {
     color: '#ffffff',

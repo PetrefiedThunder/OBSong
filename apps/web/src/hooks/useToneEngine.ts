@@ -2,13 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
-import { getAudioGraphSignature, getAudioTopology } from './useToneEngine.utils';
+import {
+  beatsToSeconds,
+  getAudioGraphSignature,
+  getAudioTopology,
+  getNoteEventsDurationBeats,
+} from './useToneEngine.utils';
 
 type ToneTransport = {
   clear: (id: number) => void;
   stop: () => void;
   start: () => void;
-  scheduleOnce: (callback: () => void, time: string) => number;
+  scheduleOnce: (callback: () => void, time: number | string) => number;
   position: number | string;
   seconds: number;
   bpm: { value: number };
@@ -335,9 +340,9 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
     }
 
     const events = noteEvents.map((event) => ({
-      time: event.start,
+      time: beatsToSeconds(event.start, tempo),
       note: event.note,
-      duration: event.duration,
+      duration: beatsToSeconds(event.duration, tempo),
       velocity: event.velocity,
       pan: event.pan || 0,
       reverbSend: event.effects?.reverbSend || 0.2,
@@ -436,15 +441,11 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       toneRef.current.Transport.start();
       setIsPlaying(true);
 
-      const durationBeats = noteEvents.reduce(
-        (max, event) => Math.max(max, event.start + event.duration),
-        0
-      );
-      const durationSeconds = (durationBeats + 1) * (60 / tempo);
+      const durationSeconds = beatsToSeconds(getNoteEventsDurationBeats(noteEvents), tempo);
 
       stopSchedulerIdRef.current = toneRef.current.Transport.scheduleOnce(() => {
         stop();
-      }, `+${durationSeconds}`);
+      }, durationSeconds);
     } catch (error) {
       console.error('Failed to play composition:', error);
       stop();

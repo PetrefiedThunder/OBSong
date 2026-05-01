@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { NoteEvent, SoundPreset } from '@toposonics/types';
-import { getAudioGraphSignature, getAudioTopology } from '../useToneEngine.utils';
+import {
+  beatsToSeconds,
+  getAudioGraphSignature,
+  getAudioTopology,
+  getNoteEventsDurationBeats,
+} from '../useToneEngine.utils';
 
 const preset: SoundPreset = {
   id: 'test-preset',
@@ -65,5 +70,20 @@ describe('useToneEngine utils', () => {
     expect(getAudioGraphSignature(singleVoiceEvents, preset)).not.toBe(
       getAudioGraphSignature(singleVoiceEvents, brighterPreset)
     );
+  });
+
+  it('calculates duration from the latest note end instead of summing notes', () => {
+    expect(
+      getNoteEventsDurationBeats([
+        { note: 'C4', start: 0, duration: 4, velocity: 0.7 },
+        { note: 'G4', start: 1.5, duration: 1, velocity: 0.7 },
+        { note: 'E4', start: 3.75, duration: 0.5, velocity: 0.7 },
+      ])
+    ).toBe(4.25);
+  });
+
+  it('converts beats to seconds at the current tempo', () => {
+    expect(beatsToSeconds(4, 120)).toBe(2);
+    expect(beatsToSeconds(3, 90)).toBe(2);
   });
 });

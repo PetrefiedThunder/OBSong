@@ -4,6 +4,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import type { ApiResponse, ApiErrorResponse, AuthTokenResponse } from '@toposonics/types';
+import { authLoginRequestSchema } from '@toposonics/types';
 import { exchangeAccessToken } from '../auth';
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -12,21 +13,23 @@ export async function authRoutes(fastify: FastifyInstance) {
    * Validates a Supabase access token and returns the user payload
    */
   fastify.post<{
-    Body: { accessToken?: unknown } | undefined;
+    Body: unknown;
     Reply: ApiResponse<AuthTokenResponse> | ApiErrorResponse;
   }>('/auth/login', async (request, reply) => {
-    const accessToken = request.body?.accessToken;
+    const result = authLoginRequestSchema.safeParse(request.body);
 
-    if (!accessToken || typeof accessToken !== 'string') {
+    if (!result.success) {
       return reply.status(400).send({
         success: false,
         error: {
           code: 'INVALID_TOKEN',
           message: 'accessToken is required and must be a string',
+          details: result.error.flatten(),
         },
       });
     }
 
+    const { accessToken } = result.data;
     const authResponse = await exchangeAccessToken(accessToken);
 
     if (!authResponse) {

@@ -162,13 +162,18 @@ export default function CompositionsPage() {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {compositions.map((composition) => (
-            <Link key={composition.id} href={`/compositions/${composition.id}`}>
+            <Link
+              key={composition.id}
+              href={`/compositions/${composition.id}`}
+              className="block h-full rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary"
+              aria-label={`Open ${composition.title || 'untitled composition'}`}
+            >
               <Card
                 title={composition.title}
                 subtitle={composition.description}
                 variant="elevated"
                 padding="lg"
-                onClick={() => {}}
+                className="h-full"
               >
                 <div className="mt-4 space-y-2 text-sm text-gray-400">
                   <div className="flex justify-between">

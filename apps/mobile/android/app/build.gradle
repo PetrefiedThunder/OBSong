@@ -77,6 +77,46 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+def releaseProperty = { name ->
+    def value = findProperty(name)
+    if (value != null && value.toString().trim()) {
+        return value.toString().trim()
+    }
+
+    def envName = name.replace('.', '_').replace('-', '_').toUpperCase()
+    value = System.getenv(envName)
+    return value?.trim()
+}
+
+def parsePositiveInteger = { value, fallback, label ->
+    if (!value) {
+        return fallback
+    }
+
+    try {
+        def parsed = Integer.parseInt(value)
+        if (parsed < 1) {
+            throw new NumberFormatException('must be positive')
+        }
+        return parsed
+    } catch (Exception ignored) {
+        throw new GradleException("${label} must be a positive integer; got '${value}'")
+    }
+}
+
+def androidVersionCode = parsePositiveInteger(
+    releaseProperty('android.versionCode') ?: releaseProperty('release.versionCode') ?: System.getenv('ANDROID_VERSION_CODE'),
+    1,
+    'Android versionCode'
+)
+def androidVersionName = releaseProperty('android.versionName') ?: releaseProperty('release.versionName') ?: System.getenv('APP_VERSION') ?: '0.1.0'
+
+def releaseStoreFilePath = releaseProperty('android.injected.signing.store.file') ?: releaseProperty('android.signing.storeFile') ?: System.getenv('ANDROID_KEYSTORE_PATH') ?: System.getenv('ANDROID_STORE_FILE')
+def releaseStorePassword = releaseProperty('android.injected.signing.store.password') ?: releaseProperty('android.signing.storePassword') ?: System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: System.getenv('ANDROID_STORE_PASSWORD')
+def releaseKeyAlias = releaseProperty('android.injected.signing.key.alias') ?: releaseProperty('android.signing.keyAlias') ?: System.getenv('ANDROID_KEY_ALIAS')
+def releaseKeyPassword = releaseProperty('android.injected.signing.key.password') ?: releaseProperty('android.signing.keyPassword') ?: System.getenv('ANDROID_KEY_PASSWORD')
+def releaseSigningConfigured = [releaseStoreFilePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it }
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -88,8 +128,8 @@ android {
         applicationId 'com.toposonics.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        versionCode androidVersionCode
+        versionName androidVersionName
 
         buildConfigField("boolean", "REACT_NATIVE_UNSTABLE_USE_RUNTIME_SCHEDULER_ALWAYS", (findProperty("reactNative.unstable_useRuntimeSchedulerAlways") ?: true).toString())
     }
@@ -100,15 +140,23 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (releaseSigningConfigured) {
+            release {
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
@@ -118,6 +166,26 @@ android {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def includesReleaseBuild = graph.allTasks.any { task ->
+        task.path.toLowerCase().contains('release')
+    }
+
+    if (!includesReleaseBuild) {
+        return
+    }
+
+    if (!releaseSigningConfigured) {
+        throw new GradleException('Android release signing is required. Set android.signing.storeFile/storePassword/keyAlias/keyPassword Gradle properties or ANDROID_KEYSTORE_PATH/ANDROID_KEYSTORE_PASSWORD/ANDROID_KEY_ALIAS/ANDROID_KEY_PASSWORD.')
+    }
+
+    def debugKeystore = file('debug.keystore').canonicalFile
+    def releaseKeystore = file(releaseStoreFilePath).canonicalFile
+    if (releaseKeystore == debugKeystore) {
+        throw new GradleException('Android release builds must not use apps/mobile/android/app/debug.keystore.')
     }
 }
 

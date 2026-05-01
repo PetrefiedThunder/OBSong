@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import type { NoteEvent } from '@toposonics/types';
 import { noteNameToMidi } from '@toposonics/core-audio';
 
@@ -18,6 +18,31 @@ export function TimelineVisualizer({
   height = 300,
 }: TimelineVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const summaryId = useId();
+  const summary = useMemo(() => {
+    if (noteEvents.length === 0) {
+      return {
+        text: 'No notes yet. Generate a composition to populate the timeline.',
+        label: 'Empty timeline visualizer',
+      };
+    }
+
+    const endTime = Math.max(...noteEvents.map((event) => event.start + event.duration));
+    const midiValues = noteEvents.map((event) => noteNameToMidi(event.note));
+    const minMidi = Math.min(...midiValues);
+    const maxMidi = Math.max(...midiValues);
+    const firstNote = noteEvents.reduce((earliest, event) =>
+      event.start < earliest.start ? event : earliest,
+    );
+    const pannedEvents = noteEvents.filter((event) => event.pan !== undefined && event.pan !== 0);
+    const averageVelocity =
+      noteEvents.reduce((total, event) => total + event.velocity, 0) / noteEvents.length;
+
+    return {
+      text: `${noteEvents.length} notes over ${endTime.toFixed(1)} seconds. Pitch spans MIDI ${minMidi} to ${maxMidi}. First note is ${firstNote.note} at ${firstNote.start.toFixed(1)} seconds. Average velocity is ${averageVelocity.toFixed(2)}. ${pannedEvents.length} notes include panning.`,
+      label: `Timeline visualizer with ${noteEvents.length} notes over ${endTime.toFixed(1)} seconds`,
+    };
+  }, [noteEvents]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -134,9 +159,15 @@ export function TimelineVisualizer({
       </div>
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label={summary.label}
+        aria-describedby={summaryId}
         className="w-full rounded-lg"
         style={{ maxWidth: '100%', height: 'auto' }}
       />
+      <p id={summaryId} className="sr-only">
+        {summary.text}
+      </p>
     </div>
   );
 }

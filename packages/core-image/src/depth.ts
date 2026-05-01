@@ -18,6 +18,8 @@ export function computeSimpleDepthProfile(
   brightnessProfile: number[],
   windowSize: number = 5
 ): number[] {
+  if (brightnessProfile.length === 0) return [];
+
   const depth: number[] = [];
   const halfWindow = Math.floor(windowSize / 2);
 
@@ -27,8 +29,13 @@ export function computeSimpleDepthProfile(
     const window = brightnessProfile.slice(start, end);
 
     // Calculate local contrast (range of values in window)
-    const min = Math.min(...window);
-    const max = Math.max(...window);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const value of window) {
+      const finiteValue = Number.isFinite(value) ? value : 0;
+      min = Math.min(min, finiteValue);
+      max = Math.max(max, finiteValue);
+    }
     const contrast = max - min;
 
     // Normalize to 0-1 (will be normalized again later)
@@ -36,12 +43,27 @@ export function computeSimpleDepthProfile(
   }
 
   // Normalize the entire depth profile
-  const maxDepth = Math.max(...depth);
+  let maxDepth = 0;
+  for (const value of depth) {
+    maxDepth = Math.max(maxDepth, value);
+  }
   if (maxDepth === 0) {
     return depth.map(() => 0.5);
   }
 
   return depth.map((d) => d / maxDepth);
+}
+
+function readChannel(pixels: Uint8ClampedArray | number[], index: number): number {
+  const value = pixels[index];
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(255, value));
+}
+
+function clampRowIndex(rowIndex: number, height: number): number {
+  if (height <= 0) return 0;
+  const finiteRow = Number.isFinite(rowIndex) ? rowIndex : 0;
+  return Math.max(0, Math.min(height - 1, Math.floor(finiteRow)));
 }
 
 /**
@@ -63,18 +85,22 @@ export function applySobelEdgeDetection(
   width: number,
   height: number
 ): number[] {
+  if (width <= 0 || height <= 0) return [];
+
   // Convert to grayscale first
-  const grayscale: number[] = [];
-  for (let i = 0; i < pixels.length; i += 4) {
-    const r = pixels[i];
-    const g = pixels[i + 1];
-    const b = pixels[i + 2];
+  const grayscale: number[] = new Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const pixelOffset = i * 4;
+    const r = readChannel(pixels, pixelOffset);
+    const g = readChannel(pixels, pixelOffset + 1);
+    const b = readChannel(pixels, pixelOffset + 2);
     // Luminance formula
     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-    grayscale.push(gray);
+    grayscale[i] = gray;
   }
 
   const edges: number[] = [];
+  let maxMagnitude = 0;
 
   // Sobel kernels
   const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
@@ -107,11 +133,11 @@ export function applySobelEdgeDetection(
       // Compute gradient magnitude
       const magnitude = Math.sqrt(gx * gx + gy * gy);
       edges.push(magnitude);
+      maxMagnitude = Math.max(maxMagnitude, magnitude);
     }
   }
 
   // Normalize to 0-1
-  const maxMagnitude = Math.max(...edges);
   if (maxMagnitude === 0) {
     return edges.map(() => 0);
   }
@@ -145,24 +171,33 @@ export function extractEdgeProfile(
     rowsToAverage = 5,
   } = options;
 
+  if (width <= 0 || height <= 0 || edgeMagnitudes.length === 0) return [];
+
+  const clampedRowIndex = clampRowIndex(rowIndex, height);
+
   if (!averageRows) {
     // Single row extraction
     const profile: number[] = [];
     for (let x = 0; x < width; x++) {
-      profile.push(edgeMagnitudes[rowIndex * width + x]);
+      const value = edgeMagnitudes[clampedRowIndex * width + x];
+      profile.push(Number.isFinite(value) ? value : 0);
     }
     return profile;
   }
 
   // Multi-row averaging for stability
-  const startRow = Math.max(0, rowIndex - Math.floor(rowsToAverage / 2));
-  const endRow = Math.min(height, rowIndex + Math.ceil(rowsToAverage / 2));
+  const startRow = Math.max(0, clampedRowIndex - Math.floor(rowsToAverage / 2));
+  const endRow = Math.max(
+    startRow + 1,
+    Math.min(height, clampedRowIndex + Math.ceil(rowsToAverage / 2))
+  );
 
   const profile: number[] = new Array(width).fill(0);
 
   for (let y = startRow; y < endRow; y++) {
     for (let x = 0; x < width; x++) {
-      profile[x] += edgeMagnitudes[y * width + x];
+      const value = edgeMagnitudes[y * width + x];
+      profile[x] += Number.isFinite(value) ? value : 0;
     }
   }
 
@@ -183,20 +218,27 @@ export function detectRidges(
   brightnessProfile: number[],
   useSobel: boolean = true
 ): number[] {
+  if (brightnessProfile.length === 0) return [];
+
   const ridges: number[] = [];
+  let maxRidge = 0;
 
   for (let i = 0; i < brightnessProfile.length; i++) {
-    const prev = brightnessProfile[i - 1] ?? brightnessProfile[i];
-    const next = brightnessProfile[i + 1] ?? brightnessProfile[i];
-    const current = brightnessProfile[i];
+    const current = Number.isFinite(brightnessProfile[i]) ? brightnessProfile[i] : 0;
+    const prevValue = brightnessProfile[i - 1] ?? current;
+    const nextValue = brightnessProfile[i + 1] ?? current;
+    const prev = Number.isFinite(prevValue) ? prevValue : current;
+    const next = Number.isFinite(nextValue) ? nextValue : current;
 
     let gradient: number;
 
     if (useSobel) {
       // Sobel-inspired 1D gradient: weighted central difference
       // Approximates the effect of Sobel Gx kernel in 1D
-      const prevPrev = brightnessProfile[i - 2] ?? prev;
-      const nextNext = brightnessProfile[i + 2] ?? next;
+      const prevPrevValue = brightnessProfile[i - 2] ?? prev;
+      const nextNextValue = brightnessProfile[i + 2] ?? next;
+      const prevPrev = Number.isFinite(prevPrevValue) ? prevPrevValue : prev;
+      const nextNext = Number.isFinite(nextNextValue) ? nextNextValue : next;
 
       // Weighted gradient: center difference gets weight 2, outer differences get weight 1
       const centerGrad = (next - prev) / 2;
@@ -209,13 +251,14 @@ export function detectRidges(
 
     // Also consider local peaks
     const isPeak = current > prev && current > next;
-    const peakBonus = isPeak ? 0.3 : 0;
+    const peakBonus = isPeak ? 0.3 * 255 : 0;
 
-    ridges.push(Math.min(1, gradient + peakBonus));
+    const strength = Math.max(0, gradient + peakBonus);
+    ridges.push(strength);
+    maxRidge = Math.max(maxRidge, strength);
   }
 
   // Normalize
-  const maxRidge = Math.max(...ridges);
   if (maxRidge === 0) {
     return ridges.map(() => 0);
   }
