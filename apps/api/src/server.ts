@@ -36,7 +36,22 @@ async function createServer(): Promise<FastifyInstance> {
     bodyLimit: 10485760, // 10MB
   });
 
-  const allowedOrigins = new Set(config.corsOrigins);
+  const normalizeOrigin = (origin: string, logMessage?: string): string | null => {
+    try {
+      return new URL(origin).origin;
+    } catch (error) {
+      if (logMessage) {
+        fastify.log.warn({ err: error, origin }, logMessage);
+      }
+      return null;
+    }
+  };
+
+  const allowedOrigins = new Set(
+    config.corsOrigins
+      .map((origin) => normalizeOrigin(origin, 'Invalid configured CORS origin'))
+      .filter((origin): origin is string => Boolean(origin))
+  );
 
   await fastify.register(helmet, {
     global: true,
@@ -71,24 +86,11 @@ async function createServer(): Promise<FastifyInstance> {
         return;
       }
 
-      if (allowedOrigins.has(origin)) {
+      const requestOrigin = normalizeOrigin(origin, 'Invalid origin provided for CORS');
+
+      if (requestOrigin && allowedOrigins.has(requestOrigin)) {
         cb(null, true);
         return;
-      }
-
-      try {
-        const requestUrl = new URL(origin);
-        const isAllowed = Array.from(allowedOrigins).some((allowed) => {
-          const allowedUrl = new URL(allowed);
-          return allowedUrl.hostname === requestUrl.hostname;
-        });
-
-        if (isAllowed) {
-          cb(null, true);
-          return;
-        }
-      } catch (error) {
-        fastify.log.warn({ err: error, origin }, 'Invalid origin provided for CORS');
       }
 
       cb(new Error('Origin not allowed by CORS policy'), false);
