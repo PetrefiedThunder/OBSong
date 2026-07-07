@@ -41,7 +41,9 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const handleTakeTour = () => {
-    Linking.openURL(WEB_APP_URL);
+    Linking.openURL(WEB_APP_URL).catch(() => {
+      Alert.alert('Could not open link', 'No app is available to open the web experience.');
+    });
   };
 
   return (

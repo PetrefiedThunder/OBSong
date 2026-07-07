@@ -9,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
-  PermissionsAndroid,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,49 +61,54 @@ export default function EditorScreen() {
   const isIOSGenerationUnsupported = Platform.OS === 'ios';
 
   const pickImage = async () => {
-    let permissionResult;
-    if (Platform.OS === 'android' && Platform.Version >= 33) {
-      permissionResult = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-      );
-      if (permissionResult !== 'granted') {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required');
-        return;
+    try {
+      // The system photo picker (Android 13+ / SDK 50) needs no runtime permission,
+      // so we don't gate on READ_MEDIA_IMAGES — doing so permanently dead-ends the
+      // flow once a user taps "Don't allow". On older platforms the media-library
+      // permission is still requested.
+      if (!(Platform.OS === 'android' && Platform.Version >= 33)) {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (perm.granted === false) {
+          Alert.alert('Permission Required', 'Permission to access camera roll is required');
+          return;
+        }
       }
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (perm.granted === false) {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required');
-        return;
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
       }
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+    } catch (error) {
+      logError(error as Error, { context: 'Pick Image' });
+      Alert.alert('Could not open photos', (error as Error).message);
     }
   };
 
   const captureImage = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Permission to access camera is required');
-      return;
-    }
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera is required');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'Capture Image' });
+      Alert.alert('Could not open camera', (error as Error).message);
     }
   };
 
