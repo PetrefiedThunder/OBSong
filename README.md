@@ -109,7 +109,7 @@ The repo is wired to support:
 - `pnpm release:check:mobile`
 - `pnpm release:check:env`
 
-CI runs lint, typecheck, tests, and the production build with pnpm 8.15.0 on every push/PR. The release env check is intentionally separate because it requires real Supabase/API values rather than example placeholders.
+CI runs lint, typecheck, tests, and the production build with pnpm 8.15.0 on every pull request and on pushes to `main`. The release env check is intentionally separate because it requires real Supabase/API values rather than example placeholders.
 
 ## Known Limits
 

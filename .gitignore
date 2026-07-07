@@ -73,5 +73,14 @@ apps/*/src/*.js.map
 apps/*/src/*.d.ts
 apps/*/src/*.d.ts.map
 
+# Secrets / signing credentials (never commit these)
+apps/mobile/credentials/
+credentials/
+*.jks
+# Release keystores. The RN debug keystore is intentionally tracked (see
+# apps/mobile/android/app/debug.keystore); ignore all others.
+*.keystore
+!apps/mobile/android/app/debug.keystore
+
 # OS
 Thumbs.db
