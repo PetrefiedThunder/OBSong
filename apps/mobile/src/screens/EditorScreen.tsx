@@ -19,7 +19,11 @@ import {
   generateCompositionFromImage,
   type CompositionGenerationResult,
 } from '../services/imageProcessing';
-import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
+import {
+  playNoteEvents,
+  formatNoteEventsDuration,
+  type PlaybackController,
+} from '../services/audioPlayer';
 import { useCompositions } from '../state/CompositionsProvider';
 import * as FileSystem from 'expo-file-system';
 import { logError } from '@toposonics/shared';
@@ -45,6 +49,8 @@ export default function EditorScreen() {
   const [generation, setGeneration] = useState<CompositionGenerationResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const [playbackStatus, setPlaybackStatus] = useState<string | null>(null);
+  const playbackRef = React.useRef<PlaybackController | null>(null);
+  const isMountedRef = React.useRef(true);
   const [saving, setSaving] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -176,6 +182,15 @@ export default function EditorScreen() {
     }
   };
 
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      playbackRef.current?.cancel();
+      playbackRef.current = null;
+    };
+  }, []);
+
   const playNotes = async () => {
     if (!generation) {
       Alert.alert('Nothing to play', 'Generate a composition first');
@@ -184,17 +199,24 @@ export default function EditorScreen() {
 
     try {
       setPlaybackStatus('0');
-      await playNoteEvents(generation.noteEvents, {
+      const controller = playNoteEvents(generation.noteEvents, {
         tempo,
         onProgress(current, total) {
-          setPlaybackStatus(`${current}/${total}`);
+          if (isMountedRef.current) {
+            setPlaybackStatus(`${current}/${total}`);
+          }
         },
       });
+      playbackRef.current = controller;
+      await controller.done;
     } catch (error) {
       logError(error as Error, { context: 'Play Notes' });
       Alert.alert('Playback failed', (error as Error).message);
     } finally {
-      setPlaybackStatus(null);
+      playbackRef.current = null;
+      if (isMountedRef.current) {
+        setPlaybackStatus(null);
+      }
     }
   };
 
