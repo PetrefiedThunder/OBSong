@@ -3,6 +3,8 @@
  * Simple heuristics for estimating relative depth from image features
  */
 
+import { arrayMax, arrayMin } from './arrayStats';
+
 /**
  * Compute a simple depth profile based on local contrast
  * Higher contrast = assumed to be closer/more prominent
@@ -27,8 +29,8 @@ export function computeSimpleDepthProfile(
     const window = brightnessProfile.slice(start, end);
 
     // Calculate local contrast (range of values in window)
-    const min = Math.min(...window);
-    const max = Math.max(...window);
+    const min = arrayMin(window);
+    const max = arrayMax(window);
     const contrast = max - min;
 
     // Normalize to 0-1 (will be normalized again later)
@@ -36,7 +38,7 @@ export function computeSimpleDepthProfile(
   }
 
   // Normalize the entire depth profile
-  const maxDepth = Math.max(...depth);
+  const maxDepth = arrayMax(depth);
   if (maxDepth === 0) {
     return depth.map(() => 0.5);
   }
@@ -111,8 +113,8 @@ export function applySobelEdgeDetection(
   }
 
   // Normalize to 0-1
-  const maxMagnitude = Math.max(...edges);
-  if (maxMagnitude === 0) {
+  const maxMagnitude = arrayMax(edges);
+  if (maxMagnitude <= 0) {
     return edges.map(() => 0);
   }
 
@@ -183,7 +185,8 @@ export function detectRidges(
   brightnessProfile: number[],
   useSobel: boolean = true
 ): number[] {
-  const ridges: number[] = [];
+  const gradients: number[] = [];
+  const peakFlags: boolean[] = [];
 
   for (let i = 0; i < brightnessProfile.length; i++) {
     const prev = brightnessProfile[i - 1] ?? brightnessProfile[i];
@@ -207,20 +210,20 @@ export function detectRidges(
       gradient = Math.abs(next - prev) / 2;
     }
 
-    // Also consider local peaks
-    const isPeak = current > prev && current > next;
-    const peakBonus = isPeak ? 0.3 : 0;
-
-    ridges.push(Math.min(1, gradient + peakBonus));
+    gradients.push(gradient);
+    peakFlags.push(current > prev && current > next);
   }
 
-  // Normalize
-  const maxRidge = Math.max(...ridges);
-  if (maxRidge === 0) {
-    return ridges.map(() => 0);
+  // Normalize the raw gradient FIRST (input profiles are on a 0-255 scale, so clamping
+  // to 1 before normalizing — as the old code did — saturated almost every position to
+  // 1.0 and destroyed the dynamic range). Then add the peak bonus on the shared 0-1
+  // scale and clamp.
+  const maxGradient = arrayMax(gradients);
+  if (maxGradient <= 0) {
+    return gradients.map((_, i) => (peakFlags[i] ? 0.3 : 0));
   }
 
-  return ridges.map((r) => r / maxRidge);
+  return gradients.map((g, i) => Math.min(1, g / maxGradient + (peakFlags[i] ? 0.3 : 0)));
 }
 
 /**
