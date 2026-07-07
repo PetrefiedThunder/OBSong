@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type {
@@ -39,9 +39,6 @@ import { logAnalyticsEvent } from '@/lib/analytics';
 import { SaveCompositionCard } from '@/components/SaveCompositionCard';
 import { logError } from '@toposonics/shared';
 
-// Force dynamic rendering for this client-only page
-export const dynamic = 'force-dynamic';
-
 function StudioPageContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -50,6 +47,10 @@ function StudioPageContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // When a scene-pack demo is loaded it changes mappingMode, which re-fires the
+  // analysis effect and would wipe the just-loaded demo notes. This flag makes the
+  // next effect run skip re-analysis (and the note reset) exactly once.
+  const demoLoadedRef = useRef(false);
 
   // Image analysis result
   const [analysis, setAnalysis] = useState<ImageAnalysisResult | null>(null);
@@ -128,6 +129,14 @@ function StudioPageContent() {
       return;
     }
 
+    // A demo was just loaded (which changed mappingMode). Keep its notes instead of
+    // re-running analysis and clearing them; consume the flag so the next real change
+    // analyses normally.
+    if (demoLoadedRef.current) {
+      demoLoadedRef.current = false;
+      return;
+    }
+
     let cancelled = false;
 
     const runAnalysis = async () => {
@@ -175,6 +184,9 @@ function StudioPageContent() {
 
   // Handle image selection
   const handleImageSelected = (file: File) => {
+    // Selecting an image is always a genuine analysis trigger; clear any pending
+    // demo-skip so this file is analysed normally.
+    demoLoadedRef.current = false;
     setSelectedFile(file);
   };
 
@@ -224,6 +236,10 @@ function StudioPageContent() {
     // Load the demo composition
     stop();
     setNoteEvents(demoNotes);
+
+    // Preserve the demo notes if applying the scene pack changes mappingMode (which
+    // would otherwise re-trigger analysis and wipe them).
+    demoLoadedRef.current = true;
 
     // Apply scene pack preset settings
     applyScenePackSettings(scenePack);

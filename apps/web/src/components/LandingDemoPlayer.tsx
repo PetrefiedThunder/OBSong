@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { NoteEvent, ScenePack } from '@toposonics/types';
 
 type ToneTransport = {
@@ -64,6 +64,7 @@ export function LandingDemoPlayer({
   onClose,
 }: LandingDemoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const titleId = useId();
   const toneRef = useRef<ToneModule | null>(null);
   const synthRef = useRef<ToneSynth | null>(null);
   const partRef = useRef<TonePart | null>(null);
@@ -155,6 +156,14 @@ export function LandingDemoPlayer({
     }, maxTime * 1000);
   };
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   const handleStop = () => {
     clearStopTimer();
     if (partRef.current) {
@@ -170,6 +179,9 @@ export function LandingDemoPlayer({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="bg-surface-elevated rounded-xl p-8 max-w-md w-full space-y-6 border border-gray-700"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -178,11 +190,14 @@ export function LandingDemoPlayer({
       >
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold mb-2">{scenePack.name}</h2>
+            <h2 id={titleId} className="text-2xl font-bold mb-2">
+              {scenePack.name}
+            </h2>
             <p className="text-gray-400 text-sm">{scenePack.tagline}</p>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="text-gray-400 hover:text-white transition-colors"
           >
             <svg
