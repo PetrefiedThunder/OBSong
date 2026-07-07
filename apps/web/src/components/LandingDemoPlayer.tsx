@@ -67,6 +67,14 @@ export function LandingDemoPlayer({
   const toneRef = useRef<ToneModule | null>(null);
   const synthRef = useRef<ToneSynth | null>(null);
   const partRef = useRef<TonePart | null>(null);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStopTimer = () => {
+    if (stopTimerRef.current !== null) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -87,9 +95,14 @@ export function LandingDemoPlayer({
 
     return () => {
       disposed = true;
+      clearStopTimer();
+      // The Tone Transport is a module-level singleton shared with the studio engine;
+      // stop it on unmount so a still-pending demo timer can't silence studio playback.
       if (partRef.current) {
+        partRef.current.stop();
         partRef.current.dispose();
       }
+      toneRef.current?.Transport.stop();
       synthRef.current?.dispose();
     };
   }, []);
@@ -102,7 +115,8 @@ export function LandingDemoPlayer({
 
     await tone.start();
 
-    // Stop any existing playback
+    // Stop any existing playback (and cancel a pending auto-stop from a prior play)
+    clearStopTimer();
     if (partRef.current) {
       partRef.current.stop();
       partRef.current.dispose();
@@ -134,13 +148,15 @@ export function LandingDemoPlayer({
     // Calculate total duration and stop after
     const maxTime =
       Math.max(...demoNotes.map((n) => n.start + n.duration)) + 1;
-    setTimeout(() => {
+    stopTimerRef.current = setTimeout(() => {
+      stopTimerRef.current = null;
       tone.Transport.stop();
       setIsPlaying(false);
     }, maxTime * 1000);
   };
 
   const handleStop = () => {
+    clearStopTimer();
     if (partRef.current) {
       partRef.current.stop();
     }

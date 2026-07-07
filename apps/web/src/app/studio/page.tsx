@@ -342,7 +342,7 @@ function StudioPageContent() {
 
           <Card title="3. Configure Mapping" padding="lg">
             <MappingControls
-              key={key}
+              musicalKey={key}
               scale={scale}
               mappingMode={mappingMode}
               presetId={presetId}

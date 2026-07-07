@@ -4,7 +4,7 @@ import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/ty
 import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
 
 interface MappingControlsProps {
-  key: KeyType;
+  musicalKey: KeyType;
   scale: ScaleType;
   mappingMode: MappingMode;
   presetId: string;
@@ -47,7 +47,7 @@ const MAPPING_MODES: { value: MappingMode; label: string; description: string }[
 ];
 
 export function MappingControls({
-  key,
+  musicalKey,
   scale,
   mappingMode,
   presetId,
@@ -118,7 +118,7 @@ export function MappingControls({
               key={k}
               onClick={() => onKeyChange(k)}
               className={`py-2 px-3 rounded-lg font-medium transition-colors ${
-                key === k
+                musicalKey === k
                   ? 'bg-primary-600 text-white'
                   : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
               }`}
