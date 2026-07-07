@@ -26,10 +26,14 @@ function calculatePan(index: number, totalPoints: number, spread = 1): number {
   return (normalizedPosition * 2 - 1) * spread;
 }
 
-/** Parse the (possibly negative) octave number out of a scientific-pitch note name. */
+/**
+ * Parse the (possibly negative) octave number out of a scientific-pitch note name.
+ * Fully anchored (^...$) so the match is linear — an unanchored `-?\d+$` retries every
+ * start position and is flagged as polynomial-time ReDoS on adversarial input.
+ */
 function octaveOf(noteName: string): number {
-  const match = noteName.match(/-?\d+$/);
-  return match ? parseInt(match[0], 10) : 3;
+  const match = /^[A-G]#?(-?\d+)$/.exec(noteName);
+  return match ? parseInt(match[1], 10) : 3;
 }
 
 /**
