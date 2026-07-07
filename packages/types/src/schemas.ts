@@ -18,11 +18,14 @@ export const imageAnalysisResultSchema = z.object({
       samplingMethod: z.string().optional(),
       rowIndex: z.number().int().optional(),
       timestamp: z.number().optional(),
+      edgeDetectionMethod: z.string().optional(),
       depthSource: z
         .enum(['ARCORE_DEPTH_API', 'TOF_SENSOR', 'SIMULATED', 'HEURISTIC', 'UNKNOWN'])
         .optional(),
       depthUnit: z.enum(['meters', 'millimeters', 'normalized', 'unknown']).optional(),
       depthCaptureTimestamp: z.number().optional(),
+      ridgeWidth: z.number().optional(),
+      ridgeHeight: z.number().optional(),
     })
     .optional(),
 }) satisfies z.ZodType<ImageAnalysisResult>;
