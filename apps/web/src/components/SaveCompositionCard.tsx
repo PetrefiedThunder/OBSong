@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Button, Card } from '@toposonics/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { createComposition } from '@/lib/api';
@@ -24,6 +24,8 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
   const [isSaving, setIsSaving] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const titleFieldId = useId();
+  const descriptionFieldId = useId();
 
   const handleLoginForSave = async (email: string, password?: string) => {
     setIsLoggingIn(true);
@@ -79,8 +81,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
       <Card title="Save Composition" padding="lg">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Title</label>
+            <label htmlFor={titleFieldId} className="block text-sm font-medium mb-2">
+              Title
+            </label>
             <input
+              id={titleFieldId}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -89,8 +94,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
+            <label htmlFor={descriptionFieldId} className="block text-sm font-medium mb-2">
+              Description
+            </label>
             <textarea
+              id={descriptionFieldId}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."

@@ -30,9 +30,12 @@ export function computeTextureFromBrightness(
     const variance =
       window.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / window.length;
 
-    // Normalize variance to 0-1 range (using standard deviation)
+    // Normalize variance to 0-1 range (using standard deviation).
+    // The maximum possible standard deviation of values in [0, 255] is 127.5 (half at 0,
+    // half at 255), so divide by 127.5 — dividing by 255 capped texture at 0.5 and made
+    // the "high" classification (>= 0.7) unreachable.
     const stdDev = Math.sqrt(variance);
-    texture.push(stdDev / 255); // Normalize by max possible std dev
+    texture.push(Math.min(1, stdDev / 127.5));
   }
 
   return texture;

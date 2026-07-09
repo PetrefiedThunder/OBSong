@@ -1,4 +1,5 @@
-import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition } from '../mappers';
+import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition, mapHorizonToBass } from '../mappers';
+import { noteNameToMidi } from '../scales';
 import type { ImageAnalysisResult, LinearLandscapeOptions, NoteEvent, DepthRidgeOptions, MultiVoiceOptions } from '@toposonics/types';
 
 describe('mapLinearLandscape', () => {
@@ -268,5 +269,32 @@ describe('mapImageToMultiVoiceComposition', () => {
     expect(noteEvents).toHaveLength(1);
     expect(Number.isNaN(noteEvents[0].pan)).toBe(false);
     expect(noteEvents[0].pan).toBe(0);
+  });
+});
+
+describe('mapHorizonToBass', () => {
+  it('produces notes for a sub-C2 preset range (A1-E2) in key A', () => {
+    // Previously getScaleNotes hardcoded startOctave=2, so this range filtered to nothing.
+    const notes = mapHorizonToBass([0.1, 0.5, 0.9], 'A', 'C_MAJOR', {
+      minNote: 'A1',
+      maxNote: 'E2',
+    });
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('A1'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('E2'));
+    }
+  });
+});
+
+describe('noteNameToMidi', () => {
+  it('rejects non-existent accidentals like E# and B#', () => {
+    expect(() => noteNameToMidi('E#4')).toThrow();
+    expect(() => noteNameToMidi('B#3')).toThrow();
+  });
+
+  it('round-trips negative octaves (C-1 => MIDI 0)', () => {
+    expect(noteNameToMidi('C-1')).toBe(0);
   });
 });

@@ -136,13 +136,14 @@ export function analyzeImageForDepthRidge(
     rowsToAverage: 5,
   });
 
-  // 3. Extract brightness profile for pitch mapping
+  // 3. Extract brightness profile for pitch mapping (clamp the row window like
+  //    analyzeImageForLinearLandscape does, so short images don't read OOB rows -> NaN)
   let brightnessProfile = computeAveragedBrightnessProfile(
     pixels,
     width,
     height,
-    centerRow - 2,
-    centerRow + 3
+    Math.max(0, centerRow - 2),
+    Math.min(height, centerRow + 3)
   );
 
   // 4. Apply smoothing to ridge strength for stability
@@ -199,14 +200,15 @@ export function analyzeImageForMultiVoice(
     horizonSmoothing = 7,
   } = options;
 
-  // 1. Extract brightness profile (for melody)
+  // 1. Extract brightness profile (for melody); clamp the row window so short images
+  //    don't read out-of-bounds rows and produce an all-NaN profile.
   const centerRow = Math.floor(height / 2);
   let brightnessProfile = computeAveragedBrightnessProfile(
     pixels,
     width,
     height,
-    centerRow - 2,
-    centerRow + 3
+    Math.max(0, centerRow - 2),
+    Math.min(height, centerRow + 3)
   );
 
   // Downsample brightness if needed

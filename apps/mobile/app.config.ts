@@ -29,12 +29,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     package: 'com.toposonics.app',
     versionCode: androidVersionCode,
-    permissions: [
-      'CAMERA',
-      'READ_EXTERNAL_STORAGE',
-      'WRITE_EXTERNAL_STORAGE',
-      'READ_MEDIA_IMAGES',
-      'RECORD_AUDIO',
+    allowBackup: false,
+    permissions: ['CAMERA', 'READ_MEDIA_IMAGES'],
+    // The app never records audio and never draws over other apps; block these so
+    // config plugins (e.g. expo-av) and prebuilds don't silently re-add high-risk
+    // permissions that Google Play flags in review.
+    blockedPermissions: [
+      'android.permission.RECORD_AUDIO',
+      'android.permission.SYSTEM_ALERT_WINDOW',
     ],
   },
   web: {

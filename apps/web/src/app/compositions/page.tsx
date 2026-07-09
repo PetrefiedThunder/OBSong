@@ -168,7 +168,6 @@ export default function CompositionsPage() {
                 subtitle={composition.description}
                 variant="elevated"
                 padding="lg"
-                onClick={() => {}}
               >
                 <div className="mt-4 space-y-2 text-sm text-gray-400">
                   <div className="flex justify-between">

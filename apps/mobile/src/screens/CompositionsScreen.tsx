@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -24,9 +24,9 @@ export default function CompositionsScreen({ navigation }: Props) {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh, token]);
+  // CompositionsProvider already refreshes on mount and whenever the auth token /
+  // active user changes, so no screen-level mount refresh is needed here (it would
+  // double the initial fetch). Pull-to-refresh still calls refresh() directly.
 
   const handlePasswordSignIn = async (email: string, password: string) => {
     try {

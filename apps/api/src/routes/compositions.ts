@@ -19,6 +19,50 @@ import {
   deleteComposition,
 } from '../services/compositions';
 
+// JSON schema for :id params — rejects non-UUIDs with a 400 instead of letting Postgres
+// raise 22P02 (which previously surfaced as a 500).
+const idParamsSchema = {
+  type: 'object',
+  required: ['id'],
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+  },
+} as const;
+
+// Shared body field constraints. additionalProperties is allowed at the note-event level
+// but the top-level body is closed so unknown keys can't be smuggled in.
+const noteEventsSchema = {
+  type: 'array',
+  maxItems: 100000,
+  items: { type: 'object' },
+} as const;
+
+const createBodySchema = {
+  type: 'object',
+  required: ['title', 'noteEvents', 'mappingMode', 'key', 'scale'],
+  additionalProperties: false,
+  properties: {
+    title: { type: 'string', minLength: 1, maxLength: 200 },
+    description: { type: 'string', maxLength: 2000 },
+    noteEvents: noteEventsSchema,
+    mappingMode: { type: 'string', maxLength: 64 },
+    key: { type: 'string', maxLength: 8 },
+    scale: { type: 'string', maxLength: 64 },
+    presetId: { type: 'string', maxLength: 64 },
+    tempo: { type: 'number', minimum: 1, maximum: 1000 },
+    imageThumbnail: { type: 'string', maxLength: 5_000_000 },
+    imageData: { type: 'string', maxLength: 9_000_000 },
+    metadata: { type: 'object' },
+  },
+} as const;
+
+const updateBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  minProperties: 1,
+  properties: createBodySchema.properties,
+} as const;
+
 export async function compositionRoutes(fastify: FastifyInstance) {
   /**
    * GET /compositions
@@ -31,7 +75,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const compositions = await listCompositions(request.userId);
+        const compositions = await listCompositions(request.userId as string);
 
         return reply.send({
           success: true,
@@ -61,6 +105,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     '/compositions/:id',
     {
       preHandler: requireAuth,
+      schema: { params: idParamsSchema },
     },
     async (request, reply) => {
       const { id } = request.params;
@@ -106,22 +151,13 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     '/compositions',
     {
       preHandler: requireAuth,
+      schema: { body: createBodySchema },
     },
     async (request, reply) => {
       const data = request.body;
 
       try {
-        // Validate required fields
-        if (!data.title || !data.noteEvents || !data.mappingMode || !data.key || !data.scale) {
-          return reply.status(400).send({
-            success: false,
-            error: {
-              code: 'INVALID_INPUT',
-              message: 'Missing required fields: title, noteEvents, mappingMode, key, scale',
-            },
-          });
-        }
-
+        // Field presence/type/length is enforced by the JSON schema above.
         // Create composition with authenticated user's ID
         const composition = await createComposition(request.userId!, data);
 
@@ -155,6 +191,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     '/compositions/:id',
     {
       preHandler: requireAuth,
+      schema: { params: idParamsSchema, body: updateBodySchema },
     },
     async (request, reply) => {
       const { id } = request.params;
@@ -163,7 +200,9 @@ export async function compositionRoutes(fastify: FastifyInstance) {
       try {
         const existing = await getCompositionById(id);
 
-        if (!existing) {
+        // Return 404 (not 403) for both missing and foreign rows so an attacker can't
+        // distinguish "doesn't exist" from "exists but owned by someone else" (matches GET).
+        if (!existing || existing.userId !== request.userId) {
           return reply.status(404).send({
             success: false,
             error: {
@@ -173,18 +212,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Check ownership
-        if (existing.userId !== request.userId) {
-          return reply.status(403).send({
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'You do not have permission to update this composition',
-            },
-          });
-        }
-
-        const updated = await updateComposition(id, data);
+        const updated = await updateComposition(id, request.userId!, data);
 
         if (!updated) {
           return reply.status(500).send({
@@ -225,6 +253,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     '/compositions/:id',
     {
       preHandler: requireAuth,
+      schema: { params: idParamsSchema },
     },
     async (request, reply) => {
       const { id } = request.params;
@@ -232,7 +261,8 @@ export async function compositionRoutes(fastify: FastifyInstance) {
       try {
         const existing = await getCompositionById(id);
 
-        if (!existing) {
+        // 404 for both missing and foreign rows (avoid id enumeration; matches GET/PUT).
+        if (!existing || existing.userId !== request.userId) {
           return reply.status(404).send({
             success: false,
             error: {
@@ -242,18 +272,7 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Check ownership
-        if (existing.userId !== request.userId) {
-          return reply.status(403).send({
-            success: false,
-            error: {
-              code: 'FORBIDDEN',
-              message: 'You do not have permission to delete this composition',
-            },
-          });
-        }
-
-        const deleted = await deleteComposition(id);
+        const deleted = await deleteComposition(id, request.userId!);
 
         if (!deleted) {
           return reply.status(500).send({

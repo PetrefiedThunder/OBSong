@@ -63,5 +63,33 @@ describe('Image Analyzers', () => {
       expect(maxRidgeIndex).toBe(2);
       expect(maxRidge).toBeGreaterThan(0.9);
     });
+
+    it('produces finite (non-NaN) profiles for a short image', () => {
+      // height 3 previously read rows -1 and 3 (out of bounds) -> all-NaN profiles.
+      const result = analyzeImageForDepthRidge(pixels, width, height);
+      expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+      expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
+      expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    });
+  });
+
+  describe('large images', () => {
+    it('does not overflow the call stack on a realistic (640x480) image', () => {
+      // Math.max(...edges) threw RangeError above ~125k elements; 640x480 = 307,200 px.
+      const w = 640;
+      const h = 480;
+      const big = new Uint8ClampedArray(w * h * 4);
+      for (let i = 0; i < big.length; i += 4) {
+        const v = (i / 4) % w < w / 2 ? 0 : 255;
+        big[i] = v;
+        big[i + 1] = v;
+        big[i + 2] = v;
+        big[i + 3] = 255;
+      }
+
+      expect(() => analyzeImageForDepthRidge(big, w, h)).not.toThrow();
+      const result = analyzeImageForDepthRidge(big, w, h);
+      expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+    });
   });
 });

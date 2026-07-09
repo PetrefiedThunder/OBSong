@@ -43,15 +43,11 @@ EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## Optional OpenCV Setup
+## Native Image Processing
 
-If the native image-processing module needs the OpenCV SDK on a fresh machine, run:
-
-```bash
-./scripts/setup-android-opencv.sh
-```
-
-This downloads OpenCV into `packages/native-image-processing/android/libs/opencv`.
+The `@toposonics/native-image-processing` Android module runs a pure-Kotlin Sobel edge
+detector — no OpenCV SDK download or CMake build is required. iOS is a stub; guard calls
+with `isNativeImageProcessingAvailable()`.
 
 ## Open The Project
 
@@ -105,11 +101,8 @@ Use Java 17 and make sure `JAVA_HOME` points at it.
 
 ### Native image-processing build fails
 
-Check that the OpenCV SDK exists at:
-
-- `packages/native-image-processing/android/libs/opencv`
-
-If it does not, run `./scripts/setup-android-opencv.sh`.
+The Android module is pure Kotlin (no OpenCV/CMake). A build failure here is usually a
+stale Gradle cache — run `./gradlew clean` in `apps/mobile/android`.
 
 ### API-backed mobile features do not work
 

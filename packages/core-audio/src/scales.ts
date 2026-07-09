@@ -131,13 +131,19 @@ export function midiToNoteName(midiNumber: number): string {
  * @returns MIDI note number (0-127)
  */
 export function noteNameToMidi(noteName: string): number {
-  const match = noteName.match(/^([A-G]#?)(\d+)$/);
+  // Allow a negative octave (e.g. "C-1", which midiToNoteName emits for MIDI 0-11).
+  const match = noteName.match(/^([A-G]#?)(-?\d+)$/);
   if (!match) {
     throw new Error(`Invalid note name: ${noteName}`);
   }
 
   const [, note, octaveStr] = match;
   const noteIndex = CHROMATIC_NOTES.indexOf(note);
+  // The regex allows e.g. "E#"/"B#", which aren't in CHROMATIC_NOTES. Reject them instead
+  // of silently returning a wrong MIDI number (indexOf would be -1).
+  if (noteIndex === -1) {
+    throw new Error(`Invalid note name: ${noteName}`);
+  }
   const octave = parseInt(octaveStr, 10);
 
   return (octave + 1) * 12 + noteIndex;

@@ -9,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
-  PermissionsAndroid,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,7 +18,11 @@ import {
   generateCompositionFromImage,
   type CompositionGenerationResult,
 } from '../services/imageProcessing';
-import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
+import {
+  playNoteEvents,
+  formatNoteEventsDuration,
+  type PlaybackController,
+} from '../services/audioPlayer';
 import { useCompositions } from '../state/CompositionsProvider';
 import * as FileSystem from 'expo-file-system';
 import { logError } from '@toposonics/shared';
@@ -45,6 +48,8 @@ export default function EditorScreen() {
   const [generation, setGeneration] = useState<CompositionGenerationResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const [playbackStatus, setPlaybackStatus] = useState<string | null>(null);
+  const playbackRef = React.useRef<PlaybackController | null>(null);
+  const isMountedRef = React.useRef(true);
   const [saving, setSaving] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -56,49 +61,54 @@ export default function EditorScreen() {
   const isIOSGenerationUnsupported = Platform.OS === 'ios';
 
   const pickImage = async () => {
-    let permissionResult;
-    if (Platform.OS === 'android' && Platform.Version >= 33) {
-      permissionResult = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-      );
-      if (permissionResult !== 'granted') {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required');
-        return;
+    try {
+      // The system photo picker (Android 13+ / SDK 50) needs no runtime permission,
+      // so we don't gate on READ_MEDIA_IMAGES — doing so permanently dead-ends the
+      // flow once a user taps "Don't allow". On older platforms the media-library
+      // permission is still requested.
+      if (!(Platform.OS === 'android' && Platform.Version >= 33)) {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (perm.granted === false) {
+          Alert.alert('Permission Required', 'Permission to access camera roll is required');
+          return;
+        }
       }
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (perm.granted === false) {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required');
-        return;
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
       }
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+    } catch (error) {
+      logError(error as Error, { context: 'Pick Image' });
+      Alert.alert('Could not open photos', (error as Error).message);
     }
   };
 
   const captureImage = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Permission to access camera is required');
-      return;
-    }
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera is required');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'Capture Image' });
+      Alert.alert('Could not open camera', (error as Error).message);
     }
   };
 
@@ -176,6 +186,15 @@ export default function EditorScreen() {
     }
   };
 
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      playbackRef.current?.cancel();
+      playbackRef.current = null;
+    };
+  }, []);
+
   const playNotes = async () => {
     if (!generation) {
       Alert.alert('Nothing to play', 'Generate a composition first');
@@ -184,17 +203,24 @@ export default function EditorScreen() {
 
     try {
       setPlaybackStatus('0');
-      await playNoteEvents(generation.noteEvents, {
+      const controller = playNoteEvents(generation.noteEvents, {
         tempo,
         onProgress(current, total) {
-          setPlaybackStatus(`${current}/${total}`);
+          if (isMountedRef.current) {
+            setPlaybackStatus(`${current}/${total}`);
+          }
         },
       });
+      playbackRef.current = controller;
+      await controller.done;
     } catch (error) {
       logError(error as Error, { context: 'Play Notes' });
       Alert.alert('Playback failed', (error as Error).message);
     } finally {
-      setPlaybackStatus(null);
+      playbackRef.current = null;
+      if (isMountedRef.current) {
+        setPlaybackStatus(null);
+      }
     }
   };
 

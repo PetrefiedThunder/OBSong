@@ -1,10 +1,11 @@
 'use client';
 
+import { useId } from 'react';
 import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
 import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
 
 interface MappingControlsProps {
-  key: KeyType;
+  musicalKey: KeyType;
   scale: ScaleType;
   mappingMode: MappingMode;
   presetId: string;
@@ -47,7 +48,7 @@ const MAPPING_MODES: { value: MappingMode; label: string; description: string }[
 ];
 
 export function MappingControls({
-  key,
+  musicalKey,
   scale,
   mappingMode,
   presetId,
@@ -60,13 +61,21 @@ export function MappingControls({
 }: MappingControlsProps) {
   const presets = getAllPresets();
   const topoPresets = getAllTopoPresets();
+  const topoPresetId = useId();
+  const mappingModeId = useId();
+  const keyGroupId = useId();
+  const scaleId = useId();
+  const soundPresetId = useId();
 
   return (
     <div className="space-y-6">
       {/* TopoSonics Preset */}
       <div>
-        <label className="block text-sm font-medium mb-2">Musical Preset</label>
+        <label htmlFor={topoPresetId} className="block text-sm font-medium mb-2">
+          Musical Preset
+        </label>
         <select
+          id={topoPresetId}
           value={selectedTopoPreset?.id || ''}
           onChange={(e) => {
             const preset = e.target.value
@@ -90,8 +99,10 @@ export function MappingControls({
 
       {/* Mapping Mode */}
       <div>
-        <label className="block text-sm font-medium mb-2">Mapping Mode</label>
-        <div className="grid grid-cols-1 gap-2">
+        <span id={mappingModeId} className="block text-sm font-medium mb-2">
+          Mapping Mode
+        </span>
+        <div className="grid grid-cols-1 gap-2" role="group" aria-labelledby={mappingModeId}>
           {MAPPING_MODES.map((mode) => (
             <button
               key={mode.value}
@@ -111,14 +122,16 @@ export function MappingControls({
 
       {/* Musical Key */}
       <div>
-        <label className="block text-sm font-medium mb-2">Key</label>
-        <div className="grid grid-cols-6 gap-2">
+        <span id={keyGroupId} className="block text-sm font-medium mb-2">
+          Key
+        </span>
+        <div className="grid grid-cols-6 gap-2" role="group" aria-labelledby={keyGroupId}>
           {KEYS.map((k) => (
             <button
               key={k}
               onClick={() => onKeyChange(k)}
               className={`py-2 px-3 rounded-lg font-medium transition-colors ${
-                key === k
+                musicalKey === k
                   ? 'bg-primary-600 text-white'
                   : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
               }`}
@@ -131,8 +144,11 @@ export function MappingControls({
 
       {/* Scale */}
       <div>
-        <label className="block text-sm font-medium mb-2">Scale</label>
+        <label htmlFor={scaleId} className="block text-sm font-medium mb-2">
+          Scale
+        </label>
         <select
+          id={scaleId}
           value={scale}
           onChange={(e) => onScaleChange(e.target.value as ScaleType)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -147,8 +163,11 @@ export function MappingControls({
 
       {/* Sound Preset */}
       <div>
-        <label className="block text-sm font-medium mb-2">Sound Preset</label>
+        <label htmlFor={soundPresetId} className="block text-sm font-medium mb-2">
+          Sound Preset
+        </label>
         <select
+          id={soundPresetId}
           value={presetId}
           onChange={(e) => onPresetChange(e.target.value)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"

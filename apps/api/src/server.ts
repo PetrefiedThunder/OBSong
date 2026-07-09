@@ -53,6 +53,18 @@ async function createServer(): Promise<FastifyInstance> {
       .filter((origin): origin is string => Boolean(origin))
   );
 
+  // Hosts allowed as the target of the HTTP->HTTPS redirect. Derived from the configured
+  // canonical hosts plus the hosts of the allowed CORS origins, so the redirect can't be
+  // pointed at an attacker-controlled Host header (open redirect).
+  const allowedHosts = new Set<string>(config.canonicalHosts.map((h) => h.toLowerCase()));
+  for (const normalized of allowedOrigins) {
+    try {
+      allowedHosts.add(new URL(normalized).host.toLowerCase());
+    } catch {
+      // ignore malformed origin
+    }
+  }
+
   await fastify.register(helmet, {
     global: true,
     contentSecurityPolicy: false,
@@ -64,13 +76,18 @@ async function createServer(): Promise<FastifyInstance> {
 
   if (config.enforceHttps && config.isProduction) {
     fastify.addHook('onRequest', (request, reply, done) => {
-      const forwardedProto = request.headers['x-forwarded-proto'];
-      const protocol = Array.isArray(forwardedProto)
-        ? forwardedProto[0]
-        : forwardedProto || request.protocol;
-
-      if (protocol !== 'https' && request.headers.host) {
-        reply.redirect(`https://${request.headers.host}${request.url}`, 301);
+      // request.protocol is proxy-aware when trustProxy is configured.
+      if (request.protocol !== 'https') {
+        const host = request.headers.host;
+        if (host && allowedHosts.has(host.toLowerCase())) {
+          reply.redirect(`https://${host}${request.url}`, 301);
+        } else {
+          // Never redirect to an untrusted Host header.
+          reply.status(400).send({
+            success: false,
+            error: { code: 'INVALID_HOST', message: 'Invalid host' },
+          });
+        }
         return;
       }
 
@@ -116,7 +133,8 @@ async function createServer(): Promise<FastifyInstance> {
     maxEventLoopDelay: config.monitoring.maxEventLoopDelay,
     maxHeapUsedBytes: config.monitoring.maxHeapUsedBytes,
     maxRssBytes: config.monitoring.maxRssBytes,
-    exposeStatusRoute: config.monitoring.statusRoute,
+    // Only expose the public status route outside production; it reveals load internals.
+    exposeStatusRoute: config.isProduction ? false : config.monitoring.statusRoute,
     healthCheck: async () => true,
   });
 
@@ -150,6 +168,19 @@ async function createServer(): Promise<FastifyInstance> {
   fastify.setErrorHandler((error, _request, reply) => {
     fastify.log.error(error);
 
+    // Fastify schema validation errors -> 400 with a safe, generic message.
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'validation' in error &&
+      error.validation
+    ) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Request validation failed' },
+      });
+    }
+
     const statusCode =
       typeof error === 'object' &&
       error !== null &&
@@ -157,14 +188,24 @@ async function createServer(): Promise<FastifyInstance> {
       typeof error.statusCode === 'number'
         ? error.statusCode
         : 500;
+
+    // Never leak internal error messages/codes (Supabase/PostgREST details, SQL states,
+    // stack info) to clients on 5xx. Log the real error server-side (above) only.
+    if (statusCode >= 500) {
+      return reply.status(statusCode).send({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+      });
+    }
+
     const errorCode =
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
       typeof error.code === 'string'
         ? error.code
-        : 'INTERNAL_ERROR';
-    const message = error instanceof Error ? error.message : 'Internal server error';
+        : 'ERROR';
+    const message = error instanceof Error ? error.message : 'Request failed';
 
     return reply.status(statusCode).send({
       success: false,
@@ -182,8 +223,9 @@ async function createServer(): Promise<FastifyInstance> {
  * Start the server
  */
 async function start() {
+  let fastify: FastifyInstance;
   try {
-    const fastify = await createServer();
+    fastify = await createServer();
 
     // Start listening
     await fastify.listen({
@@ -200,18 +242,32 @@ async function start() {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
+
+  // Drain in-flight requests before exiting (SIGTERM is sent by rolling deploys), with a
+  // timeout fallback so a stuck connection can't block shutdown forever.
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`\nReceived ${signal}, shutting down gracefully...`);
+    const timeout = setTimeout(() => {
+      console.error('Graceful shutdown timed out; forcing exit.');
+      process.exit(1);
+    }, 10000);
+    try {
+      await fastify.close();
+      clearTimeout(timeout);
+      process.exit(0);
+    } catch (error) {
+      console.error('Error during shutdown:', error);
+      clearTimeout(timeout);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
 }
-
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\nShutting down gracefully...');
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('\nShutting down gracefully...');
-  process.exit(0);
-});
 
 // Start the server
 start();

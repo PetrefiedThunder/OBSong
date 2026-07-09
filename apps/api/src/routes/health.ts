@@ -5,6 +5,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { HealthCheckResponse } from '@toposonics/types';
 import { config } from '../config';
+import { requireAuth } from '../auth';
 
 export async function healthRoutes(fastify: FastifyInstance) {
   /**
@@ -26,9 +27,10 @@ export async function healthRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /health/detailed
-   * More detailed health information
+   * More detailed health information. Gated behind auth so environment/uptime/memory
+   * internals aren't exposed to anonymous clients (fingerprinting / memory-probe surface).
    */
-  fastify.get('/health/detailed', async (_request, reply) => {
+  fastify.get('/health/detailed', { preHandler: requireAuth }, async (_request, reply) => {
     const uptime = process.uptime();
     const memoryUsage = process.memoryUsage();
 

@@ -29,6 +29,12 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
   const [usingCache, setUsingCache] = useState(false);
 
   const activeUserId = user?.id ?? null;
+  // Tracks the currently active user so in-flight fetches from a previous user
+  // (slow network + sign-out/account-switch) can be discarded before they write state.
+  const activeUserIdRef = React.useRef(activeUserId);
+  useEffect(() => {
+    activeUserIdRef.current = activeUserId;
+  }, [activeUserId]);
 
   const saveToCache = useCallback(async (items: Composition[]) => {
     if (!activeUserId) return;
@@ -87,10 +93,14 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       return;
     }
 
+    const requestUserId = activeUserId;
     setLoading(true);
     setUsingCache(false);
     try {
       const data = await fetchCompositions();
+      // Discard results if the active user changed while the request was in flight,
+      // so we never repopulate a signed-out screen (or another account) with A's data.
+      if (activeUserIdRef.current !== requestUserId) return;
       setCompositions(data);
       setCompositionsById((prev) => ({
         ...prev,
@@ -98,10 +108,13 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       }));
       await saveToCache(data);
     } catch (err) {
+      if (activeUserIdRef.current !== requestUserId) return;
       console.warn('Falling back to cached compositions', err);
       await hydrateFromCache();
     } finally {
-      setLoading(false);
+      if (activeUserIdRef.current === requestUserId) {
+        setLoading(false);
+      }
     }
   }, [activeUserId, token, hydrateFromCache, saveToCache]);
 
@@ -116,11 +129,14 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       }
 
       const cacheUserId = activeUserId as string;
+      const requestUserId = activeUserId;
 
       try {
         const data = await fetchComposition(id);
-        setCompositionsById((prev) => ({ ...prev, [id]: data }));
-        await saveDetailToCache(data);
+        if (activeUserIdRef.current === requestUserId) {
+          setCompositionsById((prev) => ({ ...prev, [id]: data }));
+          await saveDetailToCache(data);
+        }
         return data;
       } catch (err) {
         console.warn('Failed to fetch composition, using cache', err);

@@ -334,10 +334,15 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       return null;
     }
 
+    // NoteEvent.start/duration are in BEATS, but Tone.js interprets numeric time and
+    // duration values as SECONDS (Transport.bpm only affects tick/notation times). Convert
+    // beats -> seconds once here so the tempo actually applies and playback length matches
+    // the auto-stop math in play() (which is already computed in seconds).
+    const secondsPerBeat = 60 / tempo;
     const events = noteEvents.map((event) => ({
-      time: event.start,
+      time: event.start * secondsPerBeat,
       note: event.note,
-      duration: event.duration,
+      duration: event.duration * secondsPerBeat,
       velocity: event.velocity,
       pan: event.pan || 0,
       reverbSend: event.effects?.reverbSend || 0.2,

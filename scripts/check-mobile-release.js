@@ -8,14 +8,25 @@ const androidGradle = path.join(mobileDir, 'android/gradlew');
 const iosWorkspace = path.join(mobileDir, 'ios/TopoSonics.xcworkspace');
 const iosProject = path.join(mobileDir, 'ios/TopoSonics.xcodeproj/project.pbxproj');
 const easConfig = path.join(mobileDir, 'eas.json');
-const googleServiceAccount = path.join(mobileDir, 'credentials/google-service-account.json');
+// Prefer an out-of-repo path via env var so the Play publishing key never has to live in
+// the working tree (where it risks being committed). Falls back to the conventional
+// (gitignored) credentials/ location for local use.
+const googleServiceAccount =
+  process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH ||
+  path.join(mobileDir, 'credentials/google-service-account.json');
 
 const failures = [];
 const warnings = [];
 const knownJdk17Homes = [
   process.env.JAVA_HOME,
+  // macOS (Homebrew)
   '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
   '/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
+  // Linux (common distro / CI locations)
+  '/usr/lib/jvm/java-17-openjdk-amd64',
+  '/usr/lib/jvm/java-17-openjdk',
+  '/usr/lib/jvm/temurin-17-jdk-amd64',
+  '/opt/java/openjdk',
 ].filter(Boolean);
 
 function commandExists(command) {

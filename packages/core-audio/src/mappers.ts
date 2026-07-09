@@ -27,6 +27,56 @@ function calculatePan(index: number, totalPoints: number, spread = 1): number {
 }
 
 /**
+ * Parse the (possibly negative) octave number out of a scientific-pitch note name.
+ * Fully anchored (^...$) so the match is linear — an unanchored `-?\d+$` retries every
+ * start position and is flagged as polynomial-time ReDoS on adversarial input.
+ */
+function octaveOf(noteName: string): number {
+  const match = /^[A-G]#?(-?\d+)$/.exec(noteName);
+  return match ? parseInt(match[1], 10) : 3;
+}
+
+/**
+ * Generate scale notes that span the octaves of [minNote, maxNote] (plus one octave of
+ * headroom), rather than a hardcoded start octave. This makes low ranges such as A1-E2
+ * reachable instead of silently producing an empty voice.
+ */
+function getScaleNotesForRange(
+  key: KeyType,
+  scale: ScaleType,
+  minNote: string,
+  maxNote: string
+): string[] {
+  const startOctave = octaveOf(minNote);
+  const span = Math.max(1, octaveOf(maxNote) - startOctave + 1);
+  return getScaleNotes(key, scale, span + 1, startOctave);
+}
+
+/**
+ * Keep only the scale notes within [minMidi, maxMidi]. If none fall in range, fall back
+ * to the single scale note nearest the range so the voice is never silently empty.
+ */
+function filterScaleToRange(scaleNotes: string[], minMidi: number, maxMidi: number): string[] {
+  const inRange = scaleNotes.filter((note) => {
+    const midi = noteNameToMidi(note);
+    return midi >= minMidi && midi <= maxMidi;
+  });
+  if (inRange.length > 0 || scaleNotes.length === 0) return inRange;
+
+  const target = (minMidi + maxMidi) / 2;
+  let nearest = scaleNotes[0];
+  let nearestDist = Infinity;
+  for (const note of scaleNotes) {
+    const dist = Math.abs(noteNameToMidi(note) - target);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = note;
+    }
+  }
+  return [nearest];
+}
+
+/**
  * Map an image analysis result to musical notes using LINEAR_LANDSCAPE mode
  *
  * This mode:
@@ -92,11 +142,15 @@ export function mapLinearLandscape(
       pan = calculatePan(i, sampledBrightness.length);
     }
 
-    // Use depth for reverb if available
+    // Use depth for reverb if available. The brightness profile was downsampled with
+    // `idx = floor(i * step)`, so the depth profile (full length) must be indexed by the
+    // same source index, not the sampled index `i`, or reverb describes a different
+    // horizontal position than pitch.
     let reverbSend = 0.2; // Default light reverb
-    if (analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
+    const depthIdx = Math.floor(i * step);
+    if (analysis.depthProfile && analysis.depthProfile[depthIdx] !== undefined) {
       // Lower depth (farther away) = more reverb
-      const depth = analysis.depthProfile[i];
+      const depth = analysis.depthProfile[depthIdx];
       reverbSend = 0.1 + (1 - depth) * 0.6; // Inverted: far = more reverb
     }
 
@@ -154,8 +208,9 @@ export function mapDepthRidge(
   let currentTime = 0;
   let lastRidgeIndex = -1;
 
-  // Only create notes where ridge strength exceeds threshold
-  for (let i = 0; i < Math.min(brightnessProfile.length, maxNotes); i++) {
+  // Scan the WHOLE profile (not just the first maxNotes columns, which ignored the
+  // right half of the image) and stop once maxNotes notes have been emitted.
+  for (let i = 0; i < brightnessProfile.length && noteEvents.length < maxNotes; i++) {
     const brightness = brightnessProfile[i];
     const ridge = ridgeStrength[i] ?? 0;
 
@@ -289,16 +344,15 @@ export function mapHorizonToBass(
     maxNotes = 16,
   } = options;
 
-  // Get scale notes in bass range
-  const scaleNotes = getScaleNotes(key, scale, 2, 2); // 2 octaves starting at octave 2
+  // Get scale notes covering the requested bass range. Deriving the octave span from
+  // minNote/maxNote (instead of hardcoding startOctave=2) is what lets sub-C2 preset
+  // ranges like A1-E2 actually produce notes.
   const minMidi = noteNameToMidi(minNote);
   const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = getScaleNotesForRange(key, scale, minNote, maxNote);
 
-  // Filter to bass range
-  const bassNotes = scaleNotes.filter((note) => {
-    const midi = noteNameToMidi(note);
-    return midi >= minMidi && midi <= maxMidi;
-  });
+  // Filter to bass range, falling back to the nearest scale note if the range is empty.
+  const bassNotes = filterScaleToRange(scaleNotes, minMidi, maxMidi);
 
   if (bassNotes.length === 0) return [];
 
@@ -376,16 +430,15 @@ export function mapRidgesToMelody(
     noteDuration = 0.75,
   } = options;
 
-  // Get scale notes in melody range
-  const scaleNotes = getScaleNotes(key, scale, 3, 4); // 3 octaves starting at octave 4
+  // Get scale notes covering the requested melody range (derive the octave span from
+  // minNote/maxNote instead of hardcoding startOctave=4, so sub-C4 range portions are
+  // reachable).
   const minMidi = noteNameToMidi(minNote);
   const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = getScaleNotesForRange(key, scale, minNote, maxNote);
 
-  // Filter to melody range
-  const melodyNotes = scaleNotes.filter((note) => {
-    const midi = noteNameToMidi(note);
-    return midi >= minMidi && midi <= maxMidi;
-  });
+  // Filter to melody range (nearest-note fallback if the range is empty).
+  const melodyNotes = filterScaleToRange(scaleNotes, minMidi, maxMidi);
 
   if (melodyNotes.length === 0) return [];
 
@@ -529,19 +582,36 @@ export function mapImageToMultiVoiceComposition(
   const {
     key,
     scale,
-    enableBass = true,
-    enableMelody = true,
-    enablePad = true,
     bassOptions = {},
     melodyOptions = {},
     padOptions = {},
   } = options;
 
+  // Apply the preset's per-voice configuration. Caller-supplied options still win; the
+  // preset fills in the voice pitch ranges and enabled flags that were previously ignored
+  // (so different presets no longer generate identical music). NOTE: fuller threading of
+  // velocity/density/reverb/durationFactor — and the enableFx voice — is a follow-up.
+  const enableBass = options.enableBass ?? preset?.voices.bass.enabled ?? true;
+  const enableMelody = options.enableMelody ?? preset?.voices.melody.enabled ?? true;
+  const enablePad = options.enablePad ?? preset?.voices.pad.enabled ?? true;
+
+  const resolvedBassOptions = {
+    minNote: preset?.voices.bass.minNote,
+    maxNote: preset?.voices.bass.maxNote,
+    ...bassOptions,
+  };
+  const resolvedMelodyOptions = {
+    minNote: preset?.voices.melody.minNote,
+    maxNote: preset?.voices.melody.maxNote,
+    ...melodyOptions,
+  };
+  const resolvedPadOptions = { ...padOptions };
+
   const allNotes: NoteEvent[] = [];
 
   // 1. Bass voice from horizon
   if (enableBass && analysis.horizonProfile) {
-    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, bassOptions);
+    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, resolvedBassOptions);
     allNotes.push(...bassNotes);
   }
 
@@ -552,14 +622,14 @@ export function mapImageToMultiVoiceComposition(
       analysis.ridgeStrength,
       key,
       scale,
-      melodyOptions
+      resolvedMelodyOptions
     );
     allNotes.push(...melodyNotes);
   }
 
   // 3. Pad voice from texture
   if (enablePad && analysis.textureProfile) {
-    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, padOptions);
+    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, resolvedPadOptions);
     allNotes.push(...padNotes);
   }
 

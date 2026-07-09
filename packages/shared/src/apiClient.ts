@@ -44,11 +44,29 @@ export async function apiRequest<T>(
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  const parsed = (await response.json()) as ApiResponse<T> | ApiErrorResponse;
+  // 204/empty bodies (e.g. DELETE) have nothing to parse.
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return undefined as T;
+  }
+
+  // Parse defensively: a gateway/proxy may return non-JSON (HTML) error pages, and we
+  // must not let a JSON.parse failure mask the real HTTP status.
+  let parsed: (ApiResponse<T> | ApiErrorResponse) | null = null;
+  try {
+    parsed = (await response.json()) as ApiResponse<T> | ApiErrorResponse;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    throw new Error('Invalid JSON response from server');
+  }
 
   if (!response.ok || !parsed.success) {
     const errorResponse = parsed as ApiErrorResponse;
-    const message = errorResponse.error?.message ?? 'Request failed';
+    const message = errorResponse.error?.message ?? `HTTP ${response.status}`;
     throw new Error(message);
   }
 

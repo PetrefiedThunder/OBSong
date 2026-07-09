@@ -13,7 +13,11 @@ import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useCompositions } from '../state/CompositionsProvider';
-import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
+import {
+  playNoteEvents,
+  formatNoteEventsDuration,
+  type PlaybackController,
+} from '../services/audioPlayer';
 import { SignInModal } from '../components/SignInModal';
 
 type Props = {
@@ -25,6 +29,8 @@ export default function CompositionDetailScreen({ route }: Props) {
   const [composition, setComposition] = useState<Composition | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const playbackRef = React.useRef<PlaybackController | null>(null);
+  const isMountedRef = React.useRef(true);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
@@ -59,16 +65,32 @@ export default function CompositionDetailScreen({ route }: Props) {
     void loadCompositionData();
   }, [loadCompositionData]);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      playbackRef.current?.cancel();
+      playbackRef.current = null;
+    };
+  }, []);
+
   const playComposition = async () => {
     if (!composition) return;
 
     try {
       setIsPlaying(true);
-      await playNoteEvents(composition.noteEvents, { tempo: composition.tempo ?? 90 });
+      const controller = playNoteEvents(composition.noteEvents, {
+        tempo: composition.tempo ?? 90,
+      });
+      playbackRef.current = controller;
+      await controller.done;
     } catch (error) {
       Alert.alert('Playback failed', (error as Error).message);
     } finally {
-      setIsPlaying(false);
+      playbackRef.current = null;
+      if (isMountedRef.current) {
+        setIsPlaying(false);
+      }
     }
   };
 
