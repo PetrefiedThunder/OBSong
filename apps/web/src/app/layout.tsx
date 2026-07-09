@@ -4,6 +4,11 @@ import Link from 'next/link';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 
+// Nonce-based CSP (see src/middleware.ts) requires per-request rendering: a static build
+// has no request nonce to stamp on Next's script tags, so 'strict-dynamic' would block
+// every chunk. Forcing dynamic rendering lets Next apply the request nonce to its scripts.
+export const dynamic = 'force-dynamic';
+
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
