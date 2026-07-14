@@ -14,6 +14,20 @@ import type { NextRequest } from 'next/server';
  * attributes (dynamic colors, the scanline position); that's a style vector, not the
  * script-execution vector that matters for token exfiltration.
  */
+// The API base URL is a cross-origin host (the Fastify API), so it must be listed in
+// connect-src explicitly — 'self' only covers the web origin. In production it's HTTPS
+// (covered by the `https:` token below), but in dev it's http://localhost:3001, which
+// needs both the explicit origin and http: to be allowed.
+function apiOrigin(): string | null {
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 export function middleware(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
   const isDev = process.env.NODE_ENV !== 'production';
@@ -23,20 +37,27 @@ export function middleware(request: NextRequest) {
       `'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
     : `'self' 'nonce-${nonce}' 'strict-dynamic'`;
 
+  // Allow the app to reach the API (and Supabase over https/wss). In dev also allow http:
+  // so a plain-HTTP API (default http://localhost:3001) isn't blocked or force-upgraded.
+  const connectSrc = ["'self'", 'https:', 'wss:', apiOrigin(), isDev ? 'http:' : null]
+    .filter(Boolean)
+    .join(' ');
+
   const csp = [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https: wss:",
+    `connect-src ${connectSrc}`,
     "media-src 'self' blob: data:",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    'upgrade-insecure-requests',
+    // Only force http->https in production; in dev it would break the http API.
+    ...(isDev ? [] : ['upgrade-insecure-requests']),
   ].join('; ');
 
   // Propagate the nonce + CSP on the request so Next tags its scripts with the nonce.

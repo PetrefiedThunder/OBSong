@@ -156,12 +156,20 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
       if (!canUseCompositionCache(token, activeUserId)) return null;
 
+      const requestUserId = activeUserId;
       const created = await createComposition(payload);
+      // Discard if the active user changed while the save was in flight (consistent with
+      // refresh/loadComposition), so we don't write into the wrong user's state/cache.
+      if (activeUserIdRef.current !== requestUserId) return created;
+
+      // Capture the freshest list from the updater, then persist it OUTSIDE the updater
+      // (updaters must be pure; the old code called async saveToCache inside it).
+      let nextList: Composition[] = [];
       setCompositions((prev) => {
-        const next = [created, ...prev];
-        saveToCache(next);
-        return next;
+        nextList = [created, ...prev];
+        return nextList;
       });
+      void saveToCache(nextList);
       setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
       await saveDetailToCache(created);
       return created;

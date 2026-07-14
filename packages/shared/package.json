@@ -2,6 +2,7 @@
   "name": "@toposonics/shared",
   "version": "0.1.0",
   "description": "Shared utilities for TopoSonics applications",
+  "private": true,
   "main": "dist/index.js",
   "react-native": "src/index.ts",
   "types": "dist/index.d.ts",

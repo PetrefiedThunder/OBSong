@@ -119,7 +119,9 @@ export function brightnessToScaleIndex(brightness: number, scaleLength: number):
  * @returns Note name in scientific pitch notation
  */
 export function midiToNoteName(midiNumber: number): string {
-  const noteIndex = midiNumber % 12;
+  // JS % is signed, so a negative MIDI number would index CHROMATIC_NOTES out of range and
+  // yield "undefined<oct>" (which noteNameToMidi then rejects). Normalize into [0, 12).
+  const noteIndex = ((midiNumber % 12) + 12) % 12;
   const octave = Math.floor(midiNumber / 12) - 1;
   return `${CHROMATIC_NOTES[noteIndex]}${octave}`;
 }
