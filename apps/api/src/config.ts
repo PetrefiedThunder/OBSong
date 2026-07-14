@@ -93,9 +93,6 @@ export const config = {
     maxRssBytes: parseInt(process.env.MAX_RSS_BYTES || String(300 * 1024 * 1024), 10),
   },
 
-  // Auth
-  authEnabled: process.env.AUTH_ENABLED === 'true',
-
   // Supabase
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
