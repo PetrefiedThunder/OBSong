@@ -9,10 +9,13 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('no tests')\""
+    "test": "vitest run"
   },
   "dependencies": {
     "expo-modules-core": "1.11.14"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.17"
   },
   "peerDependencies": {
     "react-native": "*"

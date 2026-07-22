@@ -82,9 +82,12 @@ export function playNoteEvents(
         const playbackRate = Math.max(0.5, Math.min(2.5, frequency / BASE_FREQUENCY));
 
         const volume = event.velocity ?? 0.8;
-        const finalVolume = event.effects?.filterCutoff
-          ? volume * (0.5 + event.effects.filterCutoff * 0.5)
-          : volume;
+        // Use != null (not truthiness) so filterCutoff === 0 (a fully dark pixel) applies
+        // the intended 0.5x attenuation instead of falling through to full volume.
+        const finalVolume =
+          event.effects?.filterCutoff != null
+            ? volume * (0.5 + event.effects.filterCutoff * 0.5)
+            : volume;
 
         await sound.setPositionAsync(0);
         // shouldCorrectPitch MUST be false: the whole pitch mechanism is varying the

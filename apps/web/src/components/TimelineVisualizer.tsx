@@ -22,6 +22,11 @@ export function TimelineVisualizer({
   // to be repainted when the notes or dimensions change, not on every animation frame.
   const sceneRef = useRef<HTMLCanvasElement | null>(null);
   const maxTimeRef = useRef(0);
+  // Read the latest cursor time from a ref so paintFrame stays referentially stable across
+  // playback frames — otherwise it would appear in the scene-rebuild effect's deps and
+  // force a full offscreen re-render ~60x/sec, defeating the caching.
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
 
   const padding = 40;
 
@@ -36,9 +41,10 @@ export function TimelineVisualizer({
     ctx.drawImage(scene, 0, 0);
 
     const maxTime = maxTimeRef.current;
-    if (maxTime > 0 && currentTime > 0 && currentTime <= maxTime) {
+    const ct = currentTimeRef.current;
+    if (maxTime > 0 && ct > 0 && ct <= maxTime) {
       const graphWidth = width - padding * 2;
-      const cursorX = padding + (currentTime / maxTime) * graphWidth;
+      const cursorX = padding + (ct / maxTime) * graphWidth;
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -46,7 +52,7 @@ export function TimelineVisualizer({
       ctx.lineTo(cursorX, height - padding);
       ctx.stroke();
     }
-  }, [currentTime, width, height]);
+  }, [width, height]);
 
   // Rebuild the static scene only when notes/dimensions change.
   useEffect(() => {
@@ -140,10 +146,11 @@ export function TimelineVisualizer({
     paintFrame();
   }, [noteEvents, width, height, paintFrame]);
 
-  // Cheap per-frame update: just blit the scene and redraw the cursor.
+  // Cheap per-frame update: currentTime changes ~60x/sec during playback; just blit the
+  // cached scene and redraw the cursor (no scene rebuild).
   useEffect(() => {
     paintFrame();
-  }, [paintFrame]);
+  }, [currentTime, paintFrame]);
 
   return (
     <div className="bg-surface-primary rounded-xl p-4">

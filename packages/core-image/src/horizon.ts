@@ -59,8 +59,9 @@ export function computeHorizonProfile(
       }
     }
 
-    // Normalize to 0-1 (0 = bottom, 1 = top)
-    horizonHeights.push(1 - horizonY / (height - 1));
+    // Normalize to 0-1 (0 = bottom, 1 = top). Guard the divisor so a 1px-tall image
+    // (height - 1 === 0) doesn't push NaN through to the bass mapper.
+    horizonHeights.push(1 - horizonY / Math.max(1, height - 1));
   }
 
   return horizonHeights;

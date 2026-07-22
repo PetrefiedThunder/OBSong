@@ -50,8 +50,10 @@ const createBodySchema = {
     scale: { type: 'string', maxLength: 64 },
     presetId: { type: 'string', maxLength: 64 },
     tempo: { type: 'number', minimum: 1, maximum: 1000 },
-    imageThumbnail: { type: 'string', maxLength: 5_000_000 },
-    imageData: { type: 'string', maxLength: 9_000_000 },
+    // Keep the combined field maxima below the server bodyLimit (10 MB, server.ts) so a
+    // request carrying both near their limits is validated, not rejected with a 413.
+    imageThumbnail: { type: 'string', maxLength: 500_000 },
+    imageData: { type: 'string', maxLength: 8_000_000 },
     metadata: { type: 'object' },
   },
 } as const;

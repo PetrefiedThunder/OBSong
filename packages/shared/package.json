@@ -2,6 +2,7 @@
   "name": "@toposonics/shared",
   "version": "0.1.0",
   "description": "Shared utilities for TopoSonics applications",
+  "private": true,
   "main": "dist/index.js",
   "react-native": "src/index.ts",
   "types": "dist/index.d.ts",
@@ -10,14 +11,15 @@
     "dev": "tsc -p . --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('no tests')\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@toposonics/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.17"
   },
   "publishConfig": {
     "access": "restricted"

@@ -64,6 +64,12 @@ export async function apiRequest<T>(
     throw new Error('Invalid JSON response from server');
   }
 
+  // A body that parses to null/non-object (e.g. a proxy returning bare `null`) would make
+  // `parsed.success` throw a TypeError and mask the real status.
+  if (parsed == null || typeof parsed !== 'object') {
+    throw new Error(response.ok ? 'Invalid response from server' : `HTTP ${response.status}`);
+  }
+
   if (!response.ok || !parsed.success) {
     const errorResponse = parsed as ApiErrorResponse;
     const message = errorResponse.error?.message ?? `HTTP ${response.status}`;
