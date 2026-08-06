@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiRequest } from '../apiClient';
+import { apiRequest, createApiClient } from '../apiClient';
 
 /** Build a minimal Response-like object for the global fetch mock. */
 function mockResponse(opts: {
@@ -78,6 +78,23 @@ describe('apiRequest', () => {
   it('throws on ok:true but success:false', async () => {
     stubFetch(mockResponse({ status: 200, ok: true, body: { success: false, error: {} } }));
     await expect(apiRequest('http://api', '/thing')).rejects.toThrow('HTTP 200');
+  });
+});
+
+describe('createApiClient.fetchCompositions', () => {
+  it('requests /compositions with no query string by default', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchCompositions('tok');
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions');
+    expect(result).toEqual([]);
+  });
+
+  it('appends limit/offset as a query string when provided', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    await client.fetchCompositions('tok', { limit: 10, offset: 20 });
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=10&offset=20');
   });
 });
 

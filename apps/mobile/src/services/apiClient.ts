@@ -5,7 +5,12 @@
  */
 
 import { createApiClient } from '@toposonics/shared';
-import type { CreateCompositionDTO, UpdateCompositionDTO, Composition } from '@toposonics/types';
+import type {
+  CreateCompositionDTO,
+  UpdateCompositionDTO,
+  Composition,
+  CompositionSummary,
+} from '@toposonics/types';
 import { API_URL } from '../config';
 import { supabase } from '../auth/supabaseClient';
 
@@ -29,10 +34,10 @@ const baseClient = createApiClient({ baseUrl: API_URL });
  */
 export const apiClient = {
   /**
-   * Fetch all compositions
+   * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
    * Automatically attaches auth token if user is signed in
    */
-  async fetchCompositions(): Promise<Composition[]> {
+  async fetchCompositions(): Promise<CompositionSummary[]> {
     const token = await getAuthToken();
     return baseClient.fetchCompositions(token);
   },

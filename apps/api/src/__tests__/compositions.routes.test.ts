@@ -23,7 +23,7 @@ vi.mock('../services/compositions', () => ({
 
 import { compositionRoutes } from '../routes/compositions';
 import * as svc from '../services/compositions';
-import type { Composition } from '@toposonics/types';
+import type { Composition, CompositionSummary } from '@toposonics/types';
 
 const mocked = vi.mocked(svc);
 
@@ -44,6 +44,20 @@ function composition(userId: string): Composition {
     mappingMode: 'LINEAR_LANDSCAPE',
     key: 'C',
     scale: 'C_MAJOR',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function summary(userId: string): CompositionSummary {
+  return {
+    id: UUID,
+    userId,
+    title: 'My Comp',
+    mappingMode: 'LINEAR_LANDSCAPE',
+    key: 'C',
+    scale: 'C_MAJOR',
+    noteCount: 3,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -100,6 +114,71 @@ describe('POST /compositions (validation, #88)', () => {
       payload: { ...validCreateBody, title: { not: 'a string' } },
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('rejects a note event missing "note" with 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/compositions',
+      payload: { ...validCreateBody, noteEvents: [{ start: 0, duration: 0.5, velocity: 0.8 }] },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mocked.createComposition).not.toHaveBeenCalled();
+  });
+
+  it('keeps unknown note-event keys (forward compat) while enforcing the core fields', async () => {
+    mocked.createComposition.mockResolvedValue(composition(TEST_USER));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/compositions',
+      payload: {
+        ...validCreateBody,
+        noteEvents: [{ note: 'C4', start: 0, duration: 0.5, velocity: 0.8, futureField: 'x' }],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = mocked.createComposition.mock.calls[0][1] as { noteEvents: Record<string, unknown>[] };
+    expect(body.noteEvents[0]).toHaveProperty('futureField', 'x');
+  });
+});
+
+describe('GET /compositions (summary pagination, audit)', () => {
+  it('returns an array of summaries with default pagination', async () => {
+    mocked.listCompositions.mockResolvedValue([summary(TEST_USER)]);
+    const res = await app.inject({ method: 'GET', url: '/compositions' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { data: unknown[] };
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(mocked.listCompositions).toHaveBeenCalledWith(TEST_USER, { limit: 50, offset: 0 });
+  });
+
+  it('summary rows carry noteCount but no noteEvents/imageData blobs', async () => {
+    mocked.listCompositions.mockResolvedValue([summary(TEST_USER)]);
+    const res = await app.inject({ method: 'GET', url: '/compositions' });
+    expect(res.statusCode).toBe(200);
+    const row = (res.json() as { data: Record<string, unknown>[] }).data[0];
+    expect(row.noteCount).toBe(3);
+    expect(row).not.toHaveProperty('noteEvents');
+    expect(row).not.toHaveProperty('imageData');
+  });
+
+  it('passes validated limit/offset through to the service', async () => {
+    mocked.listCompositions.mockResolvedValue([]);
+    const res = await app.inject({ method: 'GET', url: '/compositions?limit=5&offset=10' });
+    expect(res.statusCode).toBe(200);
+    expect(mocked.listCompositions).toHaveBeenCalledWith(TEST_USER, { limit: 5, offset: 10 });
+  });
+
+  it('rejects limit=0 with 400', async () => {
+    const res = await app.inject({ method: 'GET', url: '/compositions?limit=0' });
+    expect(res.statusCode).toBe(400);
+    expect(mocked.listCompositions).not.toHaveBeenCalled();
+  });
+
+  it('rejects limit above 100 with 400', async () => {
+    const res = await app.inject({ method: 'GET', url: '/compositions?limit=101' });
+    expect(res.statusCode).toBe(400);
+    expect(mocked.listCompositions).not.toHaveBeenCalled();
   });
 });
 

@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@toposonics/ui';
-import type { Composition } from '@toposonics/types';
+import type { CompositionSummary } from '@toposonics/types';
 import { fetchCompositions } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginModal } from '@/components/LoginModal';
 
 export default function CompositionsPage() {
   const { token, login, isLoading: authLoading } = useAuth();
-  const [compositions, setCompositions] = useState<Composition[]>([]);
+  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -178,7 +178,8 @@ export default function CompositionsPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Notes:</span>
-                    <span className="text-gray-300">{composition.noteEvents.length}</span>
+                    {/* Old rows predate noteCount; show a dash rather than a false zero. */}
+                    <span className="text-gray-300">{composition.noteCount ?? '—'}</span>
                   </div>
                   {composition.tempo && (
                     <div className="flex justify-between">

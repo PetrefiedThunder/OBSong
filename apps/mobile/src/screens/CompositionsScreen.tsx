@@ -135,8 +135,9 @@ export default function CompositionsScreen({ navigation }: Props) {
               <Text style={styles.cardMetaText}>
                 {item.key} {item.scale.replace('_', ' ')}
               </Text>
+              {/* Old rows/caches predate noteCount; show a dash rather than a false zero. */}
               <Text style={styles.cardMetaText}>
-                {item.noteEvents.length} notes
+                {item.noteCount ?? '—'} notes
               </Text>
             </View>
           </TouchableOpacity>

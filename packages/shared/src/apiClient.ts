@@ -7,6 +7,7 @@ import type {
   ApiResponse,
   ApiErrorResponse,
   Composition,
+  CompositionSummary,
   CreateCompositionDTO,
   UpdateCompositionDTO,
 } from '@toposonics/types';
@@ -19,6 +20,13 @@ export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   token?: string | null;
+}
+
+export interface FetchCompositionsOptions {
+  /** Page size; the server accepts 1-100 and defaults to 50. */
+  limit?: number;
+  /** Rows to skip before the page; defaults to 0. */
+  offset?: number;
 }
 
 /**
@@ -87,11 +95,19 @@ export function createApiClient(config: ApiClientConfig) {
 
   return {
     /**
-     * Fetch all compositions
+     * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
      * Requires authentication for private library access
      */
-    async fetchCompositions(token: string | null): Promise<Composition[]> {
-      return apiRequest<Composition[]>(baseUrl, '/compositions', { token });
+    async fetchCompositions(
+      token: string | null,
+      options: FetchCompositionsOptions = {}
+    ): Promise<CompositionSummary[]> {
+      // Build the query string by hand: React Native's URLSearchParams lacks set().
+      const params: string[] = [];
+      if (options.limit !== undefined) params.push(`limit=${options.limit}`);
+      if (options.offset !== undefined) params.push(`offset=${options.offset}`);
+      const query = params.length > 0 ? `?${params.join('&')}` : '';
+      return apiRequest<CompositionSummary[]>(baseUrl, `/compositions${query}`, { token });
     },
 
     /**

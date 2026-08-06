@@ -5,6 +5,7 @@
 import type { FastifyInstance } from 'fastify';
 import type {
   Composition,
+  CompositionSummary,
   CreateCompositionDTO,
   UpdateCompositionDTO,
   ApiResponse,
@@ -30,11 +31,25 @@ const idParamsSchema = {
 } as const;
 
 // Shared body field constraints. additionalProperties is allowed at the note-event level
-// but the top-level body is closed so unknown keys can't be smuggled in.
+// (forward compat for new per-note fields) but the top-level body is closed so unknown
+// keys can't be smuggled in. The core playback/MIDI-export fields are required and typed
+// so a saved composition can never hold events that crash the players later.
 const noteEventsSchema = {
   type: 'array',
   maxItems: 100000,
-  items: { type: 'object' },
+  items: {
+    type: 'object',
+    required: ['note', 'start', 'duration', 'velocity'],
+    properties: {
+      note: { type: 'string', minLength: 2, maxLength: 8 },
+      start: { type: 'number', minimum: 0 },
+      duration: { type: 'number', exclusiveMinimum: 0 },
+      velocity: { type: 'number', minimum: 0, maximum: 1 },
+      pan: { type: 'number', minimum: -1, maximum: 1 },
+      trackId: { type: 'string', maxLength: 32 },
+      effects: { type: 'object' },
+    },
+  },
 } as const;
 
 const createBodySchema = {
@@ -65,19 +80,36 @@ const updateBodySchema = {
   properties: createBodySchema.properties,
 } as const;
 
+// Pagination for the list endpoint. Bounded limit keeps a single response well under the
+// API's under-pressure heap cap; unknown query keys are stripped by AJV's removeAdditional.
+const listQuerySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+    offset: { type: 'integer', minimum: 0, default: 0 },
+  },
+} as const;
+
 export async function compositionRoutes(fastify: FastifyInstance) {
   /**
    * GET /compositions
-   * Get all compositions (optionally filtered by authenticated user)
+   * Get the authenticated user's composition summaries (paginated). Full noteEvents and
+   * imageData blobs are only served by GET /compositions/:id.
    */
-  fastify.get<{ Reply: ApiResponse<Composition[]> | ApiErrorResponse }>(
+  fastify.get<{
+    Querystring: { limit?: number; offset?: number };
+    Reply: ApiResponse<CompositionSummary[]> | ApiErrorResponse;
+  }>(
     '/compositions',
     {
       preHandler: requireAuth,
+      schema: { querystring: listQuerySchema },
     },
     async (request, reply) => {
       try {
-        const compositions = await listCompositions(request.userId as string);
+        const { limit = 50, offset = 0 } = request.query;
+        const compositions = await listCompositions(request.userId as string, { limit, offset });
 
         return reply.send({
           success: true,

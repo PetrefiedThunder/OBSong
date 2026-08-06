@@ -1,4 +1,9 @@
-import type { Composition, CreateCompositionDTO, UpdateCompositionDTO } from '@toposonics/types';
+import type {
+  Composition,
+  CompositionSummary,
+  CreateCompositionDTO,
+  UpdateCompositionDTO,
+} from '@toposonics/types';
 import { supabaseAdmin } from '../supabase';
 
 interface CompositionRow {
@@ -52,21 +57,83 @@ function mapRowToComposition(row: CompositionRow): Composition {
   };
 }
 
-export async function listCompositions(userId: string): Promise<Composition[]> {
+// PostgREST JSON projection for list views: pulls only the scalar fields out of the `data`
+// JSONB column so the heavy blobs (noteEvents, imageData) never leave the database.
+// ->> extracts as text, -> keeps JSON (tempo stays numeric, metadata stays an object).
+const SUMMARY_SELECT =
+  'id, user_id, name, created_at, updated_at, ' +
+  'title:data->>title, description:data->>description, mappingMode:data->>mappingMode, ' +
+  'key:data->>key, scale:data->>scale, presetId:data->>presetId, tempo:data->tempo, ' +
+  'imageThumbnail:data->>imageThumbnail, metadata:data->metadata';
+
+interface CompositionSummaryRow {
+  id: string;
+  user_id: string;
+  name?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  title: string | null;
+  description: string | null;
+  mappingMode: string | null;
+  key: string | null;
+  scale: string | null;
+  presetId: string | null;
+  // data->tempo is JSON so numbers round-trip as numbers, but coerce defensively below.
+  tempo: number | string | null;
+  imageThumbnail: string | null;
+  metadata: Composition['metadata'] | null;
+}
+
+function mapRowToCompositionSummary(row: CompositionSummaryRow): CompositionSummary {
+  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
+  const updatedAt = row.updated_at ? new Date(row.updated_at) : createdAt;
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title || row.name || 'Untitled',
+    description: row.description ?? undefined,
+    mappingMode: row.mappingMode as CompositionSummary['mappingMode'],
+    key: row.key as CompositionSummary['key'],
+    scale: row.scale as CompositionSummary['scale'],
+    presetId: row.presetId ?? undefined,
+    tempo: row.tempo == null ? undefined : Number(row.tempo),
+    imageThumbnail: row.imageThumbnail ?? undefined,
+    // Old rows were saved before metadata.noteCount existed; leave those undefined.
+    noteCount: row.metadata?.noteCount,
+    createdAt,
+    updatedAt,
+  };
+}
+
+export interface ListCompositionsOptions {
+  /** Page size (rows to return). */
+  limit?: number;
+  /** Rows to skip before the page. */
+  offset?: number;
+}
+
+export async function listCompositions(
+  userId: string,
+  options: ListCompositionsOptions = {}
+): Promise<CompositionSummary[]> {
   // Fail closed: never list the whole table. All access is via the service-role client,
   // which bypasses RLS, so this filter is the only tenant isolation.
   if (!userId) {
     throw new Error('listCompositions requires a userId');
   }
+  const limit = options.limit ?? 50;
+  const offset = options.offset ?? 0;
   const { data, error } = await supabaseAdmin
     .from('compositions')
-    .select('*')
+    .select(SUMMARY_SELECT)
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) {
     throw error;
   }
-  return (data as CompositionRow[]).map(mapRowToComposition);
+  return (data as unknown as CompositionSummaryRow[]).map(mapRowToCompositionSummary);
 }
 
 export async function getCompositionById(id: string): Promise<Composition | null> {
