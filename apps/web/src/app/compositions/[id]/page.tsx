@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type { Composition } from '@toposonics/types';
-import { fetchComposition, deleteComposition } from '@/lib/api';
+import { fetchComposition, updateComposition, deleteComposition } from '@/lib/api';
 import { exportCompositionToMidi } from '@/lib/midiExport';
 import { getPresetById, getDefaultPreset } from '@toposonics/core-audio';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +22,10 @@ export default function CompositionDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [tempo, setTempo] = useState(90);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -71,6 +75,38 @@ export default function CompositionDetailPage() {
       alert('Login failed');
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const startEditing = () => {
+    if (!composition) return;
+    setEditTitle(composition.title);
+    setEditDescription(composition.description || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!token || !composition) return;
+    const title = editTitle.trim();
+    if (!title) {
+      alert('Title cannot be empty');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updated = await updateComposition(
+        composition.id,
+        { title, description: editDescription.trim() },
+        token
+      );
+      setComposition(updated);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to update composition:', err);
+      alert('Failed to save changes');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -198,33 +234,82 @@ export default function CompositionDetailPage() {
         >
           ← Back to Compositions
         </Button>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">{composition.title}</h1>
-            {composition.description && (
-              <p className="text-gray-400">{composition.description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={handleExportMidi}
-              disabled={composition.noteEvents.length === 0}
-            >
-              Export MIDI
-            </Button>
-            {canDelete && (
+        {isEditing ? (
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="edit-title" className="block text-sm font-medium mb-1">
+                Title
+              </label>
+              <input
+                id="edit-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                maxLength={200}
+                className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-description" className="block text-sm font-medium mb-1">
+                Description
+              </label>
+              <textarea
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                maxLength={2000}
+                rows={3}
+                className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div className="flex items-center gap-3">
               <Button
-                variant="danger"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                loading={isDeleting}
+                variant="primary"
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                loading={isSaving}
               >
-                Delete
+                Save
               </Button>
-            )}
+              <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>
+                Cancel
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">{composition.title}</h1>
+              {composition.description && (
+                <p className="text-gray-400">{composition.description}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {canDelete && (
+                <Button variant="outline" onClick={startEditing}>
+                  Edit
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={handleExportMidi}
+                disabled={composition.noteEvents.length === 0}
+              >
+                Export MIDI
+              </Button>
+              {canDelete && (
+                <Button
+                  variant="danger"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  loading={isDeleting}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
