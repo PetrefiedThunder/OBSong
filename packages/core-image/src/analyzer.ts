@@ -134,7 +134,7 @@ export function analyzeImageForDepthRidge(
 
   // 1. Apply Sobel edge detection to the full image (or reuse precomputed magnitudes)
   let edgeMagnitudes: number[];
-  if (precomputedEdgeMagnitudes && precomputedEdgeMagnitudes.length > 0) {
+  if (precomputedEdgeMagnitudes && precomputedEdgeMagnitudes.length === width * height) {
     let isByteScaled = false;
     for (let i = 0; i < precomputedEdgeMagnitudes.length; i++) {
       if (precomputedEdgeMagnitudes[i] > 1) {
@@ -146,6 +146,10 @@ export function analyzeImageForDepthRidge(
       isByteScaled ? value / 255 : value
     );
   } else {
+    // A precomputed buffer whose length != width*height would index out of bounds in
+    // extractEdgeProfile and produce NaNs; ignore it and recompute in JS so the analysis
+    // stays correct rather than silently corrupt. (Silent fallback keeps this package free
+    // of any host `console` dependency.)
     edgeMagnitudes = applySobelEdgeDetection(pixels, width, height);
   }
 

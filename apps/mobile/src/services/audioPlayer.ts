@@ -19,12 +19,15 @@ export interface PlaybackController {
   done: Promise<void>;
 }
 
-const soundMap = {
-  bass: require('../../assets/audio/beep.wav'),
-  melody: require('../../assets/audio/beep.wav'),
-  pad: require('../../assets/audio/beep.wav'),
-  default: require('../../assets/audio/beep.wav'),
+// Every voice is the same beep sample pitch-shifted per note; a single Audio.Sound can only
+// play one source at a time, so overlapping notes (e.g. a pad chord) need distinct instances.
+// A small round-robin pool provides that polyphony without allocating one sound per note.
+// (The sample lives in an object literal because RN assets need require(), and a bare
+// `const x = require(...)` trips @typescript-eslint/no-var-requires.)
+const samples = {
+  beep: require('../../assets/audio/beep.wav'),
 } as const;
+const VOICE_POOL_SIZE = 8;
 
 export function playNoteEvents(
   events: NoteEvent[],
@@ -61,15 +64,16 @@ export function playNoteEvents(
     const tempo = options.tempo ?? 90;
     const beatDurationMs = (60 / tempo) * 1000;
 
-    const sounds: { [key: string]: Audio.Sound } = {};
+    const pool: Audio.Sound[] = [];
+    let nextVoice = 0;
 
-    // Trigger one note on its track's sound. Errors are swallowed so a mid-playback reuse
-    // (two notes overlapping on the same track's beep) can't reject the whole session.
+    // Trigger one note on the next free pool voice (round-robin), so simultaneous notes play
+    // concurrently instead of cutting each other off on a shared instance. Errors are
+    // swallowed so a mid-playback reuse can't reject the whole session.
     const triggerNote = async (event: NoteEvent) => {
-      if (cancelled) return;
-      const trackId = event.trackId || 'default';
-      const sound = sounds[trackId] || sounds.default;
-      if (!sound) return;
+      if (cancelled || pool.length === 0) return;
+      const sound = pool[nextVoice % pool.length];
+      nextVoice += 1;
 
       const frequency = noteToFrequency(event.note);
       const playbackRate = Math.max(0.5, Math.min(2.5, frequency / BASE_FREQUENCY));
@@ -96,12 +100,12 @@ export function playNoteEvents(
     };
 
     try {
-      // Load all sounds
-      for (const trackId of Object.keys(soundMap) as Array<keyof typeof soundMap>) {
+      // Load the voice pool up front.
+      for (let i = 0; i < VOICE_POOL_SIZE; i++) {
         if (cancelled) return;
         const sound = new Audio.Sound();
-        await sound.loadAsync(soundMap[trackId]);
-        sounds[trackId] = sound;
+        await sound.loadAsync(samples.beep);
+        pool.push(sound);
       }
 
       if (cancelled) return;
@@ -144,16 +148,16 @@ export function playNoteEvents(
     } finally {
       wake = null;
       clearTimers();
-      // Stop + unload every sound, isolating per-sound failures so one rejection
+      // Stop + unload every pooled voice, isolating per-sound failures so one rejection
       // doesn't leak the remaining native Audio.Sound instances.
-      for (const trackId in sounds) {
+      for (const sound of pool) {
         try {
-          await sounds[trackId].stopAsync();
+          await sound.stopAsync();
         } catch {
           // ignore — sound may already be stopped/unloaded
         }
         try {
-          await sounds[trackId].unloadAsync();
+          await sound.unloadAsync();
         } catch {
           // ignore — best-effort cleanup
         }

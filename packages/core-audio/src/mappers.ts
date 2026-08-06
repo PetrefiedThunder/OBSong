@@ -528,11 +528,19 @@ export function mapTextureToPad(
     stereoSpread = 0.4,
   } = options;
 
+  // Normalize `segments` to a finite positive integer bounded by the profile length. The
+  // loop already terminates via the start-past-end break below, but a non-finite or
+  // fractional value (e.g. from a malformed preset density) would otherwise produce a
+  // nonsensical loop count; this keeps the segmentation well-defined.
+  const segmentCount = Number.isFinite(segments)
+    ? Math.max(1, Math.min(textureProfile.length, Math.floor(segments)))
+    : 6;
+
   // Segment texture into larger chunks
-  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segments));
+  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segmentCount));
   const textureSegments: number[] = [];
 
-  for (let i = 0; i < segments; i++) {
+  for (let i = 0; i < segmentCount; i++) {
     const start = i * segmentSize;
     if (start >= textureProfile.length) break;
     const end = Math.min(start + segmentSize, textureProfile.length);

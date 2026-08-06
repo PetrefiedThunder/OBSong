@@ -330,6 +330,21 @@ describe('preset threading and determinism', () => {
     }
   });
 
+  it('mapTextureToPad normalizes pathological segment counts without hanging', () => {
+    const texture = richAnalysis.textureProfile!;
+    // Non-finite falls back to the default (6); the result matches an unset segments option.
+    const infinite = mapTextureToPad(texture, 'C', 'C_MAJOR', { segments: Infinity });
+    const defaulted = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    expect(infinite).toEqual(defaulted);
+
+    // Zero / negative / fractional are clamped to a valid positive integer and still return.
+    for (const segments of [0, -5, 3.7]) {
+      const notes = mapTextureToPad(texture, 'C', 'C_MAJOR', { segments });
+      expect(Array.isArray(notes)).toBe(true);
+      expect(notes.length).toBeGreaterThan(0);
+    }
+  });
+
   it('two different TOPO_PRESETS produce different multi-voice output', () => {
     const mountains = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains');
     const industrial = TOPO_PRESETS.find((p) => p.id === 'industrial-grid');

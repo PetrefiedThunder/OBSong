@@ -135,6 +135,27 @@ describe('Image Analyzers', () => {
       expect(precomputed.brightnessProfile).toEqual(self.brightnessProfile);
       expect(precomputed.depthProfile).toEqual(self.depthProfile);
     });
+
+    it('ignores a too-short precomputed buffer and falls back to the JS Sobel result', () => {
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      // Length w*h - 1: one pixel short, which would index out of bounds.
+      const short = new Array(w * h - 1).fill(0.5);
+      const result = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: short,
+      });
+
+      expect(result.ridgeStrength).toEqual(self.ridgeStrength);
+    });
+
+    it('ignores an oversized precomputed buffer and falls back to the JS Sobel result', () => {
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      const oversized = new Array(w * h + 5).fill(0.5);
+      const result = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: oversized,
+      });
+
+      expect(result.ridgeStrength).toEqual(self.ridgeStrength);
+    });
   });
 
   describe('large images', () => {

@@ -42,6 +42,14 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     activeUserIdRef.current = activeUserId;
   }, [activeUserId]);
 
+  // Mirror the committed list in a ref so mutations can derive the next list synchronously
+  // and persist it. Reading a variable assigned inside a functional state updater is unsafe:
+  // React may run the updater during a later render, after saveToCache already ran.
+  const compositionsRef = React.useRef(compositions);
+  useEffect(() => {
+    compositionsRef.current = compositions;
+  }, [compositions]);
+
   const saveToCache = useCallback(async (items: Composition[]) => {
     if (!activeUserId) return;
 
@@ -168,13 +176,10 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       // refresh/loadComposition), so we don't write into the wrong user's state/cache.
       if (activeUserIdRef.current !== requestUserId) return created;
 
-      // Capture the freshest list from the updater, then persist it OUTSIDE the updater
-      // (updaters must be pure; the old code called async saveToCache inside it).
-      let nextList: Composition[] = [];
-      setCompositions((prev) => {
-        nextList = [created, ...prev];
-        return nextList;
-      });
+      // Derive the next list from the committed ref (not inside a functional updater) so the
+      // exact list we persist is the one we set.
+      const nextList = [created, ...compositionsRef.current];
+      setCompositions(nextList);
       void saveToCache(nextList);
       setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
       await saveDetailToCache(created);
@@ -188,12 +193,10 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       await apiDeleteComposition(id);
 
       // Prune from in-memory state and the persisted caches so the deleted item
-      // doesn't reappear from cache on the next mount.
-      let nextList: Composition[] = [];
-      setCompositions((prev) => {
-        nextList = prev.filter((c) => c.id !== id);
-        return nextList;
-      });
+      // doesn't reappear from cache on the next mount. Derive the next list from the
+      // committed ref so saveToCache persists exactly what we set.
+      const nextList = compositionsRef.current.filter((c) => c.id !== id);
+      setCompositions(nextList);
       setCompositionsById((prev) => {
         const next = { ...prev };
         delete next[id];
