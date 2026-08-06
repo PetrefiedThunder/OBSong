@@ -36,6 +36,12 @@ const SCALE_INTERVALS: Record<ScaleType, number[]> = {
   C_MIXOLYDIAN: [0, 2, 4, 5, 7, 9, 10],
   // Phrygian mode: H-W-W-W-H-W-W
   E_PHRYGIAN: [0, 1, 3, 5, 7, 8, 10],
+  // Harmonic minor: W-H-W-W-H-A2-H (natural minor with a raised 7th)
+  A_HARMONIC_MINOR: [0, 2, 3, 5, 7, 8, 11],
+  // Lydian mode: W-W-W-H-W-W-H (major scale with a raised 4th)
+  C_LYDIAN: [0, 2, 4, 6, 7, 9, 11],
+  // Whole tone: W-W-W-W-W-W (six equidistant notes)
+  C_WHOLE_TONE: [0, 2, 4, 6, 8, 10],
 };
 
 /**

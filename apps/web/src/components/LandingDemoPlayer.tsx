@@ -55,12 +55,16 @@ function loadTone() {
 interface LandingDemoPlayerProps {
   demoNotes: NoteEvent[];
   scenePack: ScenePack;
+  /** Tempo in BPM. NoteEvent start/duration are in beats and must be converted to the
+   *  seconds that Tone.js expects for numeric Part times. */
+  tempoBpm?: number;
   onClose: () => void;
 }
 
 export function LandingDemoPlayer({
   demoNotes,
   scenePack,
+  tempoBpm = 120,
   onClose,
 }: LandingDemoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -123,11 +127,15 @@ export function LandingDemoPlayer({
       partRef.current.dispose();
     }
 
+    // NoteEvent start/duration are in beats; Tone.js reads numeric Part times as seconds,
+    // so convert with the demo's tempo (otherwise a 40 BPM demo plays as if 60 BPM).
+    const secondsPerBeat = 60 / tempoBpm;
+
     // Create part from note events
     const events = demoNotes.map((note) => ({
-      time: note.start,
+      time: note.start * secondsPerBeat,
       note: note.note,
-      duration: note.duration,
+      duration: note.duration * secondsPerBeat,
       velocity: note.velocity || 0.7,
     }));
 
@@ -146,14 +154,14 @@ export function LandingDemoPlayer({
     setIsPlaying(true);
     tone.Transport.start();
 
-    // Calculate total duration and stop after
-    const maxTime =
-      Math.max(...demoNotes.map((n) => n.start + n.duration)) + 1;
+    // Calculate total duration (seconds) and stop after it elapses (+1s tail).
+    const maxTimeSeconds =
+      Math.max(...demoNotes.map((n) => n.start + n.duration)) * secondsPerBeat + 1;
     stopTimerRef.current = setTimeout(() => {
       stopTimerRef.current = null;
       tone.Transport.stop();
       setIsPlaying(false);
-    }, maxTime * 1000);
+    }, maxTimeSeconds * 1000);
   };
 
   useEffect(() => {

@@ -12,7 +12,6 @@ import rateLimit from '@fastify/rate-limit';
 import underPressure from '@fastify/under-pressure';
 import { config } from './config';
 import { healthRoutes } from './routes/health';
-import { authRoutes } from './routes/auth';
 import { compositionRoutes } from './routes/compositions';
 
 /**
@@ -126,7 +125,6 @@ async function createServer(): Promise<FastifyInstance> {
 
   // Register routes
   await fastify.register(healthRoutes);
-  await fastify.register(authRoutes);
   await fastify.register(compositionRoutes);
 
   await fastify.register(underPressure, {
@@ -147,7 +145,6 @@ async function createServer(): Promise<FastifyInstance> {
       documentation: '/health',
       endpoints: {
         health: '/health',
-        auth: '/auth/login',
         compositions: '/compositions',
       },
     });

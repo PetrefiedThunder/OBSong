@@ -123,6 +123,9 @@ importers:
       '@toposonics/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@toposonics/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       expo:
         specifier: ~50.0.0
         version: 50.0.21(@babel/core@7.28.5)(@react-native/babel-preset@0.85.3)(react-native@0.73.6)(react@18.2.0)

@@ -7,6 +7,9 @@ import { noteNameToMidi } from '@toposonics/core-audio';
 interface TimelineVisualizerProps {
   noteEvents: NoteEvent[];
   currentTime?: number;
+  /** Tempo in BPM. NoteEvent.start/duration are in beats; this converts them to the
+   *  seconds axis that `currentTime` (Transport.seconds) is measured in. */
+  tempo?: number;
   width?: number;
   height?: number;
 }
@@ -14,6 +17,7 @@ interface TimelineVisualizerProps {
 export function TimelineVisualizer({
   noteEvents,
   currentTime = 0,
+  tempo = 120,
   width = 800,
   height = 300,
 }: TimelineVisualizerProps) {
@@ -81,8 +85,11 @@ export function TimelineVisualizer({
       return;
     }
 
-    // Calculate ranges
-    const maxTime = Math.max(...noteEvents.map((e) => e.start + e.duration));
+    // NoteEvent.start/duration are in beats; convert to seconds so the time axis and the
+    // playback cursor (currentTime = Transport.seconds) share the same units.
+    const secondsPerBeat = 60 / tempo;
+    // Calculate ranges (in seconds)
+    const maxTime = Math.max(...noteEvents.map((e) => (e.start + e.duration) * secondsPerBeat));
     const minMidi = Math.min(...noteEvents.map((e) => noteNameToMidi(e.note)));
     const maxMidi = Math.max(...noteEvents.map((e) => noteNameToMidi(e.note)));
     const midiRange = maxMidi - minMidi || 1;
@@ -113,9 +120,11 @@ export function TimelineVisualizer({
     // Draw note events
     noteEvents.forEach((event) => {
       const midi = noteNameToMidi(event.note);
-      const x = padding + (event.start / maxTime) * graphWidth;
+      const startSeconds = event.start * secondsPerBeat;
+      const durationSeconds = event.duration * secondsPerBeat;
+      const x = padding + (startSeconds / maxTime) * graphWidth;
       const y = height - padding - ((midi - minMidi) / midiRange) * graphHeight;
-      const w = (event.duration / maxTime) * graphWidth;
+      const w = (durationSeconds / maxTime) * graphWidth;
       const h = 8;
 
       const alpha = 0.5 + event.velocity * 0.5;
@@ -144,7 +153,7 @@ export function TimelineVisualizer({
     sceneRef.current = scene;
     maxTimeRef.current = maxTime;
     paintFrame();
-  }, [noteEvents, width, height, paintFrame]);
+  }, [noteEvents, tempo, width, height, paintFrame]);
 
   // Cheap per-frame update: currentTime changes ~60x/sec during playback; just blit the
   // cached scene and redraw the cursor (no scene rebuild).

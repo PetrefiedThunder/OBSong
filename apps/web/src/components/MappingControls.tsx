@@ -19,15 +19,34 @@ interface MappingControlsProps {
 
 const KEYS: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// One option per distinct scale *quality*. The root note is chosen separately via `key`,
+// so the legacy root-prefixed ScaleType values that share an interval pattern (e.g.
+// C_MAJOR/D_MAJOR/G_MAJOR) collapse to a single canonical entry here.
 const SCALES: { value: ScaleType; label: string }[] = [
   { value: 'C_MAJOR', label: 'Major' },
   { value: 'C_MINOR', label: 'Natural Minor' },
+  { value: 'A_HARMONIC_MINOR', label: 'Harmonic Minor' },
   { value: 'C_PENTATONIC', label: 'Pentatonic Major' },
   { value: 'A_MINOR_PENTATONIC', label: 'Pentatonic Minor' },
   { value: 'C_BLUES', label: 'Blues' },
   { value: 'D_DORIAN', label: 'Dorian' },
+  { value: 'C_MIXOLYDIAN', label: 'Mixolydian' },
   { value: 'E_PHRYGIAN', label: 'Phrygian' },
+  { value: 'C_LYDIAN', label: 'Lydian' },
+  { value: 'C_WHOLE_TONE', label: 'Whole Tone' },
 ];
+
+// Scene packs may set a root-prefixed alias whose interval pattern matches a canonical
+// option above. Normalize those to the canonical value so the <select> never renders blank
+// (an unmatched value shows no selection). Unlisted values map to themselves.
+const SCALE_ALIASES: Partial<Record<ScaleType, ScaleType>> = {
+  D_MAJOR: 'C_MAJOR',
+  G_MAJOR: 'C_MAJOR',
+  E_MINOR: 'C_MINOR',
+  A_MINOR: 'C_MINOR',
+  A_SHARP_MINOR: 'C_MINOR',
+  A_DORIAN: 'D_DORIAN',
+};
 
 const MAPPING_MODES: { value: MappingMode; label: string; description: string }[] = [
   {
@@ -149,7 +168,7 @@ export function MappingControls({
         </label>
         <select
           id={scaleId}
-          value={scale}
+          value={SCALE_ALIASES[scale] ?? scale}
           onChange={(e) => onScaleChange(e.target.value as ScaleType)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >

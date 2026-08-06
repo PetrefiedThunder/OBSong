@@ -1,5 +1,6 @@
-import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition, mapHorizonToBass } from '../mappers';
-import { noteNameToMidi } from '../scales';
+import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition, mapHorizonToBass, mapTextureToPad } from '../mappers';
+import { noteNameToMidi, getScaleNotes } from '../scales';
+import { TOPO_PRESETS } from '../topoPresets';
 import type { ImageAnalysisResult, LinearLandscapeOptions, NoteEvent, DepthRidgeOptions, MultiVoiceOptions } from '@toposonics/types';
 
 describe('mapLinearLandscape', () => {
@@ -285,6 +286,151 @@ describe('mapHorizonToBass', () => {
       expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('A1'));
       expect(midi).toBeLessThanOrEqual(noteNameToMidi('E2'));
     }
+  });
+});
+
+describe('preset threading and determinism', () => {
+  // A richer, fully deterministic fixture with enough columns to exercise every voice.
+  const richAnalysis: ImageAnalysisResult = {
+    width: 32,
+    height: 32,
+    brightnessProfile: Array.from({ length: 32 }, (_, i) => (i * 37) % 256),
+    ridgeStrength: Array.from({ length: 32 }, (_, i) => ((i * 29) % 100) / 100),
+    horizonProfile: Array.from({ length: 32 }, (_, i) => ((i * 13) % 100) / 100),
+    textureProfile: Array.from({ length: 32 }, (_, i) => ((i * 17) % 100) / 100),
+  };
+
+  const baseOptions: MultiVoiceOptions = { key: 'D', scale: 'D_MAJOR' };
+
+  it('is deterministic: the same input twice produces deep-equal output', () => {
+    const preset = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains');
+    expect(preset).toBeDefined();
+
+    const first = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, preset);
+    const second = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, preset);
+    expect(first.length).toBeGreaterThan(0);
+    expect(second).toEqual(first);
+
+    // No-preset path must be deterministic too.
+    const third = mapImageToMultiVoiceComposition(richAnalysis, baseOptions);
+    const fourth = mapImageToMultiVoiceComposition(richAnalysis, baseOptions);
+    expect(fourth).toEqual(third);
+  });
+
+  it('mapTextureToPad uses a deterministic chord-index pan (no randomness)', () => {
+    const texture = richAnalysis.textureProfile!;
+    const first = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    const second = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    expect(first.length).toBeGreaterThan(0);
+    expect(second).toEqual(first);
+
+    // Pan stays within the default stereoSpread (0.4) window.
+    for (const note of first) {
+      expect(Math.abs(note.pan ?? 0)).toBeLessThanOrEqual(0.2);
+    }
+  });
+
+  it('mapTextureToPad normalizes pathological segment counts without hanging', () => {
+    const texture = richAnalysis.textureProfile!;
+    // Non-finite falls back to the default (6); the result matches an unset segments option.
+    const infinite = mapTextureToPad(texture, 'C', 'C_MAJOR', { segments: Infinity });
+    const defaulted = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    expect(infinite).toEqual(defaulted);
+
+    // Zero / negative / fractional are clamped to a valid positive integer and still return.
+    for (const segments of [0, -5, 3.7]) {
+      const notes = mapTextureToPad(texture, 'C', 'C_MAJOR', { segments });
+      expect(Array.isArray(notes)).toBe(true);
+      expect(notes.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('two different TOPO_PRESETS produce different multi-voice output', () => {
+    const mountains = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains');
+    const industrial = TOPO_PRESETS.find((p) => p.id === 'industrial-grid');
+    expect(mountains).toBeDefined();
+    expect(industrial).toBeDefined();
+
+    const a = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, mountains);
+    const b = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, industrial);
+
+    expect(a.length).toBeGreaterThan(0);
+    expect(b.length).toBeGreaterThan(0);
+    expect(a).not.toEqual(b);
+  });
+
+  it('keeps pad notes within the preset pad range', () => {
+    const preset = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains')!;
+    const notes = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, preset);
+    const padNotes = notes.filter((n) => n.trackId === 'pad');
+
+    expect(padNotes.length).toBeGreaterThan(0);
+    const minMidi = noteNameToMidi(preset.voices.pad.minNote);
+    const maxMidi = noteNameToMidi(preset.voices.pad.maxNote);
+    for (const note of padNotes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(minMidi);
+      expect(midi).toBeLessThanOrEqual(maxMidi);
+    }
+  });
+
+  it('keeps caller-supplied options over preset values', () => {
+    const preset = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains')!;
+    const notes = mapImageToMultiVoiceComposition(
+      richAnalysis,
+      { ...baseOptions, padOptions: { minNote: 'C4', maxNote: 'C5' } },
+      preset
+    );
+    const padNotes = notes.filter((n) => n.trackId === 'pad');
+
+    expect(padNotes.length).toBeGreaterThan(0);
+    for (const note of padNotes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('C4'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('C5'));
+    }
+  });
+
+  it('produces identical no-preset output regardless of the new optional fields', () => {
+    // Explicitly passing the documented defaults must match passing nothing.
+    const texture = richAnalysis.textureProfile!;
+    const implicit = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    const explicit = mapTextureToPad(texture, 'C', 'C_MAJOR', {
+      minNote: 'C3',
+      maxNote: 'C5',
+      segments: 6,
+      noteDuration: 6,
+      velocityMin: 0.4,
+      velocityMax: 0.7,
+      reverbSend: 0.5,
+      filterBrightness: 0.5,
+      stereoSpread: 0.4,
+    });
+    expect(explicit).toEqual(implicit);
+  });
+});
+
+describe('new scales', () => {
+  it('generates correct harmonic minor notes (A_HARMONIC_MINOR)', () => {
+    expect(getScaleNotes('A', 'A_HARMONIC_MINOR', 1, 3)).toEqual([
+      'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G#4',
+    ]);
+  });
+
+  it('generates correct lydian notes (C_LYDIAN)', () => {
+    expect(getScaleNotes('C', 'C_LYDIAN', 1, 4)).toEqual([
+      'C4', 'D4', 'E4', 'F#4', 'G4', 'A4', 'B4',
+    ]);
+  });
+
+  it('generates correct whole tone notes (C_WHOLE_TONE)', () => {
+    expect(getScaleNotes('C', 'C_WHOLE_TONE', 1, 4)).toEqual([
+      'C4', 'D4', 'E4', 'F#4', 'G#4', 'A#4',
+    ]);
+    // Whole tone transposes cleanly to other keys as well.
+    expect(getScaleNotes('G', 'C_WHOLE_TONE', 1, 3)).toEqual([
+      'G3', 'A3', 'B3', 'C#4', 'D#4', 'F4',
+    ]);
   });
 });
 

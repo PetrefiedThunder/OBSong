@@ -38,16 +38,6 @@ cp apps/api/.env.example apps/api/.env
 - `GET /health`
 - `GET /health/detailed`
 
-### Auth
-
-- `POST /auth/login`
-
-```json
-{
-  "accessToken": "<supabase-access-token>"
-}
-```
-
 ### Compositions
 
 All composition routes require `Authorization: Bearer <accessToken>`.

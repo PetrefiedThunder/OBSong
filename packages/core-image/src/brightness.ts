@@ -3,8 +3,6 @@
  * Environment-agnostic functions for analyzing image brightness
  */
 
-import { arrayMax, arrayMin } from './arrayStats';
-
 /**
  * Compute brightness for a single pixel from RGBA values
  * Uses weighted average based on human perception (ITU-R BT.709)
@@ -56,27 +54,6 @@ export function computeBrightnessProfileFromRow(
   }
 
   return profile;
-}
-
-/**
- * Normalize brightness values to 0-1 range
- *
- * @param profile - Brightness values (any range)
- * @returns Normalized values (0-1)
- */
-export function computeNormalizedBrightness(profile: number[]): number[] {
-  if (profile.length === 0) return [];
-
-  const min = arrayMin(profile);
-  const max = arrayMax(profile);
-  const range = max - min;
-
-  // Avoid division by zero
-  if (range === 0) {
-    return profile.map(() => 0.5);
-  }
-
-  return profile.map((value) => (value - min) / range);
 }
 
 /**
