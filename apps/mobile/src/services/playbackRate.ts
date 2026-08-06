@@ -19,7 +19,14 @@ export function computePlaybackRate(frequency: number, base: number = BASE_FREQU
     return 1;
   }
 
-  let rate = frequency / base;
+  // The ratio itself can still underflow to 0 or overflow to Infinity with finite positive
+  // inputs (e.g. MIN_VALUE / MAX_VALUE); either would make the folding loops spin forever.
+  const ratio = frequency / base;
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return 1;
+  }
+
+  let rate = ratio;
   while (rate < 0.5) rate *= 2;
   while (rate > 2.5) rate /= 2;
 

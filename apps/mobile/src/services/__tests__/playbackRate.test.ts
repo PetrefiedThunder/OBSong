@@ -43,4 +43,11 @@ describe('computePlaybackRate', () => {
     expect(computePlaybackRate(440, 0)).toBe(1);
     expect(computePlaybackRate(440, Number.NaN)).toBe(1);
   });
+
+  it('returns 1 when the ratio itself underflows or overflows (no infinite folding)', () => {
+    // Both inputs are finite and positive, but the ratio is 0 / Infinity — without a
+    // ratio guard the folding loops would never terminate.
+    expect(computePlaybackRate(Number.MIN_VALUE, Number.MAX_VALUE)).toBe(1);
+    expect(computePlaybackRate(Number.MAX_VALUE, Number.MIN_VALUE)).toBe(1);
+  });
 });

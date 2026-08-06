@@ -136,6 +136,24 @@ describe('createApiClient.fetchAllCompositions', () => {
     await expect(fetchAllCompositions('tok')).resolves.toEqual([]);
     expect(fn).toHaveBeenCalledTimes(1);
   });
+
+  it('warns instead of silently truncating when every page up to the guard is full', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
+    const fn = vi
+      .fn()
+      .mockResolvedValue(mockResponse({ status: 200, body: { success: true, data: fullPage } }));
+    vi.stubGlobal('fetch', fn);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+
+    // Guard stops after exactly 50 pages and flags the possible truncation.
+    expect(fn).toHaveBeenCalledTimes(50);
+    expect(result).toHaveLength(5000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
 });
 
 async function stubFetchAndCall(opts: Parameters<typeof mockResponse>[0]) {

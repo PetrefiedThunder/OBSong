@@ -124,6 +124,7 @@ export function createApiClient(config: ApiClientConfig) {
       const pageSize = 100;
       const maxPages = 50;
       const all: CompositionSummary[] = [];
+      let sawShortPage = false;
 
       for (let page = 0; page < maxPages; page++) {
         const batch = await fetchCompositions(token, {
@@ -131,7 +132,19 @@ export function createApiClient(config: ApiClientConfig) {
           offset: page * pageSize,
         });
         all.push(...batch);
-        if (batch.length < pageSize) break;
+        if (batch.length < pageSize) {
+          sawShortPage = true;
+          break;
+        }
+      }
+
+      // Every page came back full, so more rows may exist beyond the runaway guard.
+      // Don't silently present a truncated result as the complete library.
+      if (!sawShortPage) {
+        console.warn(
+          `fetchAllCompositions stopped at the ${maxPages * pageSize}-row guard; ` +
+            'the library may be larger than what was returned.'
+        );
       }
 
       return all;

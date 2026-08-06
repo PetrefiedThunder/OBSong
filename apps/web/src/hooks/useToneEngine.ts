@@ -98,7 +98,14 @@ interface VoiceSynth {
   reverb: ToneReverb;
   filter: ToneFilter;
   panner: TonePanner;
+  delay: ToneFeedbackDelay | null;
 }
+
+// Tone's FeedbackDelay defaults to a fully wet mix, which would REPLACE the dry signal
+// with delayed repeats (shifting every note by the delay time). A partial wet layers
+// echoes over the original instead; presets only declare time/feedback, so the mix is
+// fixed here.
+const DELAY_WET = 0.35;
 
 // NoteEvent.effects.filterCutoff is normalized 0-1 (brightness-driven). Map it onto an
 // exponential frequency curve (~200 Hz at 0, ~8 kHz at 1) so equal cutoff steps sound
@@ -167,6 +174,7 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       voiceSynth.reverb.dispose();
       voiceSynth.filter.dispose();
       voiceSynth.panner.dispose();
+      voiceSynth.delay?.dispose();
     }
     voiceSynthsRef.current.clear();
 
@@ -261,9 +269,25 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
         Q: 1,
       }) as ToneFilter;
       const panner = new tone.Panner(0) as TonePanner;
-      synth.chain(filter, panner, reverb, tone.Destination);
 
-      voiceSynthsRef.current.set(voice, { synth, reverb, filter, panner });
+      // Presets may declare a delay effect; give each voice its own FeedbackDelay so
+      // multi-voice compositions render it too (before reverb, sharing its tail).
+      const delayConfig = preset.synthesis?.effects?.delay;
+      const delay = delayConfig
+        ? (new tone.FeedbackDelay({
+            delayTime: delayConfig.time,
+            feedback: delayConfig.feedback,
+            wet: DELAY_WET,
+          }) as ToneFeedbackDelay)
+        : null;
+
+      if (delay) {
+        synth.chain(filter, panner, delay, reverb, tone.Destination);
+      } else {
+        synth.chain(filter, panner, reverb, tone.Destination);
+      }
+
+      voiceSynthsRef.current.set(voice, { synth, reverb, filter, panner, delay });
     }
   }, [preset]);
 
@@ -297,10 +321,15 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
     const panner = new tone.Panner(0) as TonePanner;
 
     // Presets may declare a delay effect; insert a FeedbackDelay into the chain so it
-    // actually sounds (before reverb, so echoes share the preset's reverb tail).
+    // actually sounds (before reverb, so echoes share the preset's reverb tail). Partial
+    // wet — the default fully-wet mix would replace the dry signal with shifted repeats.
     const delayConfig = preset.synthesis?.effects?.delay;
     const delay = delayConfig
-      ? (new tone.FeedbackDelay(delayConfig.time, delayConfig.feedback) as ToneFeedbackDelay)
+      ? (new tone.FeedbackDelay({
+          delayTime: delayConfig.time,
+          feedback: delayConfig.feedback,
+          wet: DELAY_WET,
+        }) as ToneFeedbackDelay)
       : null;
 
     if (delay) {

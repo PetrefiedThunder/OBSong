@@ -196,8 +196,10 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
         updatedAt: created.updatedAt,
       };
       // Derive the next list from the committed ref (not inside a functional updater) so the
-      // exact list we persist is the one we set.
+      // exact list we persist is the one we set. Assign the ref immediately so a second
+      // mutation completing before React's sync effect runs builds on this list, not a stale one.
       const nextList = [createdSummary, ...compositionsRef.current];
+      compositionsRef.current = nextList;
       setCompositions(nextList);
       void saveToCache(nextList);
       setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
@@ -213,8 +215,10 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
 
       // Prune from in-memory state and the persisted caches so the deleted item
       // doesn't reappear from cache on the next mount. Derive the next list from the
-      // committed ref so saveToCache persists exactly what we set.
+      // committed ref so saveToCache persists exactly what we set; assign the ref
+      // immediately so back-to-back mutations never build on a stale list.
       const nextList = compositionsRef.current.filter((c) => c.id !== id);
+      compositionsRef.current = nextList;
       setCompositions(nextList);
       setCompositionsById((prev) => {
         const next = { ...prev };

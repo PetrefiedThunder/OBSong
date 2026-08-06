@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@toposonics/ui';
 import { getAllScenePacks } from '@toposonics/core-audio';
@@ -9,7 +9,7 @@ import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
 import { TourProvider, useTour } from '@/components/tour/TourProvider';
 import { TourPopup } from '@/components/tour/TourPopup';
 import { mockNoteEvents, tourDemoTempoBpm } from '@toposonics/shared';
-import { playDemoNotes, type DemoPlaybackController } from '@/lib/demoPlayback';
+import { playDemoNotes, unlockAudio } from '@/lib/demoPlayback';
 import { theme } from '@toposonics/ui';
 
 type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
@@ -17,32 +17,18 @@ type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
 /**
  * Runs tour-step side effects: while the PLAY_MUSIC step is open the sample phrase
  * audibly plays, and it stops as soon as the user advances, skips, or leaves.
+ * playDemoNotes returns its controller synchronously, so cleanup cancels correctly
+ * even while Tone is still loading. (The audio context itself is unlocked from the
+ * tour buttons' click handlers — see TourPopup.)
  */
 function TourWrapper() {
   const { tourStep } = useTour();
-  const playbackRef = useRef<DemoPlaybackController | null>(null);
 
   useEffect(() => {
     if (tourStep?.action !== 'PLAY_MUSIC') return undefined;
 
-    let cancelled = false;
-    void playDemoNotes(mockNoteEvents, tourDemoTempoBpm)
-      .then((controller) => {
-        if (cancelled) {
-          controller.stop();
-          return;
-        }
-        playbackRef.current = controller;
-      })
-      .catch((error) => {
-        console.error('Tour demo playback failed:', error);
-      });
-
-    return () => {
-      cancelled = true;
-      playbackRef.current?.stop();
-      playbackRef.current = null;
-    };
+    const controller = playDemoNotes(mockNoteEvents, tourDemoTempoBpm);
+    return () => controller.stop();
   }, [tourStep]);
 
   return null;
@@ -113,7 +99,17 @@ function HomePageContent() {
                 Open Studio
               </Button>
             </Link>
-            <Button variant="secondary" size="lg" onClick={startTour}>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                // Unlock the audio context inside the real click gesture so the tour's
+                // PLAY_MUSIC step (which fires from an effect, outside any gesture) can
+                // audibly play under strict browser autoplay policies.
+                unlockAudio();
+                startTour();
+              }}
+            >
               Take the Tour
             </Button>
           </div>

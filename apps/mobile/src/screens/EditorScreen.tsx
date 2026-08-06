@@ -266,9 +266,11 @@ export default function EditorScreen() {
         noteEvents: generation.noteEvents as NoteEvent[],
         // Save the mode the notes were actually generated with, not whatever chip is
         // currently selected (the user may have switched modes without regenerating).
+        // Persist the parameters the notes were actually generated with — the chips may
+        // have changed since generation, and saving those would disagree with noteEvents.
         mappingMode: generation.metadata.mappingMode,
-        key: selectedKey,
-        scale: selectedScale,
+        key: generation.metadata.key,
+        scale: generation.metadata.scale,
         tempo,
         imageData: imageData ? `data:image/png;base64,${imageData}` : undefined,
         metadata: {
@@ -291,7 +293,7 @@ export default function EditorScreen() {
     } finally {
       setSaving(false);
     }
-  }, [description, generation, imageUri, saveComposition, selectedKey, selectedScale, title, token]);
+  }, [description, generation, imageUri, saveComposition, title, token]);
 
   React.useEffect(() => {
     if (token && pendingPostSignInAction === 'save') {

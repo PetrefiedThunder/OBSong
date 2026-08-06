@@ -73,8 +73,8 @@ export interface CompositionSummary {
   tempo?: number;
   /** Optional: Base64-encoded thumbnail of source image. */
   imageThumbnail?: string;
-  /** Number of note events; undefined for rows saved before metadata.noteCount existed. */
-  noteCount: number | undefined;
+  /** Number of note events; absent for rows saved before metadata.noteCount existed. */
+  noteCount?: number;
   /** Creation timestamp. */
   createdAt: Date;
   /** Last update timestamp. */
