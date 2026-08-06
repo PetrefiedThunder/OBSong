@@ -131,6 +131,17 @@ export function playNoteEvents(
   return { cancel, done };
 }
 
+/**
+ * Total composition length in seconds. Notes overlap (multi-voice) and are positioned by
+ * `start`, so the length is the end of the last-finishing note — max(start + duration) —
+ * not the sum of every note's duration (which over-counts overlapping voices). Matches the
+ * web Tone engine's duration math.
+ */
 export function formatNoteEventsDuration(events: NoteEvent[], tempo = 90): number {
-  return events.reduce((total, event) => total + (event.duration ?? 0.5), 0) * (60 / tempo);
+  if (events.length === 0) return 0;
+  const beats = events.reduce(
+    (max, event) => Math.max(max, (event.start ?? 0) + (event.duration ?? 0.5)),
+    0
+  );
+  return beats * (60 / tempo);
 }
