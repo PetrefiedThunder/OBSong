@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, type RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../App';
 import type { Composition } from '@toposonics/types';
 import { useAuth } from '../auth/AuthProvider';
@@ -26,15 +26,17 @@ type Props = {
 
 export default function CompositionDetailScreen({ route }: Props) {
   const { id } = route.params;
+  const navigation = useNavigation();
   const [composition, setComposition] = useState<Composition | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const playbackRef = React.useRef<PlaybackController | null>(null);
   const isMountedRef = React.useRef(true);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
-  const { loadComposition: loadCompositionRecord } = useCompositions();
+  const { loadComposition: loadCompositionRecord, removeComposition } = useCompositions();
 
   const loadCompositionFromStore = useCallback(async () => {
     const data = await loadCompositionRecord(id);
@@ -92,6 +94,37 @@ export default function CompositionDetailScreen({ route }: Props) {
         setIsPlaying(false);
       }
     }
+  };
+
+  const stopPlayback = () => {
+    playbackRef.current?.cancel();
+  };
+
+  const handleDelete = () => {
+    if (!composition) return;
+
+    Alert.alert(
+      'Delete composition',
+      `Delete "${composition.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              playbackRef.current?.cancel();
+              await removeComposition(composition.id);
+              navigation.goBack();
+            } catch (error) {
+              if (isMountedRef.current) setIsDeleting(false);
+              Alert.alert('Delete failed', (error as Error).message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handlePasswordSignIn = async (email: string, password: string) => {
@@ -207,13 +240,27 @@ export default function CompositionDetailScreen({ route }: Props) {
       </View>
 
       <View style={styles.section}>
+        {isPlaying ? (
+          <TouchableOpacity style={styles.stopButton} onPress={stopPlayback}>
+            <Text style={styles.playButtonText}>⏹ Stop</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={playComposition}
+            disabled={isDeleting}
+          >
+            <Text style={styles.playButtonText}>▶ Play Composition</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
-          style={[styles.playButton, isPlaying && styles.playButtonDisabled]}
-          onPress={playComposition}
-          disabled={isPlaying}
+          style={[styles.deleteButton, isDeleting && styles.playButtonDisabled]}
+          onPress={handleDelete}
+          disabled={isDeleting}
         >
-          <Text style={styles.playButtonText}>
-            {isPlaying ? 'Playing…' : '▶ Play Composition'}
+          <Text style={styles.deleteButtonText}>
+            {isDeleting ? 'Deleting…' : 'Delete Composition'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -295,12 +342,31 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  stopButton: {
+    backgroundColor: '#4b5563',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
   playButtonDisabled: {
     opacity: 0.7,
   },
   playButtonText: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    marginTop: 12,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  deleteButtonText: {
+    color: '#ef4444',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

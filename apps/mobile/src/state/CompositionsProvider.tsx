@@ -1,7 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Composition, CreateCompositionDTO } from '@toposonics/types';
-import { fetchComposition, fetchCompositions, createComposition } from '../services/apiClient';
+import {
+  fetchComposition,
+  fetchCompositions,
+  createComposition,
+  deleteComposition as apiDeleteComposition,
+} from '../services/apiClient';
 import { useAuth } from '../auth/AuthProvider';
 import {
   canUseCompositionCache,
@@ -17,6 +22,7 @@ interface CompositionsContextValue {
   refresh: () => Promise<void>;
   loadComposition: (id: string) => Promise<Composition | null>;
   saveComposition: (payload: Omit<CreateCompositionDTO, 'userId'>) => Promise<Composition | null>;
+  removeComposition: (id: string) => Promise<void>;
 }
 
 const CompositionsContext = createContext<CompositionsContextValue | undefined>(undefined);
@@ -177,6 +183,34 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     [activeUserId, token, saveDetailToCache, saveToCache]
   );
 
+  const removeComposition = useCallback(
+    async (id: string) => {
+      await apiDeleteComposition(id);
+
+      // Prune from in-memory state and the persisted caches so the deleted item
+      // doesn't reappear from cache on the next mount.
+      let nextList: Composition[] = [];
+      setCompositions((prev) => {
+        nextList = prev.filter((c) => c.id !== id);
+        return nextList;
+      });
+      setCompositionsById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      void saveToCache(nextList);
+      if (activeUserId) {
+        try {
+          await AsyncStorage.removeItem(getCompositionDetailCacheKey(activeUserId, id));
+        } catch (err) {
+          console.warn('Failed to evict composition detail cache', err);
+        }
+      }
+    },
+    [activeUserId, saveToCache]
+  );
+
   const value = useMemo(
     () => ({
       compositions,
@@ -186,8 +220,18 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       refresh,
       loadComposition,
       saveComposition,
+      removeComposition,
     }),
-    [compositions, compositionsById, loading, usingCache, refresh, loadComposition, saveComposition]
+    [
+      compositions,
+      compositionsById,
+      loading,
+      usingCache,
+      refresh,
+      loadComposition,
+      saveComposition,
+      removeComposition,
+    ]
   );
 
   return <CompositionsContext.Provider value={value}>{children}</CompositionsContext.Provider>;

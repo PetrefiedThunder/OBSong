@@ -31,18 +31,21 @@ export function playNoteEvents(
   options: PlaybackOptions = {}
 ): PlaybackController {
   let cancelled = false;
-  let pendingTimer: ReturnType<typeof setTimeout> | null = null;
   let wake: (() => void) | null = null;
+  const timers: Array<ReturnType<typeof setTimeout>> = [];
+
+  const clearTimers = () => {
+    for (const timer of timers) clearTimeout(timer);
+    timers.length = 0;
+  };
 
   const cancel = () => {
     cancelled = true;
-    if (pendingTimer) {
-      clearTimeout(pendingTimer);
-      pendingTimer = null;
-    }
+    clearTimers();
     if (wake) {
-      wake();
+      const resolve = wake;
       wake = null;
+      resolve();
     }
   };
 
@@ -60,6 +63,38 @@ export function playNoteEvents(
 
     const sounds: { [key: string]: Audio.Sound } = {};
 
+    // Trigger one note on its track's sound. Errors are swallowed so a mid-playback reuse
+    // (two notes overlapping on the same track's beep) can't reject the whole session.
+    const triggerNote = async (event: NoteEvent) => {
+      if (cancelled) return;
+      const trackId = event.trackId || 'default';
+      const sound = sounds[trackId] || sounds.default;
+      if (!sound) return;
+
+      const frequency = noteToFrequency(event.note);
+      const playbackRate = Math.max(0.5, Math.min(2.5, frequency / BASE_FREQUENCY));
+
+      const volume = event.velocity ?? 0.8;
+      // Use != null (not truthiness) so filterCutoff === 0 (a fully dark pixel) applies
+      // the intended 0.5x attenuation instead of falling through to full volume.
+      const finalVolume =
+        event.effects?.filterCutoff != null
+          ? volume * (0.5 + event.effects.filterCutoff * 0.5)
+          : volume;
+
+      try {
+        await sound.setPositionAsync(0);
+        // shouldCorrectPitch MUST be false: the whole pitch mechanism is varying the
+        // playback rate of a single beep. Pitch correction would time-stretch while
+        // preserving pitch, flattening every note to the sample's native pitch.
+        await sound.setRateAsync(playbackRate, false);
+        await sound.setVolumeAsync(Math.min(1, finalVolume));
+        await sound.playAsync();
+      } catch {
+        // ignore — transient error (e.g. sound retriggered while still playing)
+      }
+    };
+
     try {
       // Load all sounds
       for (const trackId of Object.keys(soundMap) as Array<keyof typeof soundMap>) {
@@ -69,48 +104,46 @@ export function playNoteEvents(
         sounds[trackId] = sound;
       }
 
-      for (let i = 0; i < events.length; i++) {
-        if (cancelled) break;
+      if (cancelled) return;
 
-        const event = events[i];
-        const trackId = event.trackId || 'default';
-        const sound = sounds[trackId] || sounds.default;
+      // Notes carry a `start` (beats) and overlap across voices, so schedule each to fire
+      // at its own offset from playback start rather than playing them back-to-back.
+      // Playback ends once the last-finishing note's tail has elapsed.
+      const ordered = [...events].sort((a, b) => a.start - b.start);
+      const endOfLastMs =
+        ordered.reduce((max, e) => Math.max(max, (e.start ?? 0) + (e.duration ?? 0.5)), 0) *
+        beatDurationMs;
 
-        if (!sound) continue;
+      let played = 0;
 
-        const frequency = noteToFrequency(event.note);
-        const playbackRate = Math.max(0.5, Math.min(2.5, frequency / BASE_FREQUENCY));
+      await new Promise<void>((resolve) => {
+        if (cancelled) {
+          resolve();
+          return;
+        }
 
-        const volume = event.velocity ?? 0.8;
-        // Use != null (not truthiness) so filterCutoff === 0 (a fully dark pixel) applies
-        // the intended 0.5x attenuation instead of falling through to full volume.
-        const finalVolume =
-          event.effects?.filterCutoff != null
-            ? volume * (0.5 + event.effects.filterCutoff * 0.5)
-            : volume;
+        // cancel() clears the timers and calls wake() to resolve this promise early.
+        wake = resolve;
 
-        await sound.setPositionAsync(0);
-        // shouldCorrectPitch MUST be false: the whole pitch mechanism is varying the
-        // playback rate of a single beep. Pitch correction would time-stretch while
-        // preserving pitch, flattening every note to the sample's native pitch.
-        await sound.setRateAsync(playbackRate, false);
-        await sound.setVolumeAsync(Math.min(1, finalVolume));
-        await sound.playAsync();
+        for (const event of ordered) {
+          const fireAt = Math.max(0, (event.start ?? 0) * beatDurationMs);
+          timers.push(
+            setTimeout(() => {
+              if (cancelled) return;
+              void triggerNote(event);
+              played += 1;
+              options.onProgress?.(played, ordered.length);
+            }, fireAt)
+          );
+        }
 
-        options.onProgress?.(i + 1, events.length);
-
-        const durationMs = beatDurationMs * (event.duration ?? 0.5);
-        // Interruptible wait so cancel() halts playback promptly.
-        await new Promise<void>((resolve) => {
-          wake = resolve;
-          pendingTimer = setTimeout(() => {
-            pendingTimer = null;
-            wake = null;
-            resolve();
-          }, durationMs);
-        });
-      }
+        // Resolve once the last note has had time to ring out (250 ms tail). Calling an
+        // already-settled Promise resolve again (via cancel) is a safe no-op.
+        timers.push(setTimeout(resolve, endOfLastMs + 250));
+      });
     } finally {
+      wake = null;
+      clearTimers();
       // Stop + unload every sound, isolating per-sound failures so one rejection
       // doesn't leak the remaining native Audio.Sound instances.
       for (const trackId in sounds) {
