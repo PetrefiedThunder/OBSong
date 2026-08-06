@@ -43,6 +43,15 @@ export const apiClient = {
   },
 
   /**
+   * Fetch the entire composition library, paging past the server's page cap so
+   * libraries larger than one page don't lose older saves from the list.
+   */
+  async fetchAllCompositions(): Promise<CompositionSummary[]> {
+    const token = await getAuthToken();
+    return baseClient.fetchAllCompositions(token);
+  },
+
+  /**
    * Fetch a single composition by ID
    * Automatically attaches auth token if user is signed in
    */
@@ -91,6 +100,7 @@ export const apiClient = {
 // Export individual methods for convenience
 export const {
   fetchCompositions,
+  fetchAllCompositions,
   fetchComposition,
   createComposition,
   updateComposition,

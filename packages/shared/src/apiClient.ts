@@ -93,21 +93,48 @@ export async function apiRequest<T>(
 export function createApiClient(config: ApiClientConfig) {
   const { baseUrl } = config;
 
+  /**
+   * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
+   * Requires authentication for private library access
+   */
+  const fetchCompositions = async (
+    token: string | null,
+    options: FetchCompositionsOptions = {}
+  ): Promise<CompositionSummary[]> => {
+    // Build the query string by hand: React Native's URLSearchParams lacks set().
+    const params: string[] = [];
+    if (options.limit !== undefined) params.push(`limit=${options.limit}`);
+    if (options.offset !== undefined) params.push(`offset=${options.offset}`);
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    return apiRequest<CompositionSummary[]>(baseUrl, `/compositions${query}`, { token });
+  };
+
   return {
+    fetchCompositions,
+
     /**
-     * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
-     * Requires authentication for private library access
+     * Fetch the user's entire composition library by paging through the summary
+     * endpoint until a short page signals the end. Summaries are small (no
+     * noteEvents/imageData blobs), so loading the full library stays cheap while
+     * the server-side page cap protects the API. Bounded at 50 pages (5000 rows)
+     * as a runaway guard. A closure over fetchCompositions (not `this`) so the
+     * method survives the destructuring re-exports in the apps.
      */
-    async fetchCompositions(
-      token: string | null,
-      options: FetchCompositionsOptions = {}
-    ): Promise<CompositionSummary[]> {
-      // Build the query string by hand: React Native's URLSearchParams lacks set().
-      const params: string[] = [];
-      if (options.limit !== undefined) params.push(`limit=${options.limit}`);
-      if (options.offset !== undefined) params.push(`offset=${options.offset}`);
-      const query = params.length > 0 ? `?${params.join('&')}` : '';
-      return apiRequest<CompositionSummary[]>(baseUrl, `/compositions${query}`, { token });
+    async fetchAllCompositions(token: string | null): Promise<CompositionSummary[]> {
+      const pageSize = 100;
+      const maxPages = 50;
+      const all: CompositionSummary[] = [];
+
+      for (let page = 0; page < maxPages; page++) {
+        const batch = await fetchCompositions(token, {
+          limit: pageSize,
+          offset: page * pageSize,
+        });
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+
+      return all;
     },
 
     /**

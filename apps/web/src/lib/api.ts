@@ -12,6 +12,7 @@ const apiClient = createApiClient({ baseUrl: API_URL });
 
 export const {
   fetchCompositions,
+  fetchAllCompositions,
   fetchComposition,
   createComposition,
   updateComposition,

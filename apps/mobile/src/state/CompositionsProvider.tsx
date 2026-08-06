@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Composition, CompositionSummary, CreateCompositionDTO } from '@toposonics/types';
 import {
   fetchComposition,
-  fetchCompositions,
+  fetchAllCompositions,
   createComposition,
   deleteComposition as apiDeleteComposition,
 } from '../services/apiClient';
@@ -113,7 +113,9 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     setLoading(true);
     setUsingCache(false);
     try {
-      const data = await fetchCompositions();
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions();
       // Discard results if the active user changed while the request was in flight,
       // so we never repopulate a signed-out screen (or another account) with A's data.
       if (activeUserIdRef.current !== requestUserId) return;

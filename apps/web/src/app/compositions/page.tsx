@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@toposonics/ui';
 import type { CompositionSummary } from '@toposonics/types';
-import { fetchCompositions } from '@/lib/api';
+import { fetchAllCompositions } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginModal } from '@/components/LoginModal';
 
@@ -23,7 +23,9 @@ export default function CompositionsPage() {
     setError(null);
 
     try {
-      const data = await fetchCompositions(token);
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions(token);
       setCompositions(data);
     } catch (err) {
       console.error('Failed to load compositions:', err);

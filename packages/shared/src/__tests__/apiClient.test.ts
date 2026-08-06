@@ -98,6 +98,46 @@ describe('createApiClient.fetchCompositions', () => {
   });
 });
 
+describe('createApiClient.fetchAllCompositions', () => {
+  it('pages until a short page and concatenates the results in order', async () => {
+    // First page full (100 rows), second page short (3 rows) => exactly two requests.
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
+    const page2 = [{ id: 'c100' }, { id: 'c101' }, { id: 'c102' }];
+    const fn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page1 } }))
+      .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page2 } }));
+    vi.stubGlobal('fetch', fn);
+
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=100&offset=0');
+    expect(fn.mock.calls[1][0]).toBe('http://api/compositions?limit=100&offset=100');
+    expect(result).toHaveLength(103);
+    expect(result[0]).toEqual({ id: 'c0' });
+    expect(result[102]).toEqual({ id: 'c102' });
+  });
+
+  it('stops after one request when the first page is short', async () => {
+    const fn = stubFetch(
+      mockResponse({ status: 200, body: { success: true, data: [{ id: 'only' }] } })
+    );
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([{ id: 'only' }]);
+  });
+
+  it('survives destructuring (no `this` dependence)', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const { fetchAllCompositions } = createApiClient({ baseUrl: 'http://api' });
+    await expect(fetchAllCompositions('tok')).resolves.toEqual([]);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+});
+
 async function stubFetchAndCall(opts: Parameters<typeof mockResponse>[0]) {
   stubFetch(mockResponse(opts));
   return apiRequest('http://api', '/thing');
