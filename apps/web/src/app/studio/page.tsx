@@ -409,6 +409,8 @@ function StudioPageContent() {
                 scale={scale}
                 presetId={presetId}
                 tempo={tempo}
+                imageFile={selectedFile}
+                durationSeconds={compositionDurationSeconds}
               />
               <Card title="Export" padding="lg">
                 <Button variant="outline" size="lg" fullWidth onClick={handleExportMidi}>

@@ -1,34 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@toposonics/ui';
 import { getAllScenePacks } from '@toposonics/core-audio';
-import type { ScenePack, NoteEvent, ImageAnalysisResult } from '@toposonics/types';
+import type { ScenePack, NoteEvent } from '@toposonics/types';
 import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
 import { TourProvider, useTour } from '@/components/tour/TourProvider';
 import { TourPopup } from '@/components/tour/TourPopup';
-import { mockAnalysisResult, mockNoteEvents } from '@toposonics/shared';
+import { mockNoteEvents, tourDemoTempoBpm } from '@toposonics/shared';
+import { playDemoNotes, type DemoPlaybackController } from '@/lib/demoPlayback';
 import { theme } from '@toposonics/ui';
 
 type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
 
+/**
+ * Runs tour-step side effects: while the PLAY_MUSIC step is open the sample phrase
+ * audibly plays, and it stops as soon as the user advances, skips, or leaves.
+ */
 function TourWrapper() {
   const { tourStep } = useTour();
-  const [_demoAnalysis, setDemoAnalysis] = useState<ImageAnalysisResult | null>(null);
-  const [_demoNotes, setDemoNotes] = useState<NoteEvent[] | null>(null);
+  const playbackRef = useRef<DemoPlaybackController | null>(null);
 
   useEffect(() => {
-    if (tourStep?.action === 'RUN_ANALYSIS') {
-      setDemoAnalysis(mockAnalysisResult);
-    }
-    if (tourStep?.action === 'PLAY_MUSIC') {
-      setDemoNotes(mockNoteEvents);
-    }
-  }, [tourStep]);
+    if (tourStep?.action !== 'PLAY_MUSIC') return undefined;
 
-  // This component will eventually display the analysis results and trigger playback
-  // For now, it just handles the state logic.
+    let cancelled = false;
+    void playDemoNotes(mockNoteEvents, tourDemoTempoBpm)
+      .then((controller) => {
+        if (cancelled) {
+          controller.stop();
+          return;
+        }
+        playbackRef.current = controller;
+      })
+      .catch((error) => {
+        console.error('Tour demo playback failed:', error);
+      });
+
+    return () => {
+      cancelled = true;
+      playbackRef.current?.stop();
+      playbackRef.current = null;
+    };
+  }, [tourStep]);
 
   return null;
 }
@@ -85,7 +100,7 @@ function HomePageContent() {
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 id="logo" className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
             Turn Images into Musical Landscapes
           </h1>
           <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
@@ -105,7 +120,7 @@ function HomePageContent() {
         </div>
 
         {/* Scene Pack Showcase */}
-        <div id="image-analysis-panel" className="mb-20">
+        <div className="mb-20">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-3">Explore Scene Packs</h2>
             <p className="text-gray-400 max-w-2xl mx-auto mb-6">
@@ -114,7 +129,7 @@ function HomePageContent() {
             </p>
 
             {/* Category Filter */}
-            <div id="mapping-mode-selector" className="flex justify-center gap-2 flex-wrap">
+            <div className="flex justify-center gap-2 flex-wrap">
               {(['All', 'Nature', 'Urban', 'Atmospheric'] as Category[]).map((category) => (
                 <button
                   key={category}
@@ -132,7 +147,7 @@ function HomePageContent() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {scenePacks.map((pack, packIdx) => (
+            {scenePacks.map((pack) => (
               <div
                 key={pack.id}
                 className="group relative rounded-xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:scale-105"
@@ -171,10 +186,7 @@ function HomePageContent() {
                   </div>
 
                   {/* Actions */}
-                  <div
-                    id={packIdx === 0 ? 'playback-controls' : undefined}
-                    className="flex gap-2 pt-2"
-                  >
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => handlePlayDemo(pack)}
                       disabled={loadingDemo === pack.id}
@@ -186,7 +198,6 @@ function HomePageContent() {
                       {loadingDemo === pack.id ? 'Loading...' : '▶ Try Demo'}
                     </button>
                     <Link
-                      id={packIdx === 0 ? 'export-button' : undefined}
                       href={`/studio?scene=${pack.id}`}
                       className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors border text-center"
                       style={{
