@@ -49,6 +49,7 @@ function HomePageContent() {
   const [activeDemo, setActiveDemo] = useState<{
     scenePack: ScenePack;
     noteEvents: NoteEvent[];
+    tempoBpm: number;
   } | null>(null);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
   const { startTour } = useTour();
@@ -66,7 +67,11 @@ function HomePageContent() {
         throw new Error('Demo not found');
       }
       const data = await response.json();
-      setActiveDemo({ scenePack, noteEvents: data.noteEvents });
+      setActiveDemo({
+        scenePack,
+        noteEvents: data.noteEvents,
+        tempoBpm: typeof data.tempoBpm === 'number' && data.tempoBpm > 0 ? data.tempoBpm : 120,
+      });
     } catch (error) {
       console.error('Failed to load demo:', error);
       alert('Demo composition not available for this scene pack');
@@ -265,6 +270,7 @@ function HomePageContent() {
         <LandingDemoPlayer
           demoNotes={activeDemo.noteEvents}
           scenePack={activeDemo.scenePack}
+          tempoBpm={activeDemo.tempoBpm}
           onClose={() => setActiveDemo(null)}
         />
       )}

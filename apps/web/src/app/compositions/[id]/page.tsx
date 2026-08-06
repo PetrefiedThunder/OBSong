@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button, Card } from '@toposonics/ui';
 import type { Composition } from '@toposonics/types';
 import { fetchComposition, deleteComposition } from '@/lib/api';
+import { exportCompositionToMidi } from '@/lib/midiExport';
 import { getPresetById, getDefaultPreset } from '@toposonics/core-audio';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToneEngine } from '@/hooks/useToneEngine';
@@ -70,6 +71,27 @@ export default function CompositionDetailPage() {
       alert('Login failed');
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleExportMidi = () => {
+    if (!composition || composition.noteEvents.length === 0) return;
+    try {
+      exportCompositionToMidi({
+        noteEvents: composition.noteEvents,
+        tempoBpm: tempo,
+        title: composition.title,
+        description: composition.description,
+        mappingMode: composition.mappingMode,
+        key: composition.key,
+        scale: composition.scale,
+        presetId: composition.presetId,
+        userId: composition.userId,
+        metadata: composition.metadata,
+      });
+    } catch (err) {
+      console.error('Failed to export MIDI:', err);
+      alert('Failed to export MIDI');
     }
   };
 
@@ -183,16 +205,25 @@ export default function CompositionDetailPage() {
               <p className="text-gray-400">{composition.description}</p>
             )}
           </div>
-          {canDelete && (
+          <div className="flex items-center gap-3">
             <Button
-              variant="danger"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              loading={isDeleting}
+              variant="outline"
+              onClick={handleExportMidi}
+              disabled={composition.noteEvents.length === 0}
             >
-              Delete
+              Export MIDI
             </Button>
-          )}
+            {canDelete && (
+              <Button
+                variant="danger"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                loading={isDeleting}
+              >
+                Delete
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -253,6 +284,7 @@ export default function CompositionDetailPage() {
           <TimelineVisualizer
             noteEvents={composition.noteEvents}
             currentTime={currentTime}
+            tempo={tempo}
           />
 
           {composition.imageThumbnail && (

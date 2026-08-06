@@ -7,10 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src scripts next.config.mjs --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint src next.config.mjs --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next",
-    "generate:scene-demos": "tsx scripts/generateSceneDemos.ts",
     "test": "vitest run"
   },
   "dependencies": {

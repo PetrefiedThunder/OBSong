@@ -398,7 +398,7 @@ function StudioPageContent() {
             />
           </Card>
 
-          <TimelineVisualizer noteEvents={noteEvents} currentTime={currentTime} />
+          <TimelineVisualizer noteEvents={noteEvents} currentTime={currentTime} tempo={tempo} />
 
           {noteEvents.length > 0 && (
             <>
