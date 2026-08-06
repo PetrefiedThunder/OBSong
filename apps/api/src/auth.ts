@@ -3,7 +3,7 @@
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { User, AuthTokenResponse } from '@toposonics/types';
+import type { User } from '@toposonics/types';
 import { supabaseAdmin } from './supabase';
 
 // Short-TTL cache of token -> resolved user so repeated requests from the same client
@@ -47,17 +47,6 @@ export async function getUserFromToken(token: string): Promise<User | null> {
   tokenCache.set(token, { user, expiresAt: now + TOKEN_CACHE_TTL_MS });
 
   return user;
-}
-
-export async function exchangeAccessToken(token: string): Promise<AuthTokenResponse | null> {
-  const user = await getUserFromToken(token);
-  if (!user) return null;
-
-  return {
-    token,
-    user,
-    expiresAt: undefined,
-  };
 }
 
 /**
