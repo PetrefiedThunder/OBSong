@@ -93,9 +93,8 @@ export const config = {
     maxRssBytes: parseInt(process.env.MAX_RSS_BYTES || String(300 * 1024 * 1024), 10),
   },
 
-  // Supabase
+  // Supabase (the API uses only the service-role client; no anon key is needed here)
   supabaseUrl: process.env.SUPABASE_URL || '',
-  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 
   // API metadata
