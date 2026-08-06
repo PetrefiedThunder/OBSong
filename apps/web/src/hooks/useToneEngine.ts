@@ -19,6 +19,7 @@ type ToneModule = {
   Reverb: new (...args: unknown[]) => ToneReverb;
   Filter: new (...args: unknown[]) => ToneFilter;
   Panner: new (...args: unknown[]) => TonePanner;
+  FeedbackDelay: new (...args: unknown[]) => ToneFeedbackDelay;
   Part: new <T>(callback: (time: number, value: T) => void, events: T[]) => TonePart;
   Destination: unknown;
   Transport: ToneTransport;
@@ -42,10 +43,13 @@ type ToneReverb = ToneNode & {
   generate: () => Promise<unknown>;
   toDestination: () => void;
 };
-type ToneFilter = ToneNode;
+type ToneFilter = ToneNode & {
+  frequency: { setValueAtTime: (value: number, time: number) => void };
+};
 type TonePanner = ToneNode & {
   pan: { setValueAtTime: (value: number, time: number) => void };
 };
+type ToneFeedbackDelay = ToneNode;
 type TonePart = ToneNode & {
   loop: boolean | number;
   start: (time: number) => void;
@@ -61,9 +65,10 @@ function loadTone() {
     import('tone/build/esm/effect/Reverb.js'),
     import('tone/build/esm/component/filter/Filter.js'),
     import('tone/build/esm/component/channel/Panner.js'),
+    import('tone/build/esm/effect/FeedbackDelay.js'),
     import('tone/build/esm/event/Part.js'),
     import('tone/build/esm/core/Global.js'),
-  ]).then(([polySynth, synth, reverb, filter, panner, part, global]) => {
+  ]).then(([polySynth, synth, reverb, filter, panner, feedbackDelay, part, global]) => {
     const context = global.getContext();
 
     return {
@@ -72,6 +77,7 @@ function loadTone() {
       Reverb: reverb.Reverb as ToneModule['Reverb'],
       Filter: filter.Filter as ToneModule['Filter'],
       Panner: panner.Panner as ToneModule['Panner'],
+      FeedbackDelay: feedbackDelay.FeedbackDelay as ToneModule['FeedbackDelay'],
       Part: part.Part as ToneModule['Part'],
       Destination: context.destination,
       Transport: context.transport as ToneTransport,
@@ -90,8 +96,15 @@ interface UseToneEngineOptions {
 interface VoiceSynth {
   synth: ToneSynth;
   reverb: ToneReverb;
-  filter?: ToneFilter;
-  panner?: TonePanner;
+  filter: ToneFilter;
+  panner: TonePanner;
+}
+
+// NoteEvent.effects.filterCutoff is normalized 0-1 (brightness-driven). Map it onto an
+// exponential frequency curve (~200 Hz at 0, ~8 kHz at 1) so equal cutoff steps sound
+// like equal changes in brightness.
+function filterCutoffToFrequency(cutoff: number): number {
+  return 200 * Math.pow(40, cutoff);
 }
 
 export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOptions) {
@@ -105,6 +118,7 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
   const reverbRef = useRef<ToneReverb | null>(null);
   const filterRef = useRef<ToneFilter | null>(null);
   const pannerRef = useRef<TonePanner | null>(null);
+  const delayRef = useRef<ToneFeedbackDelay | null>(null);
 
   // Multi-voice synth refs
   const voiceSynthsRef = useRef<Map<VoiceType, VoiceSynth>>(new Map());
@@ -143,12 +157,16 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       pannerRef.current.dispose();
       pannerRef.current = null;
     }
+    if (delayRef.current) {
+      delayRef.current.dispose();
+      delayRef.current = null;
+    }
 
     for (const voiceSynth of voiceSynthsRef.current.values()) {
       voiceSynth.synth.dispose();
       voiceSynth.reverb.dispose();
-      voiceSynth.filter?.dispose();
-      voiceSynth.panner?.dispose();
+      voiceSynth.filter.dispose();
+      voiceSynth.panner.dispose();
     }
     voiceSynthsRef.current.clear();
 
@@ -233,21 +251,17 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       const reverb = new tone.Reverb(reverbConfig) as ToneReverb;
       await reverb.generate();
 
-      let filter: ToneFilter | undefined;
-      let panner: TonePanner | undefined;
-
-      if (voice === 'melody') {
-        filter = new tone.Filter({
-          type: 'lowpass',
-          frequency: 3000,
-          Q: 1,
-        }) as ToneFilter;
-        panner = new tone.Panner(0) as TonePanner;
-        synth.chain(filter, panner, reverb, tone.Destination);
-      } else {
-        synth.connect(reverb);
-        reverb.toDestination();
-      }
+      // Every voice gets its own Filter + Panner so per-note filterCutoff and pan apply
+      // to bass and pad, not just melody. Known limitation: simultaneous chord notes on
+      // one voice share the Panner, so intra-chord stereo spread collapses to the
+      // last-set value — pan over time still works.
+      const filter = new tone.Filter({
+        type: 'lowpass',
+        frequency: 3000,
+        Q: 1,
+      }) as ToneFilter;
+      const panner = new tone.Panner(0) as TonePanner;
+      synth.chain(filter, panner, reverb, tone.Destination);
 
       voiceSynthsRef.current.set(voice, { synth, reverb, filter, panner });
     }
@@ -282,12 +296,24 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
 
     const panner = new tone.Panner(0) as TonePanner;
 
-    synth.chain(filter, panner, reverb, tone.Destination);
+    // Presets may declare a delay effect; insert a FeedbackDelay into the chain so it
+    // actually sounds (before reverb, so echoes share the preset's reverb tail).
+    const delayConfig = preset.synthesis?.effects?.delay;
+    const delay = delayConfig
+      ? (new tone.FeedbackDelay(delayConfig.time, delayConfig.feedback) as ToneFeedbackDelay)
+      : null;
+
+    if (delay) {
+      synth.chain(filter, panner, delay, reverb, tone.Destination);
+    } else {
+      synth.chain(filter, panner, reverb, tone.Destination);
+    }
 
     synthRef.current = synth;
     reverbRef.current = reverb;
     filterRef.current = filter;
     pannerRef.current = panner;
+    delayRef.current = delay;
   }, [preset]);
 
   const ensureAudioGraph = useCallback(async () => {
@@ -346,6 +372,8 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
       velocity: event.velocity,
       pan: event.pan || 0,
       reverbSend: event.effects?.reverbSend || 0.2,
+      // Left undefined when absent so the filter keeps its static preset frequency.
+      filterCutoff: event.effects?.filterCutoff,
       voice: event.trackId as VoiceType | undefined,
     }));
 
@@ -360,9 +388,13 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
         if (!voiceSynth) return;
 
         voiceSynth.reverb.wet.setValueAtTime(value.reverbSend, time);
+        voiceSynth.panner.pan.setValueAtTime(value.pan, time);
 
-        if (value.voice === 'melody' && voiceSynth.panner) {
-          voiceSynth.panner.pan.setValueAtTime(value.pan, time);
+        if (value.filterCutoff != null) {
+          voiceSynth.filter.frequency.setValueAtTime(
+            filterCutoffToFrequency(value.filterCutoff),
+            time
+          );
         }
 
         voiceSynth.synth.triggerAttackRelease(value.note, value.duration, time, value.velocity);
@@ -375,6 +407,14 @@ export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOption
 
       pannerRef.current.pan.setValueAtTime(value.pan, time);
       reverbRef.current.wet.setValueAtTime(value.reverbSend, time);
+
+      if (value.filterCutoff != null && filterRef.current) {
+        filterRef.current.frequency.setValueAtTime(
+          filterCutoffToFrequency(value.filterCutoff),
+          time
+        );
+      }
+
       synthRef.current.triggerAttackRelease(value.note, value.duration, time, value.velocity);
     }, events);
 

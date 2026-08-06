@@ -66,4 +66,21 @@ describe('useToneEngine utils', () => {
       getAudioGraphSignature(singleVoiceEvents, brighterPreset)
     );
   });
+
+  it('changes the audio graph signature when the delay effect changes', () => {
+    const delayPreset: SoundPreset = {
+      ...preset,
+      synthesis: {
+        ...preset.synthesis!,
+        effects: {
+          ...preset.synthesis!.effects!,
+          delay: { time: 0.25, feedback: 0.3 },
+        },
+      },
+    };
+
+    expect(getAudioGraphSignature(singleVoiceEvents, preset)).not.toBe(
+      getAudioGraphSignature(singleVoiceEvents, delayPreset)
+    );
+  });
 });
