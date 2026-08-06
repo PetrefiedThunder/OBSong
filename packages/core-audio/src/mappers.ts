@@ -48,8 +48,8 @@ function octaveOf(noteName: string): number {
 
 /**
  * Generate scale notes that span the octaves of [minNote, maxNote] (plus one octave of
- * headroom), rather than a hardcoded start octave. This makes low ranges such as A1-E2
- * reachable instead of silently producing an empty voice.
+ * headroom on each side), rather than a hardcoded start octave. This makes low ranges such
+ * as A1-E2 reachable instead of silently producing an empty voice.
  */
 function getScaleNotesForRange(
   key: KeyType,
@@ -59,7 +59,12 @@ function getScaleNotesForRange(
 ): string[] {
   const startOctave = octaveOf(minNote);
   const span = Math.max(1, octaveOf(maxNote) - startOctave + 1);
-  return getScaleNotes(key, scale, span + 1, startOctave);
+  // Start one octave below minNote (widening the span to compensate): getScaleNotes always
+  // begins at the KEY ROOT of its start octave, so starting at octaveOf(minNote) made
+  // in-scale degrees between C{startOctave} and the root that are >= minNote unreachable
+  // (e.g. key G with minNote D3 could never emit D3/E3/F#3). filterScaleToRange trims the
+  // out-of-range extras; getScaleNotes/noteNameToMidi support negative start octaves.
+  return getScaleNotes(key, scale, span + 2, startOctave - 1);
 }
 
 /**
