@@ -545,20 +545,6 @@ export const TOPO_PRESETS: TopoPreset[] = [
 ];
 
 /**
- * Get a preset by ID
- */
-export function getTopoPresetById(id: string): TopoPreset | undefined {
-  return TOPO_PRESETS.find((preset) => preset.id === id);
-}
-
-/**
- * Get default preset (Majestic Mountains)
- */
-export function getDefaultTopoPreset(): TopoPreset {
-  return TOPO_PRESETS[0];
-}
-
-/**
  * Get all available presets
  */
 export function getAllTopoPresets(): TopoPreset[] {

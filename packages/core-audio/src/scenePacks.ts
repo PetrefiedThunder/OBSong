@@ -25,9 +25,6 @@ export const SCENE_PACKS: ScenePack[] = [
       'Golden hour or soft overcast, with clear separation between ground and sky.',
     recommendedUsageNotes:
       "Works best when there's a clear horizon and visible peaks. Avoid super busy foreground clutter.",
-    demoAssets: {
-      sampleImagePath: '/demo/scene-majestic-mountains.jpg',
-    },
     uiThemeHints: {
       accentColor: '#A855F7',
       backgroundStyle: 'dark',
@@ -50,9 +47,6 @@ export const SCENE_PACKS: ScenePack[] = [
     recommendedLighting: 'Night, twilight, or moody indoor lighting with strong highlights.',
     recommendedUsageNotes:
       "The more small bright details (windows, car lights), the more melodic activity you'll hear.",
-    demoAssets: {
-      sampleImagePath: '/demo/scene-night-city.jpg',
-    },
     uiThemeHints: {
       accentColor: '#22D3EE',
       backgroundStyle: 'dark',
@@ -75,9 +69,6 @@ export const SCENE_PACKS: ScenePack[] = [
     recommendedLighting: 'Overcast, fog, or low-contrast scenes benefit most.',
     recommendedUsageNotes:
       "Don't worry if the image is low contrast — this pack is designed for that softness.",
-    demoAssets: {
-      sampleImagePath: '/demo/scene-foggy-forest.jpg',
-    },
     uiThemeHints: {
       accentColor: '#4ADE80',
       backgroundStyle: 'dark',
@@ -99,9 +90,6 @@ export const SCENE_PACKS: ScenePack[] = [
     recommendedSubjects: ['sand dunes', 'rock deserts', 'Joshua Tree landscapes', 'canyons'],
     recommendedLighting: 'Harsh midday or golden hour both work; shape and shadow matter.',
     recommendedUsageNotes: 'Big shapes and clean lines work best. Embrace minimalism.',
-    demoAssets: {
-      sampleImagePath: '/demo/scene-desert-drones.jpg',
-    },
     uiThemeHints: {
       accentColor: '#F97316',
       backgroundStyle: 'dark',
@@ -124,9 +112,6 @@ export const SCENE_PACKS: ScenePack[] = [
     recommendedLighting: 'Any, but soft afternoon light or overcast gives smooth results.',
     recommendedUsageNotes:
       "Works best when the water/sky boundary is clear and there's some wave texture.",
-    demoAssets: {
-      sampleImagePath: '/demo/scene-ocean-horizon.jpg',
-    },
     uiThemeHints: {
       accentColor: '#38BDF8',
       backgroundStyle: 'dark',
@@ -149,9 +134,6 @@ export const SCENE_PACKS: ScenePack[] = [
     recommendedLighting: 'Harsh daytime or high-contrast night scenes work well.',
     recommendedUsageNotes:
       'The more geometric repetition (windows, beams, cables), the more rhythmic and mechanical the music.',
-    demoAssets: {
-      sampleImagePath: '/demo/scene-industrial-grid.jpg',
-    },
     uiThemeHints: {
       accentColor: '#FACC15',
       backgroundStyle: 'dark',
@@ -159,13 +141,6 @@ export const SCENE_PACKS: ScenePack[] = [
     },
   },
 ];
-
-/**
- * Get a scene pack by ID
- */
-export function getScenePackById(id: string): ScenePack | undefined {
-  return SCENE_PACKS.find((pack) => pack.id === id);
-}
 
 /**
  * Get the associated TopoPreset for a scene pack

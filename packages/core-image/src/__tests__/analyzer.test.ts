@@ -2,6 +2,7 @@ import {
   analyzeImageForLinearLandscape,
   analyzeImageForDepthRidge,
 } from '../analyzer';
+import { applySobelEdgeDetection } from '../depth';
 
 describe('Image Analyzers', () => {
   // Create a simple 3x3 black and white test image (2 pixels black, 1 pixel white)
@@ -70,6 +71,69 @@ describe('Image Analyzers', () => {
       expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
       expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
       expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    });
+  });
+
+  describe('determinism', () => {
+    it('produces deep-equal profiles for the same input twice', () => {
+      const first = analyzeImageForDepthRidge(pixels, width, height);
+      const second = analyzeImageForDepthRidge(pixels, width, height);
+
+      // metadata.timestamp is wall-clock time, so compare everything except metadata.
+      const strip = ({ metadata: _metadata, ...rest }: typeof first) => rest;
+      expect(strip(second)).toEqual(strip(first));
+    });
+  });
+
+  describe('precomputed edge magnitudes', () => {
+    // A 64x16 image with varied content so the Sobel output is non-trivial.
+    const w = 64;
+    const h = 16;
+    const varied = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = Math.round((Math.sin(x * 0.4) * 0.5 + 0.5) * 255 * ((y % 4) / 3 || 0.2));
+        const i = (y * w + x) * 4;
+        varied[i] = v;
+        varied[i + 1] = v;
+        varied[i + 2] = v;
+        varied[i + 3] = 255;
+      }
+    }
+
+    it('accepts 0-1 float magnitudes and matches the self-computed result exactly', () => {
+      const sobel = applySobelEdgeDetection(varied, w, h);
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      const precomputed = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: sobel,
+      });
+
+      expect(precomputed.ridgeStrength).toEqual(self.ridgeStrength);
+      expect(precomputed.brightnessProfile).toEqual(self.brightnessProfile);
+      expect(precomputed.depthProfile).toEqual(self.depthProfile);
+    });
+
+    it('normalizes 0-255 byte magnitudes and stays close to the self-computed result', () => {
+      const sobel = applySobelEdgeDetection(varied, w, h);
+      const bytes = Uint8ClampedArray.from(sobel.map((v) => Math.round(v * 255)));
+
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      const precomputed = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: bytes,
+      });
+
+      expect(precomputed.ridgeStrength).toBeDefined();
+      expect(precomputed.ridgeStrength!.length).toBe(self.ridgeStrength!.length);
+
+      // Byte quantization introduces at most ~0.5/255 per pixel; after row averaging and
+      // smoothing the profiles must remain very close.
+      for (let i = 0; i < self.ridgeStrength!.length; i++) {
+        expect(Math.abs(precomputed.ridgeStrength![i] - self.ridgeStrength![i])).toBeLessThan(0.01);
+      }
+
+      // Brightness and depth are unaffected by the precomputed edges.
+      expect(precomputed.brightnessProfile).toEqual(self.brightnessProfile);
+      expect(precomputed.depthProfile).toEqual(self.depthProfile);
     });
   });
 
