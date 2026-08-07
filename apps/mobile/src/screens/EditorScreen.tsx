@@ -515,10 +515,10 @@ export default function EditorScreen() {
         <Text style={styles.infoText}>
           The mobile editor now performs on-device pixel extraction through the native OpenCV module, decodes RGBA data,
           maps it through @toposonics/core-image and @toposonics/core-audio, and plays back a simplified tone stack with
-          expo-av.
+          expo-audio.
         </Text>
         <Text style={styles.featureList}>
-          • Pixel extraction & analysis {'\n'}• Brightness-driven melody generation {'\n'}• Audio playback via expo-av
+          • Pixel extraction & analysis {'\n'}• Brightness-driven melody generation {'\n'}• Audio playback via expo-audio
           {'\n'}• Offline caching for drafts {'\n'}• Authenticated save to the TopoSonics backend
         </Text>
       </View>

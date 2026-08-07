@@ -11,11 +11,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
-  splash: {
-    image: './assets/splash.png',
-    resizeMode: 'contain',
-    backgroundColor: '#0a0a0f',
-  },
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
@@ -31,19 +26,32 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: androidVersionCode,
     allowBackup: false,
     permissions: ['CAMERA', 'READ_MEDIA_IMAGES'],
-    // The app never records audio and never draws over other apps; block these so
-    // config plugins (e.g. expo-av) and prebuilds don't silently re-add high-risk
-    // permissions that Google Play flags in review.
+    // The app never records audio, never draws over other apps, and never plays audio in
+    // the background (no lock-screen playback), so block these permissions that config
+    // plugins (e.g. expo-audio) and prebuilds would otherwise re-add. Shipping unused
+    // foreground-service permissions forces a Play Console FGS declaration in review.
     blockedPermissions: [
       'android.permission.RECORD_AUDIO',
       'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     ],
   },
   web: {
     favicon: './assets/favicon.png',
   },
   plugins: [
-    'expo-av',
+    'expo-audio',
+    // SDK 52+ configures the native splash screen via this plugin (the top-level
+    // `splash` key was removed from ExpoConfig).
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash.png',
+        resizeMode: 'contain',
+        backgroundColor: '#0a0a0f',
+      },
+    ],
     'expo-secure-store',
     'expo-apple-authentication',
     [

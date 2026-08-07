@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, preload, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { noteToFrequency } from '@toposonics/core-audio';
 import type { NoteEvent } from '@toposonics/types';
 import { computePlaybackRate } from './playbackRate';
@@ -20,9 +20,9 @@ export interface PlaybackController {
   done: Promise<void>;
 }
 
-// Every voice is the same beep sample pitch-shifted per note; a single Audio.Sound can only
+// Every voice is the same beep sample pitch-shifted per note; a single AudioPlayer can only
 // play one source at a time, so overlapping notes (e.g. a pad chord) need distinct instances.
-// A small round-robin pool provides that polyphony without allocating one sound per note.
+// A small round-robin pool provides that polyphony without allocating one player per note.
 // (The sample lives in an object literal because RN assets need require(), and a bare
 // `const x = require(...)` trips @typescript-eslint/no-var-requires.)
 const samples = {
@@ -56,16 +56,17 @@ export function playNoteEvents(
   const done = (async () => {
     if (events.length === 0) return;
 
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      staysActiveInBackground: false,
+    await setAudioModeAsync({
+      // expo-av's playsInSilentModeIOS equivalent; recording stays off by default and the
+      // session ends with playback, matching the previous staysActiveInBackground: false.
+      playsInSilentMode: true,
+      interruptionMode: 'mixWithOthers',
     });
 
     const tempo = options.tempo ?? 90;
     const beatDurationMs = (60 / tempo) * 1000;
 
-    const pool: Audio.Sound[] = [];
+    const pool: AudioPlayer[] = [];
     let nextVoice = 0;
 
     // Trigger one note on the next free pool voice (round-robin), so simultaneous notes play
@@ -73,11 +74,11 @@ export function playNoteEvents(
     // swallowed so a mid-playback reuse can't reject the whole session.
     const triggerNote = async (event: NoteEvent) => {
       if (cancelled || pool.length === 0) return;
-      const sound = pool[nextVoice % pool.length];
+      const player = pool[nextVoice % pool.length];
       nextVoice += 1;
 
       const frequency = noteToFrequency(event.note);
-      // Octave-folded into expo-av's usable rate window so bass/treble notes outside it
+      // Octave-folded into the usable rate window so bass/treble notes outside it
       // stay distinct pitches instead of all clamping to a monotone at the boundary.
       const playbackRate = computePlaybackRate(frequency);
 
@@ -90,25 +91,26 @@ export function playNoteEvents(
           : volume;
 
       try {
-        await sound.setPositionAsync(0);
+        await player.seekTo(0);
         // shouldCorrectPitch MUST be false: the whole pitch mechanism is varying the
         // playback rate of a single beep. Pitch correction would time-stretch while
         // preserving pitch, flattening every note to the sample's native pitch.
-        await sound.setRateAsync(playbackRate, false);
-        await sound.setVolumeAsync(Math.min(1, finalVolume));
-        await sound.playAsync();
+        player.shouldCorrectPitch = false;
+        player.setPlaybackRate(playbackRate);
+        player.volume = Math.min(1, finalVolume);
+        player.play();
       } catch {
-        // ignore — transient error (e.g. sound retriggered while still playing)
+        // ignore — transient error (e.g. player retriggered while still playing)
       }
     };
 
     try {
-      // Load the voice pool up front.
+      // Preload the sample once, then build the voice pool. createAudioPlayer is
+      // synchronous; preloading first means every pool player is ready to fire.
+      await preload(samples.beep);
       for (let i = 0; i < VOICE_POOL_SIZE; i++) {
         if (cancelled) return;
-        const sound = new Audio.Sound();
-        await sound.loadAsync(samples.beep);
-        pool.push(sound);
+        pool.push(createAudioPlayer(samples.beep));
       }
 
       if (cancelled) return;
@@ -151,16 +153,16 @@ export function playNoteEvents(
     } finally {
       wake = null;
       clearTimers();
-      // Stop + unload every pooled voice, isolating per-sound failures so one rejection
-      // doesn't leak the remaining native Audio.Sound instances.
-      for (const sound of pool) {
+      // Pause + release every pooled voice, isolating per-player failures so one rejection
+      // doesn't leak the remaining native AudioPlayer instances.
+      for (const player of pool) {
         try {
-          await sound.stopAsync();
+          player.pause();
         } catch {
-          // ignore — sound may already be stopped/unloaded
+          // ignore — player may already be stopped/released
         }
         try {
-          await sound.unloadAsync();
+          player.remove();
         } catch {
           // ignore — best-effort cleanup
         }
