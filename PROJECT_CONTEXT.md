@@ -4,8 +4,8 @@
 
 - **Node.js:** 18+ (per `engines`; development currently using v22)
 - **Next.js:** 15.5.18
-- **Expo:** 50.0.0
-- **React Native:** 0.73.6
+- **Expo:** 57.0.11
+- **React Native:** 0.86.2
 - **Fastify:** 5.8.5
 - **Tone.js:** ^14.7.77
 

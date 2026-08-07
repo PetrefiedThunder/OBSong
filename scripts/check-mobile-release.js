@@ -118,8 +118,18 @@ if (!javaMajor) {
   }
 }
 
-if (!fs.existsSync(iosWorkspace)) {
-  failures.push('iOS workspace is missing at apps/mobile/ios/TopoSonics.xcworkspace');
+// The .xcworkspace is a CocoaPods artifact created by `pod install` (which only runs on
+// macOS), so it is not committed. The Xcode project itself comes from `expo prebuild` and
+// is the thing that must exist; a missing workspace just means pods haven't been installed
+// in this checkout yet.
+if (!fs.existsSync(iosProject)) {
+  failures.push(
+    'iOS Xcode project is missing at apps/mobile/ios/TopoSonics.xcodeproj; run `npx expo prebuild -p ios`'
+  );
+} else if (!fs.existsSync(iosWorkspace)) {
+  warnings.push(
+    'iOS workspace not found; run `npx pod-install` (or `cd apps/mobile/ios && pod install`) on macOS before archiving'
+  );
 }
 
 if (!hasAppleDevelopmentTeam()) {
