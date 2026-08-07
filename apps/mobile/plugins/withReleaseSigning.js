@@ -17,7 +17,9 @@ const { withAppBuildGradle } = require('expo/config-plugins');
  * android/keystore.properties, or the ORG_GRADLE_PROJECT_* env vars used by CI/EAS:
  *   MYAPP_UPLOAD_STORE_FILE, MYAPP_UPLOAD_STORE_PASSWORD,
  *   MYAPP_UPLOAD_KEY_ALIAS, MYAPP_UPLOAD_KEY_PASSWORD
- * (EAS Build supplies its own credentials and does not need them.)
+ * On EAS Build the guard stands down entirely (detected via the EAS_BUILD env var): EAS
+ * injects its own signing config at task-graph time, i.e. after this block is evaluated, so
+ * throwing here would break every EAS release build.
  */
 
 const RELEASE_SIGNING_CONFIG = `        release {
@@ -32,6 +34,10 @@ const RELEASE_SIGNING_CONFIG = `        release {
 
 const GUARDED_RELEASE_SIGNING = `            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
                 signingConfig signingConfigs.release
+            } else if (System.getenv('EAS_BUILD') == 'true') {
+                // EAS Build supplies its own credentials by injecting a signing config at
+                // task-graph time, after this block is evaluated. Leave signingConfig unset
+                // so that injection applies; failing here would break every EAS release.
             } else if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
                 throw new GradleException(
                     'Release build requested but no upload keystore is configured. Set ' +

@@ -122,6 +122,10 @@ android {
             // see https://reactnative.dev/docs/signed-apk-android.
             if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
                 signingConfig signingConfigs.release
+            } else if (System.getenv('EAS_BUILD') == 'true') {
+                // EAS Build supplies its own credentials by injecting a signing config at
+                // task-graph time, after this block is evaluated. Leave signingConfig unset
+                // so that injection applies; failing here would break every EAS release.
             } else if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
                 throw new GradleException(
                     'Release build requested but no upload keystore is configured. Set ' +
