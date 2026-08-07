@@ -1,4 +1,4 @@
-import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition, mapHorizonToBass, mapTextureToPad } from '../mappers';
+import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition, mapHorizonToBass, mapRidgesToMelody, mapTextureToPad } from '../mappers';
 import { noteNameToMidi, getScaleNotes } from '../scales';
 import { TOPO_PRESETS } from '../topoPresets';
 import type { ImageAnalysisResult, LinearLandscapeOptions, NoteEvent, DepthRidgeOptions, MultiVoiceOptions } from '@toposonics/types';
@@ -286,6 +286,57 @@ describe('mapHorizonToBass', () => {
       expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('A1'));
       expect(midi).toBeLessThanOrEqual(noteNameToMidi('E2'));
     }
+  });
+
+  it('reaches scale degrees below the key root (key B, C2-C3) instead of a monotone bassline', () => {
+    // Previously getScaleNotesForRange started at the key root's octave, so a B root with
+    // a C2-C3 range collapsed to the single pitch B2.
+    const horizon = Array.from({ length: 16 }, (_, i) => i / 15);
+    const notes = mapHorizonToBass(horizon, 'B', 'C_MAJOR', {
+      minNote: 'C2',
+      maxNote: 'C3',
+    });
+    expect(notes.length).toBeGreaterThan(0);
+    const distinctPitches = new Set(notes.map((n) => n.note));
+    expect(distinctPitches.size).toBeGreaterThan(1);
+    for (const note of notes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('C2'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('C3'));
+    }
+  });
+
+  it('keeps the default C-root output unchanged (existing-behavior guard)', () => {
+    // minNote (C2) IS the key root here, so the extra octave-below headroom must be fully
+    // trimmed by filterScaleToRange: same note set, output starting at C2, all in range.
+    const notes = mapHorizonToBass([0, 0.5, 1], 'C', 'C_MAJOR', {});
+    expect(notes.map((n) => n.note)).toEqual(['C2', 'G2', 'C3']);
+  });
+});
+
+describe('mapRidgesToMelody', () => {
+  it('reaches in-range notes below the key root (key G, minNote D3 as in Ocean Horizon)', () => {
+    // The Ocean Horizon preset maps melody to D3-G5 in key G; previously the scale notes
+    // started at G3, so the in-range degrees D3/E3/F#3 could never be emitted.
+    const columns = 32;
+    const brightness = Array.from({ length: columns }, (_, i) =>
+      Math.round((i / (columns - 1)) * 255)
+    );
+    const ridges = Array.from({ length: columns }, () => 0.9); // Strong ridge every column
+
+    const notes = mapRidgesToMelody(brightness, ridges, 'G', 'G_MAJOR', {
+      minNote: 'D3',
+      maxNote: 'G5',
+    });
+
+    expect(notes.length).toBeGreaterThan(0);
+    const midis = notes.map((n) => noteNameToMidi(n.note));
+    for (const midi of midis) {
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('D3'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('G5'));
+    }
+    // The darkest columns must now reach below G3 (i.e. D3/E3/F#3 are playable).
+    expect(Math.min(...midis)).toBeLessThan(noteNameToMidi('G3'));
   });
 });
 

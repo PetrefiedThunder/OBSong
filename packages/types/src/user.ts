@@ -13,15 +13,3 @@ export interface User {
   /** Last login timestamp. */
   lastLoginAt?: Date;
 }
-
-/**
- * Authentication token response returned by auth services.
- */
-export interface AuthTokenResponse {
-  /** JWT or session token. */
-  token: string;
-  /** Token expiration timestamp. */
-  expiresAt?: Date;
-  /** User information. */
-  user: User;
-}

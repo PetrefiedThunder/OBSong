@@ -21,16 +21,22 @@ const fromMock = vi.mocked(supabaseAdmin.from);
 
 interface Builder {
   eqCalls: Array<[string, unknown]>;
+  selectCalls: string[];
+  rangeCalls: Array<[number, number]>;
   then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => Promise<unknown>;
   [k: string]: unknown;
 }
 
 function makeBuilder(result: unknown): Builder {
   const eqCalls: Array<[string, unknown]> = [];
-  const builder = { eqCalls } as Builder;
-  for (const m of ['select', 'insert', 'update', 'delete', 'order', 'single', 'eq']) {
+  const selectCalls: string[] = [];
+  const rangeCalls: Array<[number, number]> = [];
+  const builder = { eqCalls, selectCalls, rangeCalls } as Builder;
+  for (const m of ['select', 'insert', 'update', 'delete', 'order', 'single', 'eq', 'range']) {
     builder[m] = vi.fn((...args: unknown[]) => {
       if (m === 'eq') eqCalls.push([args[0] as string, args[1]]);
+      if (m === 'select') selectCalls.push(args[0] as string);
+      if (m === 'range') rangeCalls.push([args[0] as number, args[1] as number]);
       return builder;
     });
   }
@@ -60,6 +66,81 @@ describe('listCompositions fail-closed (#92)', () => {
   it('throws instead of querying when called without a userId', async () => {
     await expect(listCompositions('' as unknown as string)).rejects.toThrow(/userId/i);
     expect(fromMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('listCompositions summary projection + pagination (audit)', () => {
+  // Shape of a row returned by the summary select(): scalars projected out of the `data`
+  // JSONB column — no noteEvents/imageData blobs.
+  function summaryRow(userId: string) {
+    return {
+      id: UUID,
+      user_id: userId,
+      name: 'My Comp',
+      created_at: '2020-01-01T00:00:00Z',
+      updated_at: '2020-01-01T00:00:00Z',
+      title: 'My Comp',
+      description: null,
+      mappingMode: 'LINEAR_LANDSCAPE',
+      key: 'C',
+      scale: 'C_MAJOR',
+      presetId: null,
+      tempo: '120',
+      imageThumbnail: null,
+      metadata: { noteCount: 3 },
+    };
+  }
+
+  it('selects a JSON projection (never the full blob) scoped to the user', async () => {
+    const list = makeBuilder({ data: [summaryRow(USER)], error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    const [result] = await listCompositions(USER);
+    expect(list.selectCalls[0]).not.toContain('*');
+    expect(list.selectCalls[0]).toContain('title:data->>title');
+    expect(list.selectCalls[0]).not.toContain('noteEvents');
+    expect(list.selectCalls[0]).not.toContain('imageData');
+    expect(list.eqCalls).toContainEqual(['user_id', USER]);
+    expect(result).not.toHaveProperty('noteEvents');
+    expect(result).not.toHaveProperty('imageData');
+  });
+
+  it('maps a row to a summary, deriving noteCount and coercing tempo to a number', async () => {
+    fromMock.mockReturnValueOnce(asMock(makeBuilder({ data: [summaryRow(USER)], error: null })));
+
+    const [result] = await listCompositions(USER);
+    expect(result).toMatchObject({
+      id: UUID,
+      userId: USER,
+      title: 'My Comp',
+      noteCount: 3,
+      tempo: 120,
+    });
+  });
+
+  it('leaves noteCount undefined for legacy rows without metadata', async () => {
+    const legacy = { ...summaryRow(USER), metadata: null, tempo: null };
+    fromMock.mockReturnValueOnce(asMock(makeBuilder({ data: [legacy], error: null })));
+
+    const [result] = await listCompositions(USER);
+    expect(result.noteCount).toBeUndefined();
+    expect(result.tempo).toBeUndefined();
+  });
+
+  it('applies the default page window via range(0, 49)', async () => {
+    const list = makeBuilder({ data: [], error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    await listCompositions(USER);
+    expect(list.rangeCalls).toEqual([[0, 49]]);
+  });
+
+  it('applies a custom limit/offset window via range(offset, offset+limit-1)', async () => {
+    const list = makeBuilder({ data: [], error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    await listCompositions(USER, { limit: 10, offset: 20 });
+    expect(list.rangeCalls).toEqual([[20, 29]]);
   });
 });
 

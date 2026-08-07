@@ -1,8 +1,17 @@
 import React from 'react';
 import { useTour } from './TourProvider';
+import { unlockAudio } from '@/lib/demoPlayback';
 
 export function TourPopup() {
   const { tourStep, nextStep, stopTour } = useTour();
+
+  const handleNext = () => {
+    // Unlock/resume the audio context inside the click gesture so the PLAY_MUSIC step
+    // (triggered from an effect, outside any gesture) can play under browser autoplay
+    // policies.
+    unlockAudio();
+    nextStep();
+  };
 
   if (!tourStep) {
     return null;
@@ -36,7 +45,7 @@ export function TourPopup() {
     <div style={popupStyle}>
       <h3>{tourStep.title}</h3>
       <p>{tourStep.content}</p>
-      <button style={buttonStyle} onClick={nextStep}>
+      <button style={buttonStyle} onClick={handleNext}>
         Next
       </button>
       <button style={{ ...buttonStyle, backgroundColor: '#a0aec0', marginLeft: '1rem' }} onClick={stopTour}>

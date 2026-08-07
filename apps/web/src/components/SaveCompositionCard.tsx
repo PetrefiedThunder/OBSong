@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { Button, Card } from '@toposonics/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { createComposition } from '@/lib/api';
+import { generateImageThumbnail } from '@/lib/imageThumbnail';
 import { logAnalyticsEvent } from '@/lib/analytics';
 import { LoginModal } from './LoginModal';
 import type { NoteEvent, MappingMode, KeyType, ScaleType } from '@toposonics/types';
@@ -15,9 +16,22 @@ interface SaveCompositionCardProps {
   scale: ScaleType;
   presetId: string;
   tempo: number;
+  /** Source image; downscaled into imageThumbnail at save time so the detail page can show it. */
+  imageFile?: File | null;
+  /** Composition length in seconds, persisted as metadata.duration for the detail page. */
+  durationSeconds?: number;
 }
 
-export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, presetId, tempo }: SaveCompositionCardProps) {
+export function SaveCompositionCard({
+  noteEvents,
+  mappingMode,
+  keyType,
+  scale,
+  presetId,
+  tempo,
+  imageFile,
+  durationSeconds,
+}: SaveCompositionCardProps) {
   const { token, login } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -52,6 +66,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
 
     setIsSaving(true);
     try {
+      // Thumbnail generation is best-effort: a decode/canvas failure shouldn't block saving.
+      const imageThumbnail = imageFile
+        ? await generateImageThumbnail(imageFile).catch(() => undefined)
+        : undefined;
+
       const savedComposition = await createComposition(
         {
           title: compositionTitle,
@@ -62,6 +81,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
           scale,
           presetId,
           tempo,
+          imageThumbnail,
+          metadata: {
+            noteCount: noteEvents.length,
+            ...(durationSeconds && durationSeconds > 0 ? { duration: durationSeconds } : {}),
+          },
         },
         effectiveToken
       );

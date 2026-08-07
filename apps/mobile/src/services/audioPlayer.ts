@@ -1,8 +1,9 @@
 import { Audio } from 'expo-av';
 import { noteToFrequency } from '@toposonics/core-audio';
 import type { NoteEvent } from '@toposonics/types';
+import { computePlaybackRate } from './playbackRate';
 
-const BASE_FREQUENCY = 440;
+export { computePlaybackRate } from './playbackRate';
 
 export interface PlaybackOptions {
   tempo?: number;
@@ -76,7 +77,9 @@ export function playNoteEvents(
       nextVoice += 1;
 
       const frequency = noteToFrequency(event.note);
-      const playbackRate = Math.max(0.5, Math.min(2.5, frequency / BASE_FREQUENCY));
+      // Octave-folded into expo-av's usable rate window so bass/treble notes outside it
+      // stay distinct pitches instead of all clamping to a monotone at the boundary.
+      const playbackRate = computePlaybackRate(frequency);
 
       const volume = event.velocity ?? 0.8;
       // Use != null (not truthiness) so filterCutoff === 0 (a fully dark pixel) applies

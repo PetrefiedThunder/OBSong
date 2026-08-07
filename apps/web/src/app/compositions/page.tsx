@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@toposonics/ui';
-import type { Composition } from '@toposonics/types';
-import { fetchCompositions } from '@/lib/api';
+import type { CompositionSummary } from '@toposonics/types';
+import { fetchAllCompositions } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginModal } from '@/components/LoginModal';
 
 export default function CompositionsPage() {
   const { token, login, isLoading: authLoading } = useAuth();
-  const [compositions, setCompositions] = useState<Composition[]>([]);
+  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -23,7 +23,9 @@ export default function CompositionsPage() {
     setError(null);
 
     try {
-      const data = await fetchCompositions(token);
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions(token);
       setCompositions(data);
     } catch (err) {
       console.error('Failed to load compositions:', err);
@@ -178,7 +180,8 @@ export default function CompositionsPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Notes:</span>
-                    <span className="text-gray-300">{composition.noteEvents.length}</span>
+                    {/* Old rows predate noteCount; show a dash rather than a false zero. */}
+                    <span className="text-gray-300">{composition.noteCount ?? '—'}</span>
                   </div>
                   {composition.tempo && (
                     <div className="flex justify-between">

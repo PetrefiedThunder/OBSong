@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiRequest } from '../apiClient';
+import { apiRequest, createApiClient } from '../apiClient';
 
 /** Build a minimal Response-like object for the global fetch mock. */
 function mockResponse(opts: {
@@ -78,6 +78,81 @@ describe('apiRequest', () => {
   it('throws on ok:true but success:false', async () => {
     stubFetch(mockResponse({ status: 200, ok: true, body: { success: false, error: {} } }));
     await expect(apiRequest('http://api', '/thing')).rejects.toThrow('HTTP 200');
+  });
+});
+
+describe('createApiClient.fetchCompositions', () => {
+  it('requests /compositions with no query string by default', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchCompositions('tok');
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions');
+    expect(result).toEqual([]);
+  });
+
+  it('appends limit/offset as a query string when provided', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    await client.fetchCompositions('tok', { limit: 10, offset: 20 });
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=10&offset=20');
+  });
+});
+
+describe('createApiClient.fetchAllCompositions', () => {
+  it('pages until a short page and concatenates the results in order', async () => {
+    // First page full (100 rows), second page short (3 rows) => exactly two requests.
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
+    const page2 = [{ id: 'c100' }, { id: 'c101' }, { id: 'c102' }];
+    const fn = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page1 } }))
+      .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page2 } }));
+    vi.stubGlobal('fetch', fn);
+
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=100&offset=0');
+    expect(fn.mock.calls[1][0]).toBe('http://api/compositions?limit=100&offset=100');
+    expect(result).toHaveLength(103);
+    expect(result[0]).toEqual({ id: 'c0' });
+    expect(result[102]).toEqual({ id: 'c102' });
+  });
+
+  it('stops after one request when the first page is short', async () => {
+    const fn = stubFetch(
+      mockResponse({ status: 200, body: { success: true, data: [{ id: 'only' }] } })
+    );
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([{ id: 'only' }]);
+  });
+
+  it('survives destructuring (no `this` dependence)', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const { fetchAllCompositions } = createApiClient({ baseUrl: 'http://api' });
+    await expect(fetchAllCompositions('tok')).resolves.toEqual([]);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns instead of silently truncating when every page up to the guard is full', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
+    const fn = vi
+      .fn()
+      .mockResolvedValue(mockResponse({ status: 200, body: { success: true, data: fullPage } }));
+    vi.stubGlobal('fetch', fn);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+
+    // Guard stops after exactly 50 pages and flags the possible truncation.
+    expect(fn).toHaveBeenCalledTimes(50);
+    expect(result).toHaveLength(5000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 });
 

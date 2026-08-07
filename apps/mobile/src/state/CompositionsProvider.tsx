@@ -1,9 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Composition, CreateCompositionDTO } from '@toposonics/types';
+import type { Composition, CompositionSummary, CreateCompositionDTO } from '@toposonics/types';
 import {
   fetchComposition,
-  fetchCompositions,
+  fetchAllCompositions,
   createComposition,
   deleteComposition as apiDeleteComposition,
 } from '../services/apiClient';
@@ -15,7 +15,9 @@ import {
 } from './compositionCache';
 
 interface CompositionsContextValue {
-  compositions: Composition[];
+  /** Lightweight list summaries; full compositions live in compositionsById. */
+  compositions: CompositionSummary[];
+  /** Full compositions (with noteEvents), populated on demand by loadComposition. */
   compositionsById: Record<string, Composition>;
   loading: boolean;
   usingCache: boolean;
@@ -29,7 +31,7 @@ const CompositionsContext = createContext<CompositionsContextValue | undefined>(
 
 export function CompositionsProvider({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuth();
-  const [compositions, setCompositions] = useState<Composition[]>([]);
+  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
   const [compositionsById, setCompositionsById] = useState<Record<string, Composition>>({});
   const [loading, setLoading] = useState(true);
   const [usingCache, setUsingCache] = useState(false);
@@ -50,7 +52,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     compositionsRef.current = compositions;
   }, [compositions]);
 
-  const saveToCache = useCallback(async (items: Composition[]) => {
+  const saveToCache = useCallback(async (items: CompositionSummary[]) => {
     if (!activeUserId) return;
 
     try {
@@ -79,12 +81,12 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     try {
       const cached = await AsyncStorage.getItem(getCompositionListCacheKey(activeUserId));
       if (cached) {
-        const parsed = JSON.parse(cached) as { items: Composition[] };
+        // Caches written before the summary migration hold full compositions; they still
+        // satisfy every summary field the list UI reads, so no migration is needed. They
+        // are no longer merged into compositionsById — that map holds full compositions
+        // only, populated by loadComposition (which has its own detail cache).
+        const parsed = JSON.parse(cached) as { items: CompositionSummary[] };
         setCompositions(parsed.items);
-        setCompositionsById((prev) => ({
-          ...prev,
-          ...Object.fromEntries(parsed.items.map((c) => [c.id, c])),
-        }));
         setUsingCache(true);
       }
     } catch (err) {
@@ -111,15 +113,15 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     setLoading(true);
     setUsingCache(false);
     try {
-      const data = await fetchCompositions();
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions();
       // Discard results if the active user changed while the request was in flight,
       // so we never repopulate a signed-out screen (or another account) with A's data.
       if (activeUserIdRef.current !== requestUserId) return;
+      // The list endpoint now returns summaries (no noteEvents/imageData), so they are
+      // not merged into compositionsById — full records come from loadComposition.
       setCompositions(data);
-      setCompositionsById((prev) => ({
-        ...prev,
-        ...Object.fromEntries(data.map((c) => [c.id, c])),
-      }));
       await saveToCache(data);
     } catch (err) {
       if (activeUserIdRef.current !== requestUserId) return;
@@ -176,9 +178,28 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       // refresh/loadComposition), so we don't write into the wrong user's state/cache.
       if (activeUserIdRef.current !== requestUserId) return created;
 
+      // The list holds lightweight summaries: derive one from the created composition so
+      // the noteEvents/imageData blobs stay out of the list state and its cache.
+      const createdSummary: CompositionSummary = {
+        id: created.id,
+        userId: created.userId,
+        title: created.title,
+        description: created.description,
+        mappingMode: created.mappingMode,
+        key: created.key,
+        scale: created.scale,
+        presetId: created.presetId,
+        tempo: created.tempo,
+        imageThumbnail: created.imageThumbnail,
+        noteCount: created.noteEvents.length,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      };
       // Derive the next list from the committed ref (not inside a functional updater) so the
-      // exact list we persist is the one we set.
-      const nextList = [created, ...compositionsRef.current];
+      // exact list we persist is the one we set. Assign the ref immediately so a second
+      // mutation completing before React's sync effect runs builds on this list, not a stale one.
+      const nextList = [createdSummary, ...compositionsRef.current];
+      compositionsRef.current = nextList;
       setCompositions(nextList);
       void saveToCache(nextList);
       setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
@@ -194,8 +215,10 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
 
       // Prune from in-memory state and the persisted caches so the deleted item
       // doesn't reappear from cache on the next mount. Derive the next list from the
-      // committed ref so saveToCache persists exactly what we set.
+      // committed ref so saveToCache persists exactly what we set; assign the ref
+      // immediately so back-to-back mutations never build on a stale list.
       const nextList = compositionsRef.current.filter((c) => c.id !== id);
+      compositionsRef.current = nextList;
       setCompositions(nextList);
       setCompositionsById((prev) => {
         const next = { ...prev };

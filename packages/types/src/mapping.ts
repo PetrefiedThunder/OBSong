@@ -102,13 +102,14 @@ export interface TopoPreset {
     bass: VoiceConfig;
     melody: VoiceConfig;
     pad: VoiceConfig;
-    fx: VoiceConfig;
+    /** @deprecated no fx mapper exists yet */
+    fx?: VoiceConfig;
   };
   /**
    * Mapping biases for each voice.
    * @deprecated not yet consumed by mappers
    */
-  mappingBias: {
+  mappingBias?: {
     bass: MappingBias;
     melody: MappingBias;
     pad: MappingBias;
@@ -203,7 +204,10 @@ export interface MultiVoiceOptions {
   enableMelody?: boolean;
   /** Enable pad voice (texture → chords/ambient). */
   enablePad?: boolean;
-  /** Enable spatial FX layer. */
+  /**
+   * Enable spatial FX layer.
+   * @deprecated no fx mapper exists yet
+   */
   enableFx?: boolean;
   /** Bass voice configuration. */
   bassOptions?: {
