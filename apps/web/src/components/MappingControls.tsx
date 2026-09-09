@@ -1,10 +1,11 @@
 'use client';
 
+import { useId } from 'react';
 import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
 import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
 
 interface MappingControlsProps {
-  key: KeyType;
+  musicalKey: KeyType;
   scale: ScaleType;
   mappingMode: MappingMode;
   presetId: string;
@@ -18,15 +19,34 @@ interface MappingControlsProps {
 
 const KEYS: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// One option per distinct scale *quality*. The root note is chosen separately via `key`,
+// so the legacy root-prefixed ScaleType values that share an interval pattern (e.g.
+// C_MAJOR/D_MAJOR/G_MAJOR) collapse to a single canonical entry here.
 const SCALES: { value: ScaleType; label: string }[] = [
   { value: 'C_MAJOR', label: 'Major' },
   { value: 'C_MINOR', label: 'Natural Minor' },
+  { value: 'A_HARMONIC_MINOR', label: 'Harmonic Minor' },
   { value: 'C_PENTATONIC', label: 'Pentatonic Major' },
   { value: 'A_MINOR_PENTATONIC', label: 'Pentatonic Minor' },
   { value: 'C_BLUES', label: 'Blues' },
   { value: 'D_DORIAN', label: 'Dorian' },
+  { value: 'C_MIXOLYDIAN', label: 'Mixolydian' },
   { value: 'E_PHRYGIAN', label: 'Phrygian' },
+  { value: 'C_LYDIAN', label: 'Lydian' },
+  { value: 'C_WHOLE_TONE', label: 'Whole Tone' },
 ];
+
+// Scene packs may set a root-prefixed alias whose interval pattern matches a canonical
+// option above. Normalize those to the canonical value so the <select> never renders blank
+// (an unmatched value shows no selection). Unlisted values map to themselves.
+const SCALE_ALIASES: Partial<Record<ScaleType, ScaleType>> = {
+  D_MAJOR: 'C_MAJOR',
+  G_MAJOR: 'C_MAJOR',
+  E_MINOR: 'C_MINOR',
+  A_MINOR: 'C_MINOR',
+  A_SHARP_MINOR: 'C_MINOR',
+  A_DORIAN: 'D_DORIAN',
+};
 
 const MAPPING_MODES: { value: MappingMode; label: string; description: string }[] = [
   {
@@ -47,7 +67,7 @@ const MAPPING_MODES: { value: MappingMode; label: string; description: string }[
 ];
 
 export function MappingControls({
-  key,
+  musicalKey,
   scale,
   mappingMode,
   presetId,
@@ -60,13 +80,21 @@ export function MappingControls({
 }: MappingControlsProps) {
   const presets = getAllPresets();
   const topoPresets = getAllTopoPresets();
+  const topoPresetId = useId();
+  const mappingModeId = useId();
+  const keyGroupId = useId();
+  const scaleId = useId();
+  const soundPresetId = useId();
 
   return (
     <div className="space-y-6">
       {/* TopoSonics Preset */}
       <div>
-        <label className="block text-sm font-medium mb-2">Musical Preset</label>
+        <label htmlFor={topoPresetId} className="block text-sm font-medium mb-2">
+          Musical Preset
+        </label>
         <select
+          id={topoPresetId}
           value={selectedTopoPreset?.id || ''}
           onChange={(e) => {
             const preset = e.target.value
@@ -90,8 +118,10 @@ export function MappingControls({
 
       {/* Mapping Mode */}
       <div>
-        <label className="block text-sm font-medium mb-2">Mapping Mode</label>
-        <div className="grid grid-cols-1 gap-2">
+        <span id={mappingModeId} className="block text-sm font-medium mb-2">
+          Mapping Mode
+        </span>
+        <div className="grid grid-cols-1 gap-2" role="group" aria-labelledby={mappingModeId}>
           {MAPPING_MODES.map((mode) => (
             <button
               key={mode.value}
@@ -111,14 +141,16 @@ export function MappingControls({
 
       {/* Musical Key */}
       <div>
-        <label className="block text-sm font-medium mb-2">Key</label>
-        <div className="grid grid-cols-6 gap-2">
+        <span id={keyGroupId} className="block text-sm font-medium mb-2">
+          Key
+        </span>
+        <div className="grid grid-cols-6 gap-2" role="group" aria-labelledby={keyGroupId}>
           {KEYS.map((k) => (
             <button
               key={k}
               onClick={() => onKeyChange(k)}
               className={`py-2 px-3 rounded-lg font-medium transition-colors ${
-                key === k
+                musicalKey === k
                   ? 'bg-primary-600 text-white'
                   : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
               }`}
@@ -131,9 +163,12 @@ export function MappingControls({
 
       {/* Scale */}
       <div>
-        <label className="block text-sm font-medium mb-2">Scale</label>
+        <label htmlFor={scaleId} className="block text-sm font-medium mb-2">
+          Scale
+        </label>
         <select
-          value={scale}
+          id={scaleId}
+          value={SCALE_ALIASES[scale] ?? scale}
           onChange={(e) => onScaleChange(e.target.value as ScaleType)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
@@ -147,8 +182,11 @@ export function MappingControls({
 
       {/* Sound Preset */}
       <div>
-        <label className="block text-sm font-medium mb-2">Sound Preset</label>
+        <label htmlFor={soundPresetId} className="block text-sm font-medium mb-2">
+          Sound Preset
+        </label>
         <select
+          id={soundPresetId}
           value={presetId}
           onChange={(e) => onPresetChange(e.target.value)}
           className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"

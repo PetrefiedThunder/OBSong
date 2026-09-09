@@ -4,31 +4,32 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@toposonics/ui';
 import { getAllScenePacks } from '@toposonics/core-audio';
-import type { ScenePack, NoteEvent, ImageAnalysisResult } from '@toposonics/types';
+import type { ScenePack, NoteEvent } from '@toposonics/types';
 import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
 import { TourProvider, useTour } from '@/components/tour/TourProvider';
 import { TourPopup } from '@/components/tour/TourPopup';
-import { mockAnalysisResult, mockNoteEvents } from '@toposonics/shared';
+import { mockNoteEvents, tourDemoTempoBpm } from '@toposonics/shared';
+import { playDemoNotes, unlockAudio } from '@/lib/demoPlayback';
 import { theme } from '@toposonics/ui';
 
 type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
 
+/**
+ * Runs tour-step side effects: while the PLAY_MUSIC step is open the sample phrase
+ * audibly plays, and it stops as soon as the user advances, skips, or leaves.
+ * playDemoNotes returns its controller synchronously, so cleanup cancels correctly
+ * even while Tone is still loading. (The audio context itself is unlocked from the
+ * tour buttons' click handlers — see TourPopup.)
+ */
 function TourWrapper() {
   const { tourStep } = useTour();
-  const [_demoAnalysis, setDemoAnalysis] = useState<ImageAnalysisResult | null>(null);
-  const [_demoNotes, setDemoNotes] = useState<NoteEvent[] | null>(null);
 
   useEffect(() => {
-    if (tourStep?.action === 'RUN_ANALYSIS') {
-      setDemoAnalysis(mockAnalysisResult);
-    }
-    if (tourStep?.action === 'PLAY_MUSIC') {
-      setDemoNotes(mockNoteEvents);
-    }
-  }, [tourStep]);
+    if (tourStep?.action !== 'PLAY_MUSIC') return undefined;
 
-  // This component will eventually display the analysis results and trigger playback
-  // For now, it just handles the state logic.
+    const controller = playDemoNotes(mockNoteEvents, tourDemoTempoBpm);
+    return () => controller.stop();
+  }, [tourStep]);
 
   return null;
 }
@@ -49,6 +50,7 @@ function HomePageContent() {
   const [activeDemo, setActiveDemo] = useState<{
     scenePack: ScenePack;
     noteEvents: NoteEvent[];
+    tempoBpm: number;
   } | null>(null);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
   const { startTour } = useTour();
@@ -66,7 +68,11 @@ function HomePageContent() {
         throw new Error('Demo not found');
       }
       const data = await response.json();
-      setActiveDemo({ scenePack, noteEvents: data.noteEvents });
+      setActiveDemo({
+        scenePack,
+        noteEvents: data.noteEvents,
+        tempoBpm: typeof data.tempoBpm === 'number' && data.tempoBpm > 0 ? data.tempoBpm : 120,
+      });
     } catch (error) {
       console.error('Failed to load demo:', error);
       alert('Demo composition not available for this scene pack');
@@ -80,7 +86,7 @@ function HomePageContent() {
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 id="logo" className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
             Turn Images into Musical Landscapes
           </h1>
           <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
@@ -93,14 +99,24 @@ function HomePageContent() {
                 Open Studio
               </Button>
             </Link>
-            <Button variant="secondary" size="lg" onClick={startTour}>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                // Unlock the audio context inside the real click gesture so the tour's
+                // PLAY_MUSIC step (which fires from an effect, outside any gesture) can
+                // audibly play under strict browser autoplay policies.
+                unlockAudio();
+                startTour();
+              }}
+            >
               Take the Tour
             </Button>
           </div>
         </div>
 
         {/* Scene Pack Showcase */}
-        <div id="image-analysis-panel" className="mb-20">
+        <div className="mb-20">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-3">Explore Scene Packs</h2>
             <p className="text-gray-400 max-w-2xl mx-auto mb-6">
@@ -109,7 +125,7 @@ function HomePageContent() {
             </p>
 
             {/* Category Filter */}
-            <div id="mapping-mode-selector" className="flex justify-center gap-2 flex-wrap">
+            <div className="flex justify-center gap-2 flex-wrap">
               {(['All', 'Nature', 'Urban', 'Atmospheric'] as Category[]).map((category) => (
                 <button
                   key={category}
@@ -166,7 +182,7 @@ function HomePageContent() {
                   </div>
 
                   {/* Actions */}
-                  <div id="playback-controls" className="flex gap-2 pt-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => handlePlayDemo(pack)}
                       disabled={loadingDemo === pack.id}
@@ -178,7 +194,6 @@ function HomePageContent() {
                       {loadingDemo === pack.id ? 'Loading...' : '▶ Try Demo'}
                     </button>
                     <Link
-                      id="export-button"
                       href={`/studio?scene=${pack.id}`}
                       className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors border text-center"
                       style={{
@@ -262,6 +277,7 @@ function HomePageContent() {
         <LandingDemoPlayer
           demoNotes={activeDemo.noteEvents}
           scenePack={activeDemo.scenePack}
+          tempoBpm={activeDemo.tempoBpm}
           onClose={() => setActiveDemo(null)}
         />
       )}

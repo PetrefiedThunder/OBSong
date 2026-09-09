@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@toposonics/ui';
 
 interface LoginModalProps {
@@ -24,6 +24,22 @@ export function LoginModal({
 }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const titleId = useId();
+  const descriptionId = useId();
+  const emailId = useId();
+  const passwordId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    // Move focus into the dialog on open.
+    dialogRef.current?.querySelector<HTMLElement>('input, button')?.focus();
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -33,14 +49,32 @@ export function LoginModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-      <div className="bg-surface-primary p-8 rounded-xl shadow-lg w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-4 text-white">{title}</h2>
-        <p className="text-gray-400 mb-6">{description}</p>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        className="bg-surface-primary p-8 rounded-xl shadow-lg w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id={titleId} className="text-2xl font-bold mb-4 text-white">
+          {title}
+        </h2>
+        <p id={descriptionId} className="text-gray-400 mb-6">
+          {description}
+        </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
+            <label htmlFor={emailId} className="block text-sm font-medium mb-2">
+              Email
+            </label>
             <input
+              id={emailId}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -49,8 +83,11 @@ export function LoginModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
+            <label htmlFor={passwordId} className="block text-sm font-medium mb-2">
+              Password
+            </label>
             <input
+              id={passwordId}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

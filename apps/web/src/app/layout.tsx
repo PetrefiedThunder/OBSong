@@ -1,7 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import Link from 'next/link';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
+
+// Nonce-based CSP (see src/middleware.ts) requires per-request rendering: a static build
+// has no request nonce to stamp on Next's script tags, so 'strict-dynamic' would block
+// every chunk. Forcing dynamic rendering lets Next apply the request nonce to its scripts.
+export const dynamic = 'force-dynamic';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -48,22 +54,22 @@ export default function RootLayout({
             <header className="border-b border-gray-800 bg-surface-primary">
               <nav className="container mx-auto px-4 py-4">
                 <div className="flex items-center justify-between">
-                  <a href="/" className="text-2xl font-bold text-primary-400">
+                  <Link href="/" className="text-2xl font-bold text-primary-400">
                     🎵 TopoSonics
-                  </a>
+                  </Link>
                   <div className="flex gap-6">
-                    <a
+                    <Link
                       href="/studio"
                       className="text-gray-300 hover:text-white transition-colors"
                     >
                       Studio
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/compositions"
                       className="text-gray-300 hover:text-white transition-colors"
                     >
                       Compositions
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </nav>

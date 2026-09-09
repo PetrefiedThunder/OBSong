@@ -34,6 +34,13 @@ export function computeBrightnessProfileFromRow(
   rowIndex: number
 ): number[] {
   const profile: number[] = [];
+
+  // Guard against out-of-range rows: reading past the pixel buffer yields `undefined`,
+  // which propagates as NaN through the whole downstream audio pipeline.
+  if (rowIndex < 0 || rowIndex >= height) {
+    return new Array(width).fill(0);
+  }
+
   const rowOffset = rowIndex * width * 4; // 4 channels per pixel (RGBA)
 
   for (let x = 0; x < width; x++) {
@@ -47,27 +54,6 @@ export function computeBrightnessProfileFromRow(
   }
 
   return profile;
-}
-
-/**
- * Normalize brightness values to 0-1 range
- *
- * @param profile - Brightness values (any range)
- * @returns Normalized values (0-1)
- */
-export function computeNormalizedBrightness(profile: number[]): number[] {
-  if (profile.length === 0) return [];
-
-  const min = Math.min(...profile);
-  const max = Math.max(...profile);
-  const range = max - min;
-
-  // Avoid division by zero
-  if (range === 0) {
-    return profile.map(() => 0.5);
-  }
-
-  return profile.map((value) => (value - min) / range);
 }
 
 /**
@@ -116,14 +102,23 @@ export function computeAveragedBrightnessProfile(
   startRow: number,
   endRow: number
 ): number[] {
+  // Clamp the requested range into the image so callers that pass an unclamped window
+  // (e.g. centerRow - 2 for a short image) don't read out-of-bounds rows.
+  const clampedStart = Math.max(0, Math.min(startRow, height));
+  const clampedEnd = Math.max(clampedStart, Math.min(endRow, height));
+
   const profiles: number[][] = [];
 
-  for (let row = startRow; row < endRow; row++) {
+  for (let row = clampedStart; row < clampedEnd; row++) {
     profiles.push(computeBrightnessProfileFromRow(pixels, width, height, row));
   }
 
   // Average across all rows
   const result: number[] = new Array(width).fill(0);
+
+  if (profiles.length === 0) {
+    return result;
+  }
 
   for (const profile of profiles) {
     for (let x = 0; x < width; x++) {

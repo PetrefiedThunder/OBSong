@@ -8,5 +8,4 @@ export * from './audio';
 export * from './composition';
 export * from './image';
 export * from './mapping';
-export * from './schemas';
 export * from './user';

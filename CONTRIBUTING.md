@@ -53,10 +53,12 @@ toposonics/
 │   ├── mobile/       # Expo mobile app
 │   └── api/          # Fastify backend
 ├── packages/
-│   ├── types/        # Shared TypeScript types
-│   ├── core-image/   # Image analysis
-│   ├── core-audio/   # Audio mapping
-│   └── ui/           # Shared UI components
+│   ├── types/                    # Shared TypeScript types + zod schemas
+│   ├── core-image/               # Image analysis
+│   ├── core-audio/               # Audio mapping
+│   ├── shared/                   # Shared config, API client, logging
+│   ├── native-image-processing/  # Native Android image-processing bridge
+│   └── ui/                       # Shared UI components
 └── [config files]
 ```
 
@@ -144,20 +146,18 @@ Before submitting a PR:
 
 ## Areas for Contribution
 
+> Note: Supabase authentication + persistence, MIDI export, and the DEPTH_RIDGE mapping
+> are already shipped (see the README). The list below is remaining work.
+
 ### High Priority
 
-- [ ] Complete DEPTH_RIDGE mapping implementation
-- [ ] Add unit tests for core packages
-- [ ] Implement real authentication
-- [ ] Add database persistence (Prisma)
+- [ ] Expand unit tests for core packages
 - [ ] Complete mobile pixel extraction
 
 ### Medium Priority
 
 - [ ] More sound presets
-- [ ] MIDI export functionality
 - [ ] Advanced visualization options
-- [ ] User account system
 - [ ] Composition sharing
 
 ### Documentation

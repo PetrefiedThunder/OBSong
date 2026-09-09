@@ -22,8 +22,6 @@ export {
 export {
   mapLinearLandscape,
   mapDepthRidge,
-  quantizeNotes,
-  scaleVelocity,
   transposeNotes,
   // Multi-voice mapping functions
   mapHorizonToBass,
@@ -44,20 +42,10 @@ export {
 } from './presets';
 
 // Export TopoSonics musical presets
-export {
-  TOPO_PRESETS,
-  getTopoPresetById,
-  getDefaultTopoPreset,
-  getAllTopoPresets,
-} from './topoPresets';
+export { TOPO_PRESETS, getAllTopoPresets } from './topoPresets';
 
 // Export Scene Packs
-export {
-  SCENE_PACKS,
-  getScenePackById,
-  getScenePreset,
-  getAllScenePacks,
-} from './scenePacks';
+export { SCENE_PACKS, getScenePreset, getAllScenePacks } from './scenePacks';
 
 // Re-export types for convenience
 export type {

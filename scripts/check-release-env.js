@@ -11,7 +11,8 @@ const envFiles = [
 
 const required = {
   web: ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'],
-  api: ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
+  // The API uses only the service-role client; it never reads an anon key.
+  api: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
   mobile: ['EXPO_PUBLIC_API_URL', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'],
 };
 

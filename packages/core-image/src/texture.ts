@@ -30,9 +30,12 @@ export function computeTextureFromBrightness(
     const variance =
       window.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / window.length;
 
-    // Normalize variance to 0-1 range (using standard deviation)
+    // Normalize variance to 0-1 range (using standard deviation).
+    // The maximum possible standard deviation of values in [0, 255] is 127.5 (half at 0,
+    // half at 255), so divide by 127.5 — dividing by 255 capped texture at 0.5 and made
+    // the "high" classification (>= 0.7) unreachable.
     const stdDev = Math.sqrt(variance);
-    texture.push(stdDev / 255); // Normalize by max possible std dev
+    texture.push(Math.min(1, stdDev / 127.5));
   }
 
   return texture;
@@ -87,43 +90,4 @@ export function computeTextureProfile(
   }
 
   return avgTexture;
-}
-
-/**
- * Segment texture profile into coarser regions
- * Useful for pad voice (fewer, longer chord changes)
- *
- * @param textureProfile - Fine-grained texture array
- * @param segments - Number of segments to create (default: 8)
- * @returns Array of average texture values per segment
- */
-export function segmentTexture(
-  textureProfile: number[],
-  segments: number = 8
-): number[] {
-  const segmentSize = textureProfile.length / segments;
-  const segmented: number[] = [];
-
-  for (let i = 0; i < segments; i++) {
-    const start = Math.floor(i * segmentSize);
-    const end = Math.floor((i + 1) * segmentSize);
-    const segment = textureProfile.slice(start, end);
-    const average = segment.reduce((sum, val) => sum + val, 0) / segment.length;
-    segmented.push(average);
-  }
-
-  return segmented;
-}
-
-/**
- * Classify texture intensity into discrete levels
- * Useful for mapping to chord complexity
- *
- * @param textureValue - Texture value (0-1)
- * @returns Texture level: 'low' | 'medium' | 'high'
- */
-export function classifyTexture(textureValue: number): 'low' | 'medium' | 'high' {
-  if (textureValue < 0.3) return 'low';
-  if (textureValue < 0.7) return 'medium';
-  return 'high';
 }

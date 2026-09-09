@@ -90,9 +90,11 @@ export function ImageUploader({
             aria-hidden
           >
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-transform duration-75 transition-opacity"
+              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-[left,opacity] duration-75"
               style={{
-                transform: `translateX(${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%)`,
+                // Use container-relative `left` (not translateX): a translateX percentage is
+                // relative to the 2px line's own width, so it never sweeps across the image.
+                left: `${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%`,
                 opacity: showScanline ? 1 : 0,
               }}
             />

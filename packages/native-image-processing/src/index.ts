@@ -3,8 +3,6 @@ import { NativeModulesProxy } from 'expo-modules-core';
 export interface NativeImageProcessingOptions {
   /** Local file URI to analyze */
   uri?: string;
-  /** Texture identifier to analyze if available */
-  textureId?: number;
   /** Requested resize width; aspect ratio preserved */
   targetWidth?: number;
   /** Whether to compute ridge strength using Sobel edge detection */
@@ -25,13 +23,27 @@ export interface NativeImageProcessingResult {
 
 const NativeImageProcessingModule = NativeModulesProxy.NativeImageProcessing;
 
-if (!NativeImageProcessingModule) {
-  throw new Error('NativeImageProcessing module is not available');
+/**
+ * Whether native image processing is actually usable on this platform. The native module
+ * exposes an explicit `isAvailable` constant (Android: true; iOS: false — the iOS module
+ * is a stub) because the mere presence of `processImage` is not enough: iOS registers the
+ * function but always throws.
+ *
+ * Note: this does NOT throw at import time (a missing module or unsupported platform must
+ * not crash the whole JS bundle); callers should guard with this before calling
+ * processImage.
+ */
+export function isNativeImageProcessingAvailable(): boolean {
+  return Boolean(NativeImageProcessingModule?.isAvailable);
 }
 
 export async function processImage(
   options: NativeImageProcessingOptions
 ): Promise<NativeImageProcessingResult> {
+  if (!isNativeImageProcessingAvailable()) {
+    throw new Error('Native image processing is not available on this platform');
+  }
+
   const result = await NativeImageProcessingModule.processImage(options);
 
   if (!result || typeof result.width !== 'number' || typeof result.height !== 'number') {
@@ -52,8 +64,4 @@ export async function processImage(
   }
 
   return processed;
-}
-
-export function isNativeImageProcessingAvailable() {
-  return Boolean(NativeImageProcessingModule?.processImage);
 }

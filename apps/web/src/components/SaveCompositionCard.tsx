@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Button, Card } from '@toposonics/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { createComposition } from '@/lib/api';
+import { generateImageThumbnail } from '@/lib/imageThumbnail';
 import { logAnalyticsEvent } from '@/lib/analytics';
 import { LoginModal } from './LoginModal';
 import type { NoteEvent, MappingMode, KeyType, ScaleType } from '@toposonics/types';
@@ -15,15 +16,30 @@ interface SaveCompositionCardProps {
   scale: ScaleType;
   presetId: string;
   tempo: number;
+  /** Source image; downscaled into imageThumbnail at save time so the detail page can show it. */
+  imageFile?: File | null;
+  /** Composition length in seconds, persisted as metadata.duration for the detail page. */
+  durationSeconds?: number;
 }
 
-export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, presetId, tempo }: SaveCompositionCardProps) {
+export function SaveCompositionCard({
+  noteEvents,
+  mappingMode,
+  keyType,
+  scale,
+  presetId,
+  tempo,
+  imageFile,
+  durationSeconds,
+}: SaveCompositionCardProps) {
   const { token, login } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const titleFieldId = useId();
+  const descriptionFieldId = useId();
 
   const handleLoginForSave = async (email: string, password?: string) => {
     setIsLoggingIn(true);
@@ -50,6 +66,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
 
     setIsSaving(true);
     try {
+      // Thumbnail generation is best-effort: a decode/canvas failure shouldn't block saving.
+      const imageThumbnail = imageFile
+        ? await generateImageThumbnail(imageFile).catch(() => undefined)
+        : undefined;
+
       const savedComposition = await createComposition(
         {
           title: compositionTitle,
@@ -60,6 +81,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
           scale,
           presetId,
           tempo,
+          imageThumbnail,
+          metadata: {
+            noteCount: noteEvents.length,
+            ...(durationSeconds && durationSeconds > 0 ? { duration: durationSeconds } : {}),
+          },
         },
         effectiveToken
       );
@@ -79,8 +105,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
       <Card title="Save Composition" padding="lg">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Title</label>
+            <label htmlFor={titleFieldId} className="block text-sm font-medium mb-2">
+              Title
+            </label>
             <input
+              id={titleFieldId}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -89,8 +118,11 @@ export function SaveCompositionCard({ noteEvents, mappingMode, keyType, scale, p
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
+            <label htmlFor={descriptionFieldId} className="block text-sm font-medium mb-2">
+              Description
+            </label>
             <textarea
+              id={descriptionFieldId}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."

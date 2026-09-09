@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -24,9 +24,9 @@ export default function CompositionsScreen({ navigation }: Props) {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh, token]);
+  // CompositionsProvider already refreshes on mount and whenever the auth token /
+  // active user changes, so no screen-level mount refresh is needed here (it would
+  // double the initial fetch). Pull-to-refresh still calls refresh() directly.
 
   const handlePasswordSignIn = async (email: string, password: string) => {
     try {
@@ -52,7 +52,9 @@ export default function CompositionsScreen({ navigation }: Props) {
     }
   };
 
-  if (authLoading || loading) {
+  // Only show the full-screen spinner on the initial load; subsequent refreshes are shown
+  // by the list's own RefreshControl (refreshing={loading}) instead of unmounting the list.
+  if (authLoading || (loading && compositions.length === 0)) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0284c7" />
@@ -133,8 +135,9 @@ export default function CompositionsScreen({ navigation }: Props) {
               <Text style={styles.cardMetaText}>
                 {item.key} {item.scale.replace('_', ' ')}
               </Text>
+              {/* Old rows/caches predate noteCount; show a dash rather than a false zero. */}
               <Text style={styles.cardMetaText}>
-                {item.noteEvents.length} notes
+                {item.noteCount ?? '—'} notes
               </Text>
             </View>
           </TouchableOpacity>

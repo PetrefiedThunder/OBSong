@@ -49,6 +49,39 @@ export interface Composition {
 }
 
 /**
+ * Lightweight list-view projection of a composition. Deliberately excludes the heavy
+ * fields (noteEvents, imageData) so list responses and caches stay small.
+ */
+export interface CompositionSummary {
+  /** Unique composition identifier. */
+  id: string;
+  /** User ID of the creator. */
+  userId: string;
+  /** Composition title. */
+  title: string;
+  /** Optional description or notes. */
+  description?: string;
+  /** Mapping mode used to generate this composition. */
+  mappingMode: MappingMode;
+  /** Musical key. */
+  key: KeyType;
+  /** Musical scale. */
+  scale: ScaleType;
+  /** Sound preset used. */
+  presetId?: string;
+  /** Tempo in BPM (beats per minute). */
+  tempo?: number;
+  /** Optional: Base64-encoded thumbnail of source image. */
+  imageThumbnail?: string;
+  /** Number of note events; absent for rows saved before metadata.noteCount existed. */
+  noteCount?: number;
+  /** Creation timestamp. */
+  createdAt: Date;
+  /** Last update timestamp. */
+  updatedAt: Date;
+}
+
+/**
  * DTO for creating a new composition (excludes generated fields).
  */
 export type CreateCompositionDTO = Omit<Composition, 'id' | 'createdAt' | 'updatedAt'>;

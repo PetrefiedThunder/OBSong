@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { NoteEvent } from '@toposonics/types';
 import { noteNameToMidi } from '@toposonics/core-audio';
 
 interface TimelineVisualizerProps {
   noteEvents: NoteEvent[];
   currentTime?: number;
+  /** Tempo in BPM. NoteEvent.start/duration are in beats; this converts them to the
+   *  seconds axis that `currentTime` (Transport.seconds) is measured in. */
+  tempo?: number;
   width?: number;
   height?: number;
 }
@@ -14,42 +17,83 @@ interface TimelineVisualizerProps {
 export function TimelineVisualizer({
   noteEvents,
   currentTime = 0,
+  tempo = 120,
   width = 800,
   height = 300,
 }: TimelineVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Offscreen canvas holding the static scene (grid + notes + labels). It only needs
+  // to be repainted when the notes or dimensions change, not on every animation frame.
+  const sceneRef = useRef<HTMLCanvasElement | null>(null);
+  const maxTimeRef = useRef(0);
+  // Read the latest cursor time from a ref so paintFrame stays referentially stable across
+  // playback frames — otherwise it would appear in the scene-rebuild effect's deps and
+  // force a full offscreen re-render ~60x/sec, defeating the caching.
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
 
-  useEffect(() => {
+  const padding = 40;
+
+  // Blit the pre-rendered scene and draw only the moving playback cursor on top.
+  const paintFrame = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    const scene = sceneRef.current;
+    if (!canvas || !scene) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
+    ctx.drawImage(scene, 0, 0);
+
+    const maxTime = maxTimeRef.current;
+    const ct = currentTimeRef.current;
+    if (maxTime > 0 && ct > 0 && ct <= maxTime) {
+      const graphWidth = width - padding * 2;
+      const cursorX = padding + (ct / maxTime) * graphWidth;
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cursorX, padding);
+      ctx.lineTo(cursorX, height - padding);
+      ctx.stroke();
+    }
+  }, [width, height]);
+
+  // Rebuild the static scene only when notes/dimensions change.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     canvas.width = width;
     canvas.height = height;
 
-    // Clear canvas
+    const scene = document.createElement('canvas');
+    scene.width = width;
+    scene.height = height;
+    const ctx = scene.getContext('2d');
+    if (!ctx) return;
+
     ctx.fillStyle = '#14141a';
     ctx.fillRect(0, 0, width, height);
 
     if (noteEvents.length === 0) {
-      // Draw placeholder
       ctx.fillStyle = '#4b5563';
       ctx.font = '16px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Generate a composition to see visualization', width / 2, height / 2);
+      sceneRef.current = scene;
+      maxTimeRef.current = 0;
+      paintFrame();
       return;
     }
 
-    // Calculate ranges
-    const maxTime = Math.max(...noteEvents.map((e) => e.start + e.duration));
+    // NoteEvent.start/duration are in beats; convert to seconds so the time axis and the
+    // playback cursor (currentTime = Transport.seconds) share the same units.
+    const secondsPerBeat = 60 / tempo;
+    // Calculate ranges (in seconds)
+    const maxTime = Math.max(...noteEvents.map((e) => (e.start + e.duration) * secondsPerBeat));
     const minMidi = Math.min(...noteEvents.map((e) => noteNameToMidi(e.note)));
     const maxMidi = Math.max(...noteEvents.map((e) => noteNameToMidi(e.note)));
     const midiRange = maxMidi - minMidi || 1;
 
-    const padding = 40;
     const graphWidth = width - padding * 2;
     const graphHeight = height - padding * 2;
 
@@ -57,7 +101,6 @@ export function TimelineVisualizer({
     ctx.strokeStyle = '#374151';
     ctx.lineWidth = 1;
 
-    // Horizontal grid (time)
     for (let i = 0; i <= 5; i++) {
       const x = padding + (i / 5) * graphWidth;
       ctx.beginPath();
@@ -66,7 +109,6 @@ export function TimelineVisualizer({
       ctx.stroke();
     }
 
-    // Vertical grid (pitch)
     for (let i = 0; i <= 5; i++) {
       const y = padding + (i / 5) * graphHeight;
       ctx.beginPath();
@@ -78,18 +120,18 @@ export function TimelineVisualizer({
     // Draw note events
     noteEvents.forEach((event) => {
       const midi = noteNameToMidi(event.note);
-      const x = padding + (event.start / maxTime) * graphWidth;
+      const startSeconds = event.start * secondsPerBeat;
+      const durationSeconds = event.duration * secondsPerBeat;
+      const x = padding + (startSeconds / maxTime) * graphWidth;
       const y = height - padding - ((midi - minMidi) / midiRange) * graphHeight;
-      const w = (event.duration / maxTime) * graphWidth;
+      const w = (durationSeconds / maxTime) * graphWidth;
       const h = 8;
 
-      // Color based on velocity
       const alpha = 0.5 + event.velocity * 0.5;
       ctx.fillStyle = `rgba(14, 165, 233, ${alpha})`; // primary-600
 
       ctx.fillRect(x, y - h / 2, Math.max(w, 2), h);
 
-      // Add pan indicator (circle)
       if (event.pan !== undefined && event.pan !== 0) {
         ctx.fillStyle = event.pan > 0 ? '#a855f7' : '#22c55e';
         ctx.beginPath();
@@ -98,31 +140,26 @@ export function TimelineVisualizer({
       }
     });
 
-    // Draw playback cursor
-    if (currentTime > 0 && currentTime <= maxTime) {
-      const cursorX = padding + (currentTime / maxTime) * graphWidth;
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cursorX, padding);
-      ctx.lineTo(cursorX, height - padding);
-      ctx.stroke();
-    }
-
     // Draw axes labels
     ctx.fillStyle = '#9ca3af';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-
-    // Time labels
     ctx.fillText('0s', padding, height - 10);
     ctx.fillText(`${maxTime.toFixed(1)}s`, width - padding, height - 10);
-
-    // Pitch labels (left side)
     ctx.textAlign = 'right';
     ctx.fillText('High', padding - 10, padding + 10);
     ctx.fillText('Low', padding - 10, height - padding);
-  }, [noteEvents, currentTime, width, height]);
+
+    sceneRef.current = scene;
+    maxTimeRef.current = maxTime;
+    paintFrame();
+  }, [noteEvents, tempo, width, height, paintFrame]);
+
+  // Cheap per-frame update: currentTime changes ~60x/sec during playback; just blit the
+  // cached scene and redraw the cursor (no scene rebuild).
+  useEffect(() => {
+    paintFrame();
+  }, [currentTime, paintFrame]);
 
   return (
     <div className="bg-surface-primary rounded-xl p-4">

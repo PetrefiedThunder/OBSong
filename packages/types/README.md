@@ -43,7 +43,7 @@ const note: NoteEvent = {
 
 ### Musical Types
 
-- `MappingMode` - Mapping algorithms (LINEAR_LANDSCAPE, DEPTH_RIDGE)
+- `MappingMode` - Mapping algorithms (LINEAR_LANDSCAPE, DEPTH_RIDGE, MULTI_VOICE)
 - `ScaleType` - Musical scales (C_MAJOR, A_MINOR, etc.)
 - `KeyType` - Root notes (C, C#, D, etc.)
 - `NoteEvent` - Individual musical note with timing and effects
@@ -54,7 +54,6 @@ const note: NoteEvent = {
 - `ImageAnalysisResult` - Output from image processing
 - `Composition` - Complete musical composition
 - `User` - User account information
-- `AuthTokenResponse` - Authentication response
 
 ### API Types
 

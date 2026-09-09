@@ -1,0 +1,41 @@
+name: Dependency Audit
+
+# Replaces the old CRDA workflow (the CRDA service was discontinued and the job ran on the
+# base branch via pull_request_target, so it never scanned PR changes). This runs a plain
+# advisory audit on PRs and pushes to main, and weekly.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Advisory only: report high/critical vulnerabilities without failing the build,
+      # so a newly-published advisory doesn't block unrelated PRs. Tighten to a failing
+      # gate once the dependency tree is clean.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high || true

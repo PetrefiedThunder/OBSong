@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.kotlin.records.Field
+import expo.modules.kotlin.records.Record
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.abs
@@ -16,49 +18,64 @@ class NativeImageProcessingModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("NativeImageProcessing")
 
+    // Explicit availability flag consumed by isNativeImageProcessingAvailable() in JS.
+    Constants("isAvailable" to true)
+
     AsyncFunction("processImage") { options: ImageProcessingOptions ->
-      require(options.uri != null || options.textureId != null) { "A file URI or texture ID is required" }
-      require(options.textureId == null) { "Texture extraction is not supported yet" }
-
+      val uriString = requireNotNull(options.uri) { "A file URI is required" }
       val targetWidth = options.targetWidth ?: 640
-      val resolvedPath = requireNotNull(options.uri?.let { resolveImageUri(it) }) { "A file URI is required" }
-      val sourceBitmap = requireNotNull(BitmapFactory.decodeFile(resolvedPath)) {
-        "Failed to decode image for native processing"
-      }
-      val resizedBitmap = resizeBitmap(sourceBitmap, targetWidth)
-      if (resizedBitmap !== sourceBitmap) {
-        sourceBitmap.recycle()
-      }
 
-      val pixelBytes = bitmapToRgbaBytes(resizedBitmap)
-      val result = mutableMapOf<String, Any>(
-        "pixels" to pixelBytes,
-        "width" to resizedBitmap.width,
-        "height" to resizedBitmap.height
-      )
+      var tempFile: File? = null
+      var sourceBitmap: Bitmap? = null
+      var resizedBitmap: Bitmap? = null
+      try {
+        val uri = Uri.parse(uriString)
+        val resolvedPath: String
+        if (uri.scheme == "content") {
+          val file = copyContentUriToCache(uri)
+          tempFile = file
+          resolvedPath = file.absolutePath
+        } else {
+          resolvedPath = when (uri.scheme) {
+            null -> uriString
+            "file" -> requireNotNull(uri.path) { "Invalid file URI" }
+            else -> uriString
+          }
+        }
 
-      if (options.includeRidgeStrength == true) {
-        result["ridgeStrength"] = computeRidgeStrength(resizedBitmap)
-        result["ridgeWidth"] = resizedBitmap.width
-        result["ridgeHeight"] = resizedBitmap.height
+        sourceBitmap = requireNotNull(BitmapFactory.decodeFile(resolvedPath)) {
+          "Failed to decode image for native processing"
+        }
+        resizedBitmap = resizeBitmap(sourceBitmap, targetWidth)
+
+        val pixelBytes = bitmapToRgbaBytes(resizedBitmap)
+        val result = mutableMapOf<String, Any>(
+          "pixels" to pixelBytes,
+          "width" to resizedBitmap.width,
+          "height" to resizedBitmap.height
+        )
+
+        if (options.includeRidgeStrength == true) {
+          result["ridgeStrength"] = computeRidgeStrength(resizedBitmap)
+          result["ridgeWidth"] = resizedBitmap.width
+          result["ridgeHeight"] = resizedBitmap.height
+        }
+
+        result.toMap()
+      } finally {
+        // Recycle bitmaps and delete the temp file even if decoding/processing threw
+        // (previously an exception leaked the bitmap and every content:// copy leaked a
+        // temp file in the app cache).
+        if (resizedBitmap != null && resizedBitmap !== sourceBitmap) {
+          resizedBitmap.recycle()
+        }
+        sourceBitmap?.recycle()
+        tempFile?.delete()
       }
-
-      resizedBitmap.recycle()
-      result.toMap()
     }
   }
 
-  private fun resolveImageUri(uriString: String): String {
-    val uri = Uri.parse(uriString)
-    return when (uri.scheme) {
-      null -> uriString
-      "file" -> requireNotNull(uri.path) { "Invalid file URI" }
-      "content" -> copyContentUriToCache(uri)
-      else -> uriString
-    }
-  }
-
-  private fun copyContentUriToCache(uri: Uri): String {
+  private fun copyContentUriToCache(uri: Uri): File {
     val context = requireNotNull(appContext.reactContext) { "React context is unavailable" }
     val cacheFile = File.createTempFile("toposonics-image-", ".tmp", context.cacheDir)
 
@@ -69,7 +86,7 @@ class NativeImageProcessingModule : Module() {
       }
     }
 
-    return cacheFile.absolutePath
+    return cacheFile
   }
 
   private fun resizeBitmap(bitmap: Bitmap, targetWidth: Int): Bitmap {
@@ -150,8 +167,7 @@ class NativeImageProcessingModule : Module() {
 }
 
 data class ImageProcessingOptions(
-  val uri: String? = null,
-  val textureId: Int? = null,
-  val targetWidth: Int? = null,
-  val includeRidgeStrength: Boolean? = false
-)
+  @Field val uri: String? = null,
+  @Field val targetWidth: Int? = null,
+  @Field val includeRidgeStrength: Boolean? = false
+) : Record

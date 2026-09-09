@@ -13,7 +13,6 @@
 export {
   computePixelBrightness,
   computeBrightnessProfileFromRow,
-  computeNormalizedBrightness,
   downsampleProfile,
   computeAveragedBrightnessProfile,
 } from './brightness';
@@ -32,7 +31,6 @@ export {
   analyzeImageForLinearLandscape,
   analyzeImageForDepthRidge,
   analyzeImageForMultiVoice,
-  analyzeImageQuick,
 } from './analyzer';
 
 // Export horizon utilities
@@ -43,12 +41,7 @@ export {
 } from './horizon';
 
 // Export texture utilities
-export {
-  computeTextureFromBrightness,
-  computeTextureProfile,
-  segmentTexture,
-  classifyTexture,
-} from './texture';
+export { computeTextureFromBrightness, computeTextureProfile } from './texture';
 
 // Re-export types for convenience
 export type { ImageAnalysisResult } from '@toposonics/types';

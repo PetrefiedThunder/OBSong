@@ -96,10 +96,6 @@ Analyzes an image for the LINEAR_LANDSCAPE mapping mode.
 
 Analyzes an image with ridge detection (advanced mode, partially implemented).
 
-#### `analyzeImageQuick(pixels, width, height)`
-
-Fast analysis with minimal sampling for previews.
-
 ### Utility Functions
 
 - `computePixelBrightness(r, g, b)` - Calculate perceived brightness

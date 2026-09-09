@@ -3,30 +3,39 @@ import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   Image,
   Alert,
   ScrollView,
   ActivityIndicator,
   Platform,
-  PermissionsAndroid,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { KeyType, ScaleType, NoteEvent } from '@toposonics/types';
+import type { KeyType, ScaleType, NoteEvent, MappingMode } from '@toposonics/types';
 import { useAuth } from '../auth/AuthProvider';
 import {
   generateCompositionFromImage,
   type CompositionGenerationResult,
 } from '../services/imageProcessing';
-import { playNoteEvents, formatNoteEventsDuration } from '../services/audioPlayer';
+import {
+  playNoteEvents,
+  formatNoteEventsDuration,
+  type PlaybackController,
+} from '../services/audioPlayer';
 import { useCompositions } from '../state/CompositionsProvider';
 import * as FileSystem from 'expo-file-system';
 import { logError } from '@toposonics/shared';
 import { theme } from '@toposonics/ui';
 import { SignInModal } from '../components/SignInModal';
 
-const KEYS: KeyType[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const KEYS: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const MAPPING_MODES: Array<{ value: MappingMode; label: string }> = [
+  { value: 'LINEAR_LANDSCAPE', label: 'Linear' },
+  { value: 'DEPTH_RIDGE', label: 'Depth Ridge' },
+  { value: 'MULTI_VOICE', label: 'Multi-Voice' },
+];
 const SCALES: ScaleType[] = [
   'C_MAJOR',
   'A_MINOR',
@@ -42,9 +51,14 @@ export default function EditorScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<KeyType>('C');
   const [selectedScale, setSelectedScale] = useState<ScaleType>('C_MAJOR');
+  const [selectedMappingMode, setSelectedMappingMode] = useState<MappingMode>('LINEAR_LANDSCAPE');
+  const [title, setTitle] = useState(() => `Mobile capture ${new Date().toLocaleTimeString()}`);
+  const [description, setDescription] = useState('Generated on-device from an image');
   const [generation, setGeneration] = useState<CompositionGenerationResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const [playbackStatus, setPlaybackStatus] = useState<string | null>(null);
+  const playbackRef = React.useRef<PlaybackController | null>(null);
+  const isMountedRef = React.useRef(true);
   const [saving, setSaving] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -56,49 +70,54 @@ export default function EditorScreen() {
   const isIOSGenerationUnsupported = Platform.OS === 'ios';
 
   const pickImage = async () => {
-    let permissionResult;
-    if (Platform.OS === 'android' && Platform.Version >= 33) {
-      permissionResult = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-      );
-      if (permissionResult !== 'granted') {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required');
-        return;
+    try {
+      // The system photo picker (Android 13+ / SDK 50) needs no runtime permission,
+      // so we don't gate on READ_MEDIA_IMAGES — doing so permanently dead-ends the
+      // flow once a user taps "Don't allow". On older platforms the media-library
+      // permission is still requested.
+      if (!(Platform.OS === 'android' && Platform.Version >= 33)) {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (perm.granted === false) {
+          Alert.alert('Permission Required', 'Permission to access camera roll is required');
+          return;
+        }
       }
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (perm.granted === false) {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required');
-        return;
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
       }
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+    } catch (error) {
+      logError(error as Error, { context: 'Pick Image' });
+      Alert.alert('Could not open photos', (error as Error).message);
     }
   };
 
   const captureImage = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Permission to access camera is required');
-      return;
-    }
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera is required');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'Capture Image' });
+      Alert.alert('Could not open camera', (error as Error).message);
     }
   };
 
@@ -119,11 +138,17 @@ export default function EditorScreen() {
       const normalized = {
         ...parsed,
         sourceUri: parsed.sourceUri ?? parsed.imageUri,
+        metadata: {
+          ...parsed.metadata,
+          // Drafts cached before mapping-mode support carry no mappingMode.
+          mappingMode: parsed.metadata.mappingMode ?? 'LINEAR_LANDSCAPE',
+        },
       };
 
       setImageUri(normalized.sourceUri);
       setSelectedKey(normalized.metadata.key);
       setSelectedScale(normalized.metadata.scale);
+      setSelectedMappingMode(normalized.metadata.mappingMode);
       setGeneration(normalized);
     } catch (err) {
       logError(err as Error, { context: 'Hydrate Draft' });
@@ -164,6 +189,7 @@ export default function EditorScreen() {
       const result = await generateCompositionFromImage(imageUri, {
         key: selectedKey,
         scale: selectedScale,
+        mode: selectedMappingMode,
         maxNotes: 120,
       });
       setGeneration(result);
@@ -176,6 +202,15 @@ export default function EditorScreen() {
     }
   };
 
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      playbackRef.current?.cancel();
+      playbackRef.current = null;
+    };
+  }, []);
+
   const playNotes = async () => {
     if (!generation) {
       Alert.alert('Nothing to play', 'Generate a composition first');
@@ -184,17 +219,24 @@ export default function EditorScreen() {
 
     try {
       setPlaybackStatus('0');
-      await playNoteEvents(generation.noteEvents, {
+      const controller = playNoteEvents(generation.noteEvents, {
         tempo,
         onProgress(current, total) {
-          setPlaybackStatus(`${current}/${total}`);
+          if (isMountedRef.current) {
+            setPlaybackStatus(`${current}/${total}`);
+          }
         },
       });
+      playbackRef.current = controller;
+      await controller.done;
     } catch (error) {
       logError(error as Error, { context: 'Play Notes' });
       Alert.alert('Playback failed', (error as Error).message);
     } finally {
-      setPlaybackStatus(null);
+      playbackRef.current = null;
+      if (isMountedRef.current) {
+        setPlaybackStatus(null);
+      }
     }
   };
 
@@ -218,12 +260,17 @@ export default function EditorScreen() {
         : null;
 
       const payload = {
-        title: `Mobile capture ${new Date().toLocaleTimeString()}`,
-        description: 'Generated on-device from an image',
+        // The API requires a non-empty title, so fall back if the user cleared the field.
+        title: title.trim() || `Mobile capture ${new Date().toLocaleTimeString()}`,
+        description: description.trim() || undefined,
         noteEvents: generation.noteEvents as NoteEvent[],
-        mappingMode: 'LINEAR_LANDSCAPE' as const,
-        key: selectedKey,
-        scale: selectedScale,
+        // Save the mode the notes were actually generated with, not whatever chip is
+        // currently selected (the user may have switched modes without regenerating).
+        // Persist the parameters the notes were actually generated with — the chips may
+        // have changed since generation, and saving those would disagree with noteEvents.
+        mappingMode: generation.metadata.mappingMode,
+        key: generation.metadata.key,
+        scale: generation.metadata.scale,
         tempo,
         imageData: imageData ? `data:image/png;base64,${imageData}` : undefined,
         metadata: {
@@ -246,7 +293,7 @@ export default function EditorScreen() {
     } finally {
       setSaving(false);
     }
-  }, [generation, imageUri, saveComposition, selectedKey, selectedScale, token]);
+  }, [description, generation, imageUri, saveComposition, title, token]);
 
   React.useEffect(() => {
     if (token && pendingPostSignInAction === 'save') {
@@ -359,6 +406,23 @@ export default function EditorScreen() {
               ))}
             </View>
           </View>
+          <View style={styles.paramRow}>
+            <Text style={styles.paramLabel}>Mapping Mode</Text>
+            <View style={styles.optionRow}>
+              {MAPPING_MODES.map((m) => (
+                <TouchableOpacity
+                  key={m.value}
+                  style={[
+                    styles.optionChip,
+                    selectedMappingMode === m.value && styles.optionChipActive,
+                  ]}
+                  onPress={() => setSelectedMappingMode(m.value)}
+                >
+                  <Text style={styles.optionChipText}>{m.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
       </View>
 
@@ -399,6 +463,27 @@ export default function EditorScreen() {
               {generationSummary.notes} notes · {generationSummary.duration.toFixed(1)}s · {generationSummary.width}×
               {generationSummary.height}
             </Text>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Title</Text>
+              <TextInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Composition title"
+                placeholderTextColor="#6b7280"
+                style={styles.textInput}
+              />
+            </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Description (optional)</Text>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Describe this composition"
+                placeholderTextColor="#6b7280"
+                multiline
+                style={styles.textInput}
+              />
+            </View>
             <View style={styles.previewButtons}>
               <TouchableOpacity style={styles.playButton} onPress={playNotes} disabled={!!playbackStatus}>
                 <Text style={styles.playButtonText}>
@@ -611,6 +696,24 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     color: theme.colors.primary[50],
+    fontSize: 14,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    color: theme.colors.primary[300],
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  textInput: {
+    backgroundColor: theme.colors.surface.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.surface.elevated,
+    borderRadius: 8,
+    color: theme.colors.primary[50],
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 14,
   },
   previewButtons: {

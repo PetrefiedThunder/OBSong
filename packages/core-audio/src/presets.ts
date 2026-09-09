@@ -141,6 +141,74 @@ export const SOUND_PRESETS: SoundPreset[] = [
       },
     },
   },
+  {
+    id: 'sine-glass',
+    name: 'Glass Bells',
+    oscillatorType: 'sine',
+    description: 'Delicate, bell-like tones with shimmering decay - good for night skies and water',
+    synthesis: {
+      envelope: {
+        attack: 0.005,
+        decay: 0.6,
+        sustain: 0.2,
+        release: 1.5,
+      },
+      filter: {
+        type: 'highpass',
+        frequency: 400,
+        resonance: 1,
+      },
+      effects: {
+        reverb: { wet: 0.5, decay: 4.0 },
+        delay: { time: 0.25, feedback: 0.25 },
+      },
+    },
+  },
+  {
+    id: 'sawtooth-drone',
+    name: 'Deep Drone',
+    oscillatorType: 'sawtooth',
+    description: 'Slow-swelling, dark drone - good for deserts and minimal landscapes',
+    synthesis: {
+      envelope: {
+        attack: 1.0,
+        decay: 0.5,
+        sustain: 0.9,
+        release: 3.0,
+      },
+      filter: {
+        type: 'lowpass',
+        frequency: 800,
+        resonance: 2,
+      },
+      effects: {
+        reverb: { wet: 0.5, decay: 6.0 },
+        delay: { time: 0.5, feedback: 0.35 },
+      },
+    },
+  },
+  {
+    id: 'square-chiptune',
+    name: 'Chiptune',
+    oscillatorType: 'square',
+    description: 'Punchy, retro video-game character - good for geometric and urban scenes',
+    synthesis: {
+      envelope: {
+        attack: 0.002,
+        decay: 0.15,
+        sustain: 0.5,
+        release: 0.15,
+      },
+      filter: {
+        type: 'bandpass',
+        frequency: 2200,
+        resonance: 2,
+      },
+      effects: {
+        reverb: { wet: 0.1, decay: 0.6 },
+      },
+    },
+  },
 ];
 
 /**

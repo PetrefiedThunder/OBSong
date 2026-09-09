@@ -26,6 +26,71 @@ function calculatePan(index: number, totalPoints: number, spread = 1): number {
   return (normalizedPosition * 2 - 1) * spread;
 }
 
+/** Clamp a value into [0, 1]. */
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+/** Linear interpolation between min and max by t (t is clamped to [0, 1]). */
+function lerp(min: number, max: number, t: number): number {
+  return min + (max - min) * clamp01(t);
+}
+
+/**
+ * Parse the (possibly negative) octave number out of a scientific-pitch note name.
+ * Fully anchored (^...$) so the match is linear — an unanchored `-?\d+$` retries every
+ * start position and is flagged as polynomial-time ReDoS on adversarial input.
+ */
+function octaveOf(noteName: string): number {
+  const match = /^[A-G]#?(-?\d+)$/.exec(noteName);
+  return match ? parseInt(match[1], 10) : 3;
+}
+
+/**
+ * Generate scale notes that span the octaves of [minNote, maxNote] (plus one octave of
+ * headroom on each side), rather than a hardcoded start octave. This makes low ranges such
+ * as A1-E2 reachable instead of silently producing an empty voice.
+ */
+function getScaleNotesForRange(
+  key: KeyType,
+  scale: ScaleType,
+  minNote: string,
+  maxNote: string
+): string[] {
+  const startOctave = octaveOf(minNote);
+  const span = Math.max(1, octaveOf(maxNote) - startOctave + 1);
+  // Start one octave below minNote (widening the span to compensate): getScaleNotes always
+  // begins at the KEY ROOT of its start octave, so starting at octaveOf(minNote) made
+  // in-scale degrees between C{startOctave} and the root that are >= minNote unreachable
+  // (e.g. key G with minNote D3 could never emit D3/E3/F#3). filterScaleToRange trims the
+  // out-of-range extras; getScaleNotes/noteNameToMidi support negative start octaves.
+  return getScaleNotes(key, scale, span + 2, startOctave - 1);
+}
+
+/**
+ * Keep only the scale notes within [minMidi, maxMidi]. If none fall in range, fall back
+ * to the single scale note nearest the range so the voice is never silently empty.
+ */
+function filterScaleToRange(scaleNotes: string[], minMidi: number, maxMidi: number): string[] {
+  const inRange = scaleNotes.filter((note) => {
+    const midi = noteNameToMidi(note);
+    return midi >= minMidi && midi <= maxMidi;
+  });
+  if (inRange.length > 0 || scaleNotes.length === 0) return inRange;
+
+  const target = (minMidi + maxMidi) / 2;
+  let nearest = scaleNotes[0];
+  let nearestDist = Infinity;
+  for (const note of scaleNotes) {
+    const dist = Math.abs(noteNameToMidi(note) - target);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = note;
+    }
+  }
+  return [nearest];
+}
+
 /**
  * Map an image analysis result to musical notes using LINEAR_LANDSCAPE mode
  *
@@ -92,11 +157,15 @@ export function mapLinearLandscape(
       pan = calculatePan(i, sampledBrightness.length);
     }
 
-    // Use depth for reverb if available
+    // Use depth for reverb if available. The brightness profile was downsampled with
+    // `idx = floor(i * step)`, so the depth profile (full length) must be indexed by the
+    // same source index, not the sampled index `i`, or reverb describes a different
+    // horizontal position than pitch.
     let reverbSend = 0.2; // Default light reverb
-    if (analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
+    const depthIdx = Math.floor(i * step);
+    if (analysis.depthProfile && analysis.depthProfile[depthIdx] !== undefined) {
       // Lower depth (farther away) = more reverb
-      const depth = analysis.depthProfile[i];
+      const depth = analysis.depthProfile[depthIdx];
       reverbSend = 0.1 + (1 - depth) * 0.6; // Inverted: far = more reverb
     }
 
@@ -154,8 +223,9 @@ export function mapDepthRidge(
   let currentTime = 0;
   let lastRidgeIndex = -1;
 
-  // Only create notes where ridge strength exceeds threshold
-  for (let i = 0; i < Math.min(brightnessProfile.length, maxNotes); i++) {
+  // Scan the WHOLE profile (not just the first maxNotes columns, which ignored the
+  // right half of the image) and stop once maxNotes notes have been emitted.
+  for (let i = 0; i < brightnessProfile.length && noteEvents.length < maxNotes; i++) {
     const brightness = brightnessProfile[i];
     const ridge = ridgeStrength[i] ?? 0;
 
@@ -210,35 +280,6 @@ export function mapDepthRidge(
 }
 
 /**
- * Quantize note timings to a grid (optional post-processing)
- *
- * @param notes - Array of note events
- * @param gridSize - Grid resolution in beats (e.g., 0.25 for 16th notes)
- * @returns Quantized note events
- */
-export function quantizeNotes(notes: NoteEvent[], gridSize: number = 0.25): NoteEvent[] {
-  return notes.map((note) => ({
-    ...note,
-    start: Math.round(note.start / gridSize) * gridSize,
-    duration: Math.max(gridSize, Math.round(note.duration / gridSize) * gridSize),
-  }));
-}
-
-/**
- * Apply global velocity scaling to all notes
- *
- * @param notes - Array of note events
- * @param scale - Scaling factor (0-1+)
- * @returns Scaled note events
- */
-export function scaleVelocity(notes: NoteEvent[], scale: number): NoteEvent[] {
-  return notes.map((note) => ({
-    ...note,
-    velocity: Math.max(0, Math.min(1, note.velocity * scale)),
-  }));
-}
-
-/**
  * Transpose all notes by a number of semitones
  *
  * @param notes - Array of note events
@@ -279,6 +320,11 @@ export function mapHorizonToBass(
     maxNote?: string;
     noteDuration?: number;
     maxNotes?: number;
+    velocityMin?: number;
+    velocityMax?: number;
+    reverbSend?: number;
+    filterBrightness?: number;
+    stereoSpread?: number;
   } = {}
 ): NoteEvent[] {
   if (!horizonProfile || horizonProfile.length === 0) return [];
@@ -287,18 +333,22 @@ export function mapHorizonToBass(
     maxNote = 'C3',
     noteDuration = 3,
     maxNotes = 16,
+    velocityMin = 0.6,
+    velocityMax = 0.9,
+    reverbSend = 0.15,
+    filterBrightness = 0.4,
+    stereoSpread = 0,
   } = options;
 
-  // Get scale notes in bass range
-  const scaleNotes = getScaleNotes(key, scale, 2, 2); // 2 octaves starting at octave 2
+  // Get scale notes covering the requested bass range. Deriving the octave span from
+  // minNote/maxNote (instead of hardcoding startOctave=2) is what lets sub-C2 preset
+  // ranges like A1-E2 actually produce notes.
   const minMidi = noteNameToMidi(minNote);
   const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = getScaleNotesForRange(key, scale, minNote, maxNote);
 
-  // Filter to bass range
-  const bassNotes = scaleNotes.filter((note) => {
-    const midi = noteNameToMidi(note);
-    return midi >= minMidi && midi <= maxMidi;
-  });
+  // Filter to bass range, falling back to the nearest scale note if the range is empty.
+  const bassNotes = filterScaleToRange(scaleNotes, minMidi, maxMidi);
 
   if (bassNotes.length === 0) return [];
 
@@ -330,12 +380,15 @@ export function mapHorizonToBass(
       note,
       start: currentTime,
       duration: noteDuration,
-      velocity: 0.6 + horizonHeight * 0.3, // Subtle variation
-      pan: 0, // Center bass
+      velocity: lerp(velocityMin, velocityMax, horizonHeight), // Subtle variation
+      // Bass defaults to center (stereoSpread = 0); a preset can widen it slightly.
+      pan: calculatePan(i, sampledHorizon.length, stereoSpread),
       trackId: 'bass',
       effects: {
-        reverbSend: 0.15, // Minimal reverb for bass clarity
-        filterCutoff: 0.4 + horizonHeight * 0.3, // Slightly vary timbre
+        // Scale the base reverb/filter formulas by the configured amounts (defaults keep
+        // the historical constants: reverb 0.15, filter base 0.4).
+        reverbSend: clamp01(reverbSend),
+        filterCutoff: clamp01((0.4 + horizonHeight * 0.3) * (filterBrightness / 0.4)),
       },
     });
 
@@ -366,6 +419,11 @@ export function mapRidgesToMelody(
     maxNote?: string;
     ridgeThreshold?: number;
     noteDuration?: number;
+    velocityMin?: number;
+    velocityMax?: number;
+    reverbSend?: number;
+    filterBrightness?: number;
+    stereoSpread?: number;
   } = {}
 ): NoteEvent[] {
   if (!ridgeStrength || ridgeStrength.length === 0) return [];
@@ -374,18 +432,22 @@ export function mapRidgesToMelody(
     maxNote = 'C6',
     ridgeThreshold = 0.4,
     noteDuration = 0.75,
+    velocityMin = 0.6,
+    velocityMax = 1.0,
+    reverbSend = 0.3,
+    filterBrightness = 0.6,
+    stereoSpread = 0.6,
   } = options;
 
-  // Get scale notes in melody range
-  const scaleNotes = getScaleNotes(key, scale, 3, 4); // 3 octaves starting at octave 4
+  // Get scale notes covering the requested melody range (derive the octave span from
+  // minNote/maxNote instead of hardcoding startOctave=4, so sub-C4 range portions are
+  // reachable).
   const minMidi = noteNameToMidi(minNote);
   const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = getScaleNotesForRange(key, scale, minNote, maxNote);
 
-  // Filter to melody range
-  const melodyNotes = scaleNotes.filter((note) => {
-    const midi = noteNameToMidi(note);
-    return midi >= minMidi && midi <= maxMidi;
-  });
+  // Filter to melody range (nearest-note fallback if the range is empty).
+  const melodyNotes = filterScaleToRange(scaleNotes, minMidi, maxMidi);
 
   if (melodyNotes.length === 0) return [];
 
@@ -408,19 +470,21 @@ export function mapRidgesToMelody(
     const clampedIndex = Math.min(noteIndex, melodyNotes.length - 1);
     const note = melodyNotes[clampedIndex];
 
-    // Pan based on position
-    const pan = calculatePan(i, brightnessProfile.length, 0.6); // Less extreme than full pan
+    // Pan based on position, scaled by stereoSpread (default 0.6: less extreme than full pan)
+    const pan = calculatePan(i, brightnessProfile.length, stereoSpread);
 
     noteEvents.push({
       note,
       start: currentTime,
       duration: noteDuration * (0.8 + ridge * 0.4), // Longer for stronger ridges
-      velocity: 0.6 + ridge * 0.4, // Emphasize strong ridges
+      velocity: lerp(velocityMin, velocityMax, ridge), // Emphasize strong ridges
       pan,
       trackId: 'melody',
       effects: {
-        reverbSend: 0.3 + ridge * 0.2, // More reverb on prominent notes
-        filterCutoff: 0.6 + normalizedBrightness * 0.4,
+        // Scale the base reverb/filter formulas by the configured amounts (defaults keep
+        // the historical formulas: 0.3 + ridge * 0.2 and 0.6 + brightness * 0.4).
+        reverbSend: clamp01((0.3 + ridge * 0.2) * (reverbSend / 0.3)),
+        filterCutoff: clamp01((0.6 + normalizedBrightness * 0.4) * (filterBrightness / 0.6)),
       },
     });
 
@@ -445,18 +509,43 @@ export function mapTextureToPad(
   key: KeyType,
   scale: ScaleType,
   options: {
+    minNote?: string;
+    maxNote?: string;
     segments?: number;
     noteDuration?: number;
+    velocityMin?: number;
+    velocityMax?: number;
+    reverbSend?: number;
+    filterBrightness?: number;
+    stereoSpread?: number;
   } = {}
 ): NoteEvent[] {
   if (!textureProfile || textureProfile.length === 0) return [];
-  const { segments = 6, noteDuration = 6 } = options;
+  const {
+    minNote = 'C3',
+    maxNote = 'C5',
+    segments = 6,
+    noteDuration = 6,
+    velocityMin = 0.4,
+    velocityMax = 0.7,
+    reverbSend = 0.5,
+    filterBrightness = 0.5,
+    stereoSpread = 0.4,
+  } = options;
+
+  // Normalize `segments` to a finite positive integer bounded by the profile length. The
+  // loop already terminates via the start-past-end break below, but a non-finite or
+  // fractional value (e.g. from a malformed preset density) would otherwise produce a
+  // nonsensical loop count; this keeps the segmentation well-defined.
+  const segmentCount = Number.isFinite(segments)
+    ? Math.max(1, Math.min(textureProfile.length, Math.floor(segments)))
+    : 6;
 
   // Segment texture into larger chunks
-  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segments));
+  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segmentCount));
   const textureSegments: number[] = [];
 
-  for (let i = 0; i < segments; i++) {
+  for (let i = 0; i < segmentCount; i++) {
     const start = i * segmentSize;
     if (start >= textureProfile.length) break;
     const end = Math.min(start + segmentSize, textureProfile.length);
@@ -465,8 +554,17 @@ export function mapTextureToPad(
     textureSegments.push(avg);
   }
 
-  // Get scale notes for chords (mid range)
-  const scaleNotes = getScaleNotes(key, scale, 2, 3);
+  // Get scale notes for chords covering the requested pad range (default C3-C5), with a
+  // nearest-note fallback so out-of-range presets never produce a silent pad.
+  const minMidi = noteNameToMidi(minNote);
+  const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = filterScaleToRange(
+    getScaleNotesForRange(key, scale, minNote, maxNote),
+    minMidi,
+    maxMidi
+  );
+
+  if (scaleNotes.length === 0) return [];
 
   const noteEvents: NoteEvent[] = [];
   let currentTime = 0;
@@ -486,24 +584,35 @@ export function mapTextureToPad(
       chordDegrees = [0, 2, 4, 6]; // Root, 3rd, 5th, 7th
     }
 
-    // Create chord notes
-    for (const degree of chordDegrees) {
-      if (degree < scaleNotes.length) {
-        const note = scaleNotes[degree];
+    // Only degrees that exist in the (range-filtered) scale produce notes.
+    const playableDegrees = chordDegrees.filter((degree) => degree < scaleNotes.length);
 
-        noteEvents.push({
-          note,
-          start: currentTime,
-          duration: noteDuration,
-          velocity: 0.4 + textureValue * 0.3, // Subtle
-          pan: (Math.random() - 0.5) * 0.4, // Slight random spread
-          trackId: 'pad',
-          effects: {
-            reverbSend: 0.5 + textureValue * 0.3, // More reverb for complex texture
-            filterCutoff: 0.5 + textureValue * 0.3,
-          },
-        });
-      }
+    // Create chord notes
+    for (let chordIndex = 0; chordIndex < playableDegrees.length; chordIndex++) {
+      const note = scaleNotes[playableDegrees[chordIndex]];
+
+      // Deterministic stereo placement: spread the chord notes evenly across the stereo
+      // field, scaled by stereoSpread (replaces the old Math.random() pan so the same
+      // input always yields the same output).
+      const pan =
+        playableDegrees.length > 1
+          ? (chordIndex / (playableDegrees.length - 1) - 0.5) * stereoSpread
+          : 0;
+
+      noteEvents.push({
+        note,
+        start: currentTime,
+        duration: noteDuration,
+        velocity: lerp(velocityMin, velocityMax, textureValue), // Subtle
+        pan,
+        trackId: 'pad',
+        effects: {
+          // Scale the base reverb/filter formulas by the configured amounts (defaults keep
+          // the historical formulas: 0.5 + texture * 0.3 for both).
+          reverbSend: clamp01((0.5 + textureValue * 0.3) * (reverbSend / 0.5)),
+          filterCutoff: clamp01((0.5 + textureValue * 0.3) * (filterBrightness / 0.5)),
+        },
+      });
     }
 
     currentTime += noteDuration;
@@ -529,19 +638,83 @@ export function mapImageToMultiVoiceComposition(
   const {
     key,
     scale,
-    enableBass = true,
-    enableMelody = true,
-    enablePad = true,
     bassOptions = {},
     melodyOptions = {},
     padOptions = {},
   } = options;
 
+  // Apply the preset's per-voice configuration. Caller-supplied options still win; the
+  // preset fills in pitch range, enabled flags, velocity range, reverb/filter/stereo
+  // amounts, and density/durationFactor-derived timing. Without a preset, each voice
+  // falls back to its historical defaults exactly. NOTE: the enableFx voice is still a
+  // follow-up (there is no fx mapper yet).
+  const enableBass = options.enableBass ?? preset?.voices.bass.enabled ?? true;
+  const enableMelody = options.enableMelody ?? preset?.voices.melody.enabled ?? true;
+  const enablePad = options.enablePad ?? preset?.voices.pad.enabled ?? true;
+
+  const bassVoice = preset?.voices.bass;
+  const melodyVoice = preset?.voices.melody;
+  const padVoice = preset?.voices.pad;
+
+  const resolvedBassOptions = {
+    ...(bassVoice
+      ? {
+          minNote: bassVoice.minNote,
+          maxNote: bassVoice.maxNote,
+          // durationFactor scales the default 3-beat bass note; density drives note count.
+          noteDuration: 3 * bassVoice.durationFactor,
+          maxNotes: Math.round(4 + 28 * bassVoice.density),
+          velocityMin: bassVoice.velocityMin,
+          velocityMax: bassVoice.velocityMax,
+          reverbSend: bassVoice.reverbSend,
+          filterBrightness: bassVoice.filterBrightness,
+          stereoSpread: bassVoice.stereoSpread,
+        }
+      : {}),
+    ...bassOptions,
+  };
+  const resolvedMelodyOptions = {
+    ...(melodyVoice
+      ? {
+          minNote: melodyVoice.minNote,
+          maxNote: melodyVoice.maxNote,
+          // durationFactor scales the default 0.75-beat melody note; higher density lowers
+          // the ridge threshold so more ridges qualify as notes.
+          noteDuration: 0.75 * melodyVoice.durationFactor,
+          ridgeThreshold: Math.max(0.1, Math.min(0.7, 0.7 - 0.5 * melodyVoice.density)),
+          velocityMin: melodyVoice.velocityMin,
+          velocityMax: melodyVoice.velocityMax,
+          reverbSend: melodyVoice.reverbSend,
+          filterBrightness: melodyVoice.filterBrightness,
+          stereoSpread: melodyVoice.stereoSpread,
+        }
+      : {}),
+    ...melodyOptions,
+  };
+  const resolvedPadOptions = {
+    ...(padVoice
+      ? {
+          minNote: padVoice.minNote,
+          maxNote: padVoice.maxNote,
+          // durationFactor scales the default 6-beat pad chord; density drives how many
+          // chord segments the texture profile is split into.
+          noteDuration: 6 * padVoice.durationFactor,
+          segments: Math.round(3 + 9 * padVoice.density),
+          velocityMin: padVoice.velocityMin,
+          velocityMax: padVoice.velocityMax,
+          reverbSend: padVoice.reverbSend,
+          filterBrightness: padVoice.filterBrightness,
+          stereoSpread: padVoice.stereoSpread,
+        }
+      : {}),
+    ...padOptions,
+  };
+
   const allNotes: NoteEvent[] = [];
 
   // 1. Bass voice from horizon
   if (enableBass && analysis.horizonProfile) {
-    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, bassOptions);
+    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, resolvedBassOptions);
     allNotes.push(...bassNotes);
   }
 
@@ -552,14 +725,14 @@ export function mapImageToMultiVoiceComposition(
       analysis.ridgeStrength,
       key,
       scale,
-      melodyOptions
+      resolvedMelodyOptions
     );
     allNotes.push(...melodyNotes);
   }
 
   // 3. Pad voice from texture
   if (enablePad && analysis.textureProfile) {
-    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, padOptions);
+    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, resolvedPadOptions);
     allNotes.push(...padNotes);
   }
 

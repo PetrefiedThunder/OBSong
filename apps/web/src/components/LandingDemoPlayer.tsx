@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { NoteEvent, ScenePack } from '@toposonics/types';
 
 type ToneTransport = {
@@ -55,18 +55,31 @@ function loadTone() {
 interface LandingDemoPlayerProps {
   demoNotes: NoteEvent[];
   scenePack: ScenePack;
+  /** Tempo in BPM. NoteEvent start/duration are in beats and must be converted to the
+   *  seconds that Tone.js expects for numeric Part times. */
+  tempoBpm?: number;
   onClose: () => void;
 }
 
 export function LandingDemoPlayer({
   demoNotes,
   scenePack,
+  tempoBpm = 120,
   onClose,
 }: LandingDemoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const titleId = useId();
   const toneRef = useRef<ToneModule | null>(null);
   const synthRef = useRef<ToneSynth | null>(null);
   const partRef = useRef<TonePart | null>(null);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStopTimer = () => {
+    if (stopTimerRef.current !== null) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -87,9 +100,14 @@ export function LandingDemoPlayer({
 
     return () => {
       disposed = true;
+      clearStopTimer();
+      // The Tone Transport is a module-level singleton shared with the studio engine;
+      // stop it on unmount so a still-pending demo timer can't silence studio playback.
       if (partRef.current) {
+        partRef.current.stop();
         partRef.current.dispose();
       }
+      toneRef.current?.Transport.stop();
       synthRef.current?.dispose();
     };
   }, []);
@@ -102,17 +120,22 @@ export function LandingDemoPlayer({
 
     await tone.start();
 
-    // Stop any existing playback
+    // Stop any existing playback (and cancel a pending auto-stop from a prior play)
+    clearStopTimer();
     if (partRef.current) {
       partRef.current.stop();
       partRef.current.dispose();
     }
 
+    // NoteEvent start/duration are in beats; Tone.js reads numeric Part times as seconds,
+    // so convert with the demo's tempo (otherwise a 40 BPM demo plays as if 60 BPM).
+    const secondsPerBeat = 60 / tempoBpm;
+
     // Create part from note events
     const events = demoNotes.map((note) => ({
-      time: note.start,
+      time: note.start * secondsPerBeat,
       note: note.note,
-      duration: note.duration,
+      duration: note.duration * secondsPerBeat,
       velocity: note.velocity || 0.7,
     }));
 
@@ -131,16 +154,26 @@ export function LandingDemoPlayer({
     setIsPlaying(true);
     tone.Transport.start();
 
-    // Calculate total duration and stop after
-    const maxTime =
-      Math.max(...demoNotes.map((n) => n.start + n.duration)) + 1;
-    setTimeout(() => {
+    // Calculate total duration (seconds) and stop after it elapses (+1s tail).
+    const maxTimeSeconds =
+      Math.max(...demoNotes.map((n) => n.start + n.duration)) * secondsPerBeat + 1;
+    stopTimerRef.current = setTimeout(() => {
+      stopTimerRef.current = null;
       tone.Transport.stop();
       setIsPlaying(false);
-    }, maxTime * 1000);
+    }, maxTimeSeconds * 1000);
   };
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   const handleStop = () => {
+    clearStopTimer();
     if (partRef.current) {
       partRef.current.stop();
     }
@@ -154,6 +187,9 @@ export function LandingDemoPlayer({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="bg-surface-elevated rounded-xl p-8 max-w-md w-full space-y-6 border border-gray-700"
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -162,11 +198,14 @@ export function LandingDemoPlayer({
       >
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold mb-2">{scenePack.name}</h2>
+            <h2 id={titleId} className="text-2xl font-bold mb-2">
+              {scenePack.name}
+            </h2>
             <p className="text-gray-400 text-sm">{scenePack.tagline}</p>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="text-gray-400 hover:text-white transition-colors"
           >
             <svg

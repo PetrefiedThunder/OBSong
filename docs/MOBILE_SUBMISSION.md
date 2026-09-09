@@ -60,6 +60,19 @@ corepack pnpm release:check:mobile
 
 ### Android
 
+> **Store-ready signing required.** The local Gradle release build no longer falls back to the
+> shared debug keystore (which is public and rejected by Google Play). You must supply a real
+> upload keystore before a release build will succeed:
+>
+> 1. Generate one: `keytool -genkeypair -v -keystore upload.keystore -alias upload -keyalg RSA -keysize 2048 -validity 10000`
+> 2. Keep it **out of git** and point Gradle at it via `~/.gradle/gradle.properties` (or
+>    `ORG_GRADLE_PROJECT_MYAPP_UPLOAD_*` env vars in CI):
+>    `MYAPP_UPLOAD_STORE_FILE`, `MYAPP_UPLOAD_STORE_PASSWORD`, `MYAPP_UPLOAD_KEY_ALIAS`,
+>    `MYAPP_UPLOAD_KEY_PASSWORD` (see `apps/mobile/android/app/build.gradle`).
+>
+> Until an upload keystore is configured, only the **EAS** path below produces a store-ready
+> artifact; the local Gradle release build will fail fast rather than debug-sign.
+
 ```bash
 corepack pnpm build:mobile:android:release
 ```

@@ -7,10 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src scripts next.config.mjs --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint src next.config.mjs --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next",
-    "generate:scene-demos": "tsx scripts/generateSceneDemos.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -20,7 +19,7 @@
     "@toposonics/types": "workspace:*",
     "@toposonics/ui": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",
-    "next": "15.5.15",
+    "next": "15.5.18",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tone": "^14.7.77"
@@ -31,8 +30,8 @@
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
-    "eslint-config-next": "14.2.32",
-    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-config-next": "15.5.18",
+    "eslint-plugin-react-hooks": "^5.0.0",
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",

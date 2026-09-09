@@ -101,6 +101,18 @@ export const Card: React.FC<CardProps> = ({
     <div
       className={allStyles}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              // Interactive cards expose role="button"/tabIndex=0, so they must also
+              // activate on Enter/Space for keyboard users.
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
     >

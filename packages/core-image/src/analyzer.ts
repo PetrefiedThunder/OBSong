@@ -115,18 +115,43 @@ export function analyzeImageForDepthRidge(
   width: number,
   height: number,
   options: {
-    ridgeThreshold?: number;
     smoothingWindow?: number;
     maxSamples?: number;
+    /**
+     * Optional precomputed per-pixel edge magnitudes (e.g. from a native Sobel
+     * implementation), length = width * height. Values may be normalized floats (0-1)
+     * or bytes (0-255); byte-scaled input (any value > 1) is normalized to 0-1.
+     * When provided, the JS Sobel pass is skipped.
+     */
+    precomputedEdgeMagnitudes?: number[] | Uint8ClampedArray;
   } = {}
 ): ImageAnalysisResult {
   const {
     smoothingWindow = 3,
     maxSamples = 128,
+    precomputedEdgeMagnitudes,
   } = options;
 
-  // 1. Apply Sobel edge detection to the full image
-  const edgeMagnitudes = applySobelEdgeDetection(pixels, width, height);
+  // 1. Apply Sobel edge detection to the full image (or reuse precomputed magnitudes)
+  let edgeMagnitudes: number[];
+  if (precomputedEdgeMagnitudes && precomputedEdgeMagnitudes.length === width * height) {
+    let isByteScaled = false;
+    for (let i = 0; i < precomputedEdgeMagnitudes.length; i++) {
+      if (precomputedEdgeMagnitudes[i] > 1) {
+        isByteScaled = true;
+        break;
+      }
+    }
+    edgeMagnitudes = Array.from(precomputedEdgeMagnitudes, (value) =>
+      isByteScaled ? value / 255 : value
+    );
+  } else {
+    // A precomputed buffer whose length != width*height would index out of bounds in
+    // extractEdgeProfile and produce NaNs; ignore it and recompute in JS so the analysis
+    // stays correct rather than silently corrupt. (Silent fallback keeps this package free
+    // of any host `console` dependency.)
+    edgeMagnitudes = applySobelEdgeDetection(pixels, width, height);
+  }
 
   // 2. Extract edge profile along center horizontal line(s)
   const centerRow = Math.floor(height / 2);
@@ -136,13 +161,14 @@ export function analyzeImageForDepthRidge(
     rowsToAverage: 5,
   });
 
-  // 3. Extract brightness profile for pitch mapping
+  // 3. Extract brightness profile for pitch mapping (clamp the row window like
+  //    analyzeImageForLinearLandscape does, so short images don't read OOB rows -> NaN)
   let brightnessProfile = computeAveragedBrightnessProfile(
     pixels,
     width,
     height,
-    centerRow - 2,
-    centerRow + 3
+    Math.max(0, centerRow - 2),
+    Math.min(height, centerRow + 3)
   );
 
   // 4. Apply smoothing to ridge strength for stability
@@ -199,14 +225,15 @@ export function analyzeImageForMultiVoice(
     horizonSmoothing = 7,
   } = options;
 
-  // 1. Extract brightness profile (for melody)
+  // 1. Extract brightness profile (for melody); clamp the row window so short images
+  //    don't read out-of-bounds rows and produce an all-NaN profile.
   const centerRow = Math.floor(height / 2);
   let brightnessProfile = computeAveragedBrightnessProfile(
     pixels,
     width,
     height,
-    centerRow - 2,
-    centerRow + 3
+    Math.max(0, centerRow - 2),
+    Math.min(height, centerRow + 3)
   );
 
   // Downsample brightness if needed
@@ -251,26 +278,4 @@ export function analyzeImageForMultiVoice(
       timestamp: Date.now(),
     },
   };
-}
-
-/**
- * Quick analysis for preview/thumbnail purposes
- * Uses minimal sampling for fast results
- *
- * @param pixels - Flattened RGBA pixel array
- * @param width - Image width
- * @param height - Image height
- * @returns Lightweight ImageAnalysisResult
- */
-export function analyzeImageQuick(
-  pixels: Uint8ClampedArray | number[],
-  width: number,
-  height: number
-): ImageAnalysisResult {
-  return analyzeImageForLinearLandscape(pixels, width, height, {
-    maxSamples: 32,
-    includeDepth: false,
-    includeRidges: false,
-    averageRows: false,
-  });
 }

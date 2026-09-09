@@ -29,7 +29,10 @@ export type ScaleType =
   | 'D_DORIAN'
   | 'A_DORIAN'
   | 'C_MIXOLYDIAN'
-  | 'E_PHRYGIAN';
+  | 'E_PHRYGIAN'
+  | 'A_HARMONIC_MINOR'
+  | 'C_LYDIAN'
+  | 'C_WHOLE_TONE';
 
 /**
  * Musical key/root note for mapping and playback.
@@ -99,10 +102,14 @@ export interface TopoPreset {
     bass: VoiceConfig;
     melody: VoiceConfig;
     pad: VoiceConfig;
-    fx: VoiceConfig;
+    /** @deprecated no fx mapper exists yet */
+    fx?: VoiceConfig;
   };
-  /** Mapping biases for each voice. */
-  mappingBias: {
+  /**
+   * Mapping biases for each voice.
+   * @deprecated not yet consumed by mappers
+   */
+  mappingBias?: {
     bass: MappingBias;
     melody: MappingBias;
     pad: MappingBias;
@@ -186,7 +193,10 @@ export interface MultiVoiceOptions {
   key: KeyType;
   /** Musical scale. */
   scale: ScaleType;
-  /** Tempo in BPM. */
+  /**
+   * Tempo in BPM. NOTE: not read by mapImageToMultiVoiceComposition itself (note times are
+   * in beats); callers use it for playback and MIDI export.
+   */
   tempoBpm?: number;
   /** Enable bass voice (horizon → low notes). */
   enableBass?: boolean;
@@ -194,7 +204,10 @@ export interface MultiVoiceOptions {
   enableMelody?: boolean;
   /** Enable pad voice (texture → chords/ambient). */
   enablePad?: boolean;
-  /** Enable spatial FX layer. */
+  /**
+   * Enable spatial FX layer.
+   * @deprecated no fx mapper exists yet
+   */
   enableFx?: boolean;
   /** Bass voice configuration. */
   bassOptions?: {
@@ -202,8 +215,20 @@ export interface MultiVoiceOptions {
     minNote?: string;
     /** Pitch range for bass (default: C2-C3). */
     maxNote?: string;
-    /** Note duration in beats (default: 2-4). */
+    /** Note duration in beats (default: 3). */
     noteDuration?: number;
+    /** Maximum number of bass notes (default: 16). */
+    maxNotes?: number;
+    /** Minimum velocity (0-1, default: 0.6). */
+    velocityMin?: number;
+    /** Maximum velocity (0-1, default: 0.9). */
+    velocityMax?: number;
+    /** Reverb send base amount (0-1, default: 0.15). */
+    reverbSend?: number;
+    /** Filter brightness scaling (0-1, default: 0.4). */
+    filterBrightness?: number;
+    /** Stereo spread (0-1, default: 0 = centered). */
+    stereoSpread?: number;
   };
   /** Melody voice configuration. */
   melodyOptions?: {
@@ -211,14 +236,40 @@ export interface MultiVoiceOptions {
     minNote?: string;
     /** Pitch range for melody (default: C4-C6). */
     maxNote?: string;
-    /** Minimum ridge threshold to trigger notes (0-1). */
+    /** Minimum ridge threshold to trigger notes (0-1, default: 0.4). */
     ridgeThreshold?: number;
+    /** Note duration in beats (default: 0.75). */
+    noteDuration?: number;
+    /** Minimum velocity (0-1, default: 0.6). */
+    velocityMin?: number;
+    /** Maximum velocity (0-1, default: 1.0). */
+    velocityMax?: number;
+    /** Reverb send base amount (0-1, default: 0.3). */
+    reverbSend?: number;
+    /** Filter brightness scaling (0-1, default: 0.6). */
+    filterBrightness?: number;
+    /** Stereo spread (0-1, default: 0.6). */
+    stereoSpread?: number;
   };
   /** Pad voice configuration. */
   padOptions?: {
-    /** Number of chord segments (default: 4-8). */
+    /** Pitch range for pad (default: C3-C5). */
+    minNote?: string;
+    /** Pitch range for pad (default: C3-C5). */
+    maxNote?: string;
+    /** Number of chord segments (default: 6). */
     segments?: number;
-    /** Note duration in beats (default: 4-8). */
+    /** Note duration in beats (default: 6). */
     noteDuration?: number;
+    /** Minimum velocity (0-1, default: 0.4). */
+    velocityMin?: number;
+    /** Maximum velocity (0-1, default: 0.7). */
+    velocityMax?: number;
+    /** Reverb send base amount (0-1, default: 0.5). */
+    reverbSend?: number;
+    /** Filter brightness scaling (0-1, default: 0.5). */
+    filterBrightness?: number;
+    /** Stereo spread of chord notes (0-1, default: 0.4). */
+    stereoSpread?: number;
   };
 }

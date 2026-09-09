@@ -100,15 +100,37 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Release signing is driven entirely by gradle/env properties so the private
+        // upload keystore never lives in the repo. Provide these via
+        // ~/.gradle/gradle.properties, an untracked android/keystore.properties, or the
+        // ORG_GRADLE_PROJECT_* env vars used by CI/EAS:
+        //   MYAPP_UPLOAD_STORE_FILE, MYAPP_UPLOAD_STORE_PASSWORD,
+        //   MYAPP_UPLOAD_KEY_ALIAS, MYAPP_UPLOAD_KEY_PASSWORD
+        release {
+            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+                storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                storePassword MYAPP_UPLOAD_STORE_PASSWORD
+                keyAlias MYAPP_UPLOAD_KEY_ALIAS
+                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Never fall back to the (publicly known) debug keystore for release builds.
+            // Fail loudly if the upload keystore properties are not configured.
+            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+                signingConfig signingConfigs.release
+            } else if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+                throw new GradleException(
+                    'Release build requested but no upload keystore is configured. Set ' +
+                    'MYAPP_UPLOAD_STORE_FILE/_STORE_PASSWORD/_KEY_ALIAS/_KEY_PASSWORD ' +
+                    '(see android/app/build.gradle) or build via EAS. Refusing to sign a ' +
+                    'release with the debug keystore.')
+            }
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"

@@ -1,7 +1,7 @@
 {
   "name": "@toposonics/native-image-processing",
   "version": "0.1.0",
-  "description": "Native image processing bridge using OpenCV for React Native/Expo",
+  "description": "Native image processing bridge (Android Sobel edge detection) for React Native/Expo",
   "source": "src/index.ts",
   "main": "build/index.js",
   "react-native": "src/index.ts",
@@ -9,10 +9,13 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('no tests')\""
+    "test": "vitest run"
   },
   "dependencies": {
     "expo-modules-core": "1.11.14"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.17"
   },
   "peerDependencies": {
     "react-native": "*"
