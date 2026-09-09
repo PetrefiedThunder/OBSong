@@ -20,8 +20,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "clean": "corepack pnpm -r --if-present clean && rm -rf node_modules",
-    "typecheck": "corepack pnpm -r --if-present typecheck",
-    "test": "corepack pnpm -r --if-present test",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
     "test:watch": "corepack pnpm --filter @toposonics/web test -- --watch",
     "release:check": "corepack pnpm release:check:env && corepack pnpm release:check:mobile",
     "release:check:env": "node scripts/check-release-env.js",
@@ -50,6 +50,7 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "pnpm": ">=8.0.0",
+    "npm": "please-use-pnpm"
   }
 }

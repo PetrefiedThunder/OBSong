@@ -3,10 +3,10 @@
 ## Tech Stack Manifest
 
 - **Node.js:** 18+ (per `engines`; development currently using v22)
-- **Next.js:** 15.5.18
+- **Next.js:** 15.5.24
 - **Expo:** 50.0.0
 - **React Native:** 0.73.6
-- **Fastify:** 5.8.5
+- **Fastify:** 5.12.1
 - **Tone.js:** ^14.7.77
 
 ## Monorepo Map
