@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { findJdk17Home, jdk17InstallHint } = require('./lib/find-jdk');
 
 const root = path.resolve(__dirname, '..');
 const mobileDir = path.join(root, 'apps/mobile');
@@ -19,17 +20,6 @@ const googleServiceAccountInTree = path.join(
 
 const failures = [];
 const warnings = [];
-const knownJdk17Homes = [
-  process.env.JAVA_HOME,
-  // macOS (Homebrew)
-  '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
-  '/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home',
-  // Linux (common distro / CI locations)
-  '/usr/lib/jvm/java-17-openjdk-amd64',
-  '/usr/lib/jvm/java-17-openjdk',
-  '/usr/lib/jvm/temurin-17-jdk-amd64',
-  '/opt/java/openjdk',
-].filter(Boolean);
 
 function commandExists(command) {
   const result = spawnSync('sh', ['-lc', `command -v ${command}`], {
@@ -58,35 +48,6 @@ function getJavaMajor() {
   return first === 1 && second ? second : first;
 }
 
-function getJavaMajorForHome(javaHome) {
-  const java = path.join(javaHome, 'bin/java');
-  if (!fs.existsSync(java)) {
-    return null;
-  }
-
-  const result = spawnSync(java, ['-version'], {
-    encoding: 'utf8',
-  });
-
-  if (result.status !== 0) {
-    return null;
-  }
-
-  const output = `${result.stderr}\n${result.stdout}`;
-  const match = output.match(/version "(\d+)(?:\.(\d+))?/);
-  if (!match) {
-    return null;
-  }
-
-  const first = Number.parseInt(match[1], 10);
-  const second = match[2] ? Number.parseInt(match[2], 10) : null;
-  return first === 1 && second ? second : first;
-}
-
-function findJdk17Home() {
-  return knownJdk17Homes.find((javaHome) => getJavaMajorForHome(javaHome) === 17) || null;
-}
-
 function hasAppleDevelopmentTeam() {
   if (process.env.IOS_DEVELOPMENT_TEAM) {
     return true;
@@ -110,13 +71,17 @@ if (!process.env.ANDROID_HOME && !process.env.ANDROID_SDK_ROOT) {
 
 const javaMajor = getJavaMajor();
 if (!javaMajor) {
-  failures.push('Java is not available; install and select JDK 17 for Android release builds');
+  failures.push(
+    `Java is not available; install and select JDK 17 for Android release builds. ${jdk17InstallHint()}`
+  );
 } else if (javaMajor !== 17) {
   const jdk17Home = findJdk17Home();
   if (jdk17Home) {
     warnings.push(`Current java major version is ${javaMajor}; Android release script will use JDK 17 at ${jdk17Home}`);
   } else {
-    failures.push(`Android release builds require JDK 17; current java major version is ${javaMajor}`);
+    failures.push(
+      `Android release builds require JDK 17; current java major version is ${javaMajor}. ${jdk17InstallHint()}`
+    );
   }
 }
 
