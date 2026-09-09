@@ -11,10 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "expo-modules-core": "1.11.14"
-  },
   "devDependencies": {
+    "expo-modules-core": "^57.0.10",
     "vitest": "^4.0.17"
   },
   "peerDependencies": {

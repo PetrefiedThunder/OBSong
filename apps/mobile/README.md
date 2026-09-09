@@ -8,7 +8,7 @@ Expo React Native app for TopoSonics.
 - View saved composition details
 - Pick or capture an image in the editor
 - Generate a composition on-device on **Android**
-- Preview generated notes with simplified `expo-av` playback
+- Preview generated notes with simplified `expo-audio` playback
 - Save and reload compositions
 
 ## Platform Support

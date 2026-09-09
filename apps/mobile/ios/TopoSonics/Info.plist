@@ -30,11 +30,14 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>com.toposonics.app</string>
+          <string>com.toposonics.app</string>
         </array>
       </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSAppTransportSecurity</key>
@@ -48,15 +51,13 @@
     <string>Allow TopoSonics to use your camera to capture images</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Allow TopoSonics to access your photos to create soundscapes</string>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
-      <string>armv7</string>
+      <string>arm64</string>
     </array>
     <key>UIRequiresFullScreen</key>
     <false/>

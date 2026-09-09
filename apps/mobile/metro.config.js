@@ -11,7 +11,8 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(monorepoRoot, 'node_modules'),
 ];
-config.resolver.unstable_enableSymlinks = true;
+// Symlink resolution is on by default in modern Metro; setting it explicitly now
+// diverges from expo/metro-config's recommended values (flagged by expo-doctor).
 config.resolver.unstable_enablePackageExports = true;
 
 module.exports = config;
