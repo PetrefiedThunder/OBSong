@@ -7,12 +7,13 @@
  * (don't trust client-supplied forwarding headers). Accepts `true`/`false`, a hop count
  * (e.g. `1`), or a CIDR / comma-separated list of trusted proxy addresses.
  */
-function parseTrustProxy(value: string | undefined): boolean | number | string {
+// Matches Fastify's `trustProxy` option type (fastify v5.12 dropped numeric hop counts).
+function parseTrustProxy(value: string | undefined): boolean | string {
   if (!value) return false;
   if (value === 'true') return true;
   if (value === 'false') return false;
   const asNumber = Number(value);
-  if (Number.isInteger(asNumber) && asNumber >= 0) return asNumber;
+  if (Number.isInteger(asNumber) && asNumber >= 0) return asNumber > 0;
   return value;
 }
 
