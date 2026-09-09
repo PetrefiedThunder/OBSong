@@ -11,9 +11,11 @@ const easConfig = path.join(mobileDir, 'eas.json');
 // Prefer an out-of-repo path via env var so the Play publishing key never has to live in
 // the working tree (where it risks being committed). Falls back to the conventional
 // (gitignored) credentials/ location for local use.
-const googleServiceAccount =
-  process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH ||
-  path.join(mobileDir, 'credentials/google-service-account.json');
+const googleServiceAccountEnv = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
+const googleServiceAccountInTree = path.join(
+  mobileDir,
+  'credentials/google-service-account.json'
+);
 
 const failures = [];
 const warnings = [];
@@ -156,9 +158,25 @@ if (!commandExists('eas')) {
   warnings.push('eas CLI is not installed globally; use `corepack pnpm dlx eas-cli ...` for EAS builds');
 }
 
-if (!fs.existsSync(googleServiceAccount)) {
+if (googleServiceAccountEnv) {
+  if (!fs.existsSync(googleServiceAccountEnv)) {
+    failures.push(
+      `GOOGLE_SERVICE_ACCOUNT_KEY_PATH points at a missing file: ${googleServiceAccountEnv}`
+    );
+  }
+} else if (!fs.existsSync(googleServiceAccountInTree)) {
   failures.push(
-    'Google Play service-account JSON is missing at apps/mobile/credentials/google-service-account.json'
+    'Google Play service-account JSON not found. Prefer an out-of-repo path via the ' +
+      'GOOGLE_SERVICE_ACCOUNT_KEY_PATH env var; the in-tree fallback is ' +
+      'apps/mobile/credentials/google-service-account.json (gitignored).'
+  );
+}
+
+if (fs.existsSync(googleServiceAccountInTree)) {
+  warnings.push(
+    'Found apps/mobile/credentials/google-service-account.json inside the repo tree. It is ' +
+      'gitignored, but prefer GOOGLE_SERVICE_ACCOUNT_KEY_PATH pointing outside the repo ' +
+      '(or EAS-stored credentials) to eliminate any risk of committing the Play key.'
   );
 }
 
