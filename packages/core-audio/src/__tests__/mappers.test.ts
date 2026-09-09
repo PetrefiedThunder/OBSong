@@ -312,6 +312,32 @@ describe('mapHorizonToBass', () => {
     const notes = mapHorizonToBass([0, 0.5, 1], 'C', 'C_MAJOR', {});
     expect(notes.map((n) => n.note)).toEqual(['C2', 'G2', 'C3']);
   });
+
+  it.each(['foggy-forest', 'industrial-grid'])(
+    'produces a non-empty, in-range bass voice for the %s preset (#109)',
+    (presetId) => {
+      // These presets use sub-C2 bass ranges (A1-E2 and A#1-F2) with non-C roots; the old
+      // hardcoded startOctave=2 filtered every candidate out and the bass voice silently
+      // disappeared.
+      const preset = TOPO_PRESETS.find((p) => p.id === presetId)!;
+      expect(preset).toBeDefined();
+
+      const horizon = Array.from({ length: 32 }, (_, i) => i / 31);
+      const notes = mapHorizonToBass(horizon, preset.defaultKey, preset.defaultScale, {
+        minNote: preset.voices.bass.minNote,
+        maxNote: preset.voices.bass.maxNote,
+      });
+
+      expect(notes.length).toBeGreaterThan(0);
+      const minMidi = noteNameToMidi(preset.voices.bass.minNote);
+      const maxMidi = noteNameToMidi(preset.voices.bass.maxNote);
+      for (const note of notes) {
+        const midi = noteNameToMidi(note.note);
+        expect(midi).toBeGreaterThanOrEqual(minMidi);
+        expect(midi).toBeLessThanOrEqual(maxMidi);
+      }
+    }
+  );
 });
 
 describe('mapRidgesToMelody', () => {

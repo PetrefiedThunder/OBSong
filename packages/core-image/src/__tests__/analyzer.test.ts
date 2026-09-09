@@ -1,8 +1,10 @@
 import {
   analyzeImageForLinearLandscape,
   analyzeImageForDepthRidge,
+  analyzeImageForMultiVoice,
 } from '../analyzer';
-import { applySobelEdgeDetection } from '../depth';
+import { applySobelEdgeDetection, detectRidges } from '../depth';
+import { computeTextureFromBrightness } from '../texture';
 
 describe('Image Analyzers', () => {
   // Create a simple 3x3 black and white test image (2 pixels black, 1 pixel white)
@@ -68,6 +70,14 @@ describe('Image Analyzers', () => {
     it('produces finite (non-NaN) profiles for a short image', () => {
       // height 3 previously read rows -1 and 3 (out of bounds) -> all-NaN profiles.
       const result = analyzeImageForDepthRidge(pixels, width, height);
+      expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+      expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
+      expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    });
+
+    it('produces finite (non-NaN) profiles for the smallest image (1x1)', () => {
+      const tiny = new Uint8ClampedArray([128, 128, 128, 255]);
+      const result = analyzeImageForDepthRidge(tiny, 1, 1);
       expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
       expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
       expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
@@ -176,5 +186,75 @@ describe('Image Analyzers', () => {
       const result = analyzeImageForDepthRidge(big, w, h);
       expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
     });
+  });
+});
+
+describe('analyzeImageForMultiVoice (issue #81)', () => {
+  it('produces finite (non-NaN) profiles for a short image', () => {
+    // height 3 made the old unclamped window read rows -1 and 3 -> all-NaN profiles,
+    // which surfaced downstream as `note: undefined` and a noteNameToMidi throw.
+    const w = 8;
+    const h = 3;
+    const pixels = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      const v = ((i / 4) % w) * 32;
+      pixels[i] = v;
+      pixels[i + 1] = v;
+      pixels[i + 2] = v;
+      pixels[i + 3] = 255;
+    }
+
+    const result = analyzeImageForMultiVoice(pixels, w, h);
+    expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+    expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
+    expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    expect(result.horizonProfile?.every(Number.isFinite)).toBe(true);
+    expect(result.textureProfile?.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('computeTextureFromBrightness (issue #110)', () => {
+  it('normalizes against the true max stdDev (127.5), not 255', () => {
+    // Alternating 0/255 has the maximum possible stdDev (127.5) and must saturate to 1.
+    // With the old /255 normalization it topped out at 0.5, making the "high" texture
+    // branch (>= 0.7) unreachable.
+    const extreme = Array.from({ length: 16 }, (_, i) => (i % 2 === 0 ? 0 : 255));
+    const texture = computeTextureFromBrightness(extreme, 8);
+    expect(texture.every(Number.isFinite)).toBe(true);
+    expect(Math.max(...texture)).toBeGreaterThan(0.7);
+  });
+
+  it('returns ~0 for a flat profile', () => {
+    const flat = new Array(16).fill(128);
+    const texture = computeTextureFromBrightness(flat, 8);
+    expect(texture.every((t) => t === 0)).toBe(true);
+  });
+});
+
+describe('detectRidges (issue #110)', () => {
+  it('preserves dynamic range for raw 0-255 brightness profiles', () => {
+    // One sharp edge among small ripples. The old code clamped gradient+peakBonus to 1.0
+    // BEFORE normalizing (a ~3/255 diff already saturated), collapsing every ridge to 1.
+    const profile = [
+      100, 102, 100, 102, 100, 102, 100, 102,
+      100, 250, // sharp edge at index 9
+      100, 102, 100, 102, 100, 102,
+    ];
+    const ridges = detectRidges(profile);
+
+    expect(ridges.length).toBe(profile.length);
+    expect(ridges.every(Number.isFinite)).toBe(true);
+    expect(Math.max(...ridges)).toBeLessThanOrEqual(1);
+
+    // Weak ripples must stay well below the dominant edge instead of clamping to ~1.
+    const weak = ridges[3];
+    const strong = Math.max(...ridges);
+    expect(strong).toBeGreaterThan(0.9);
+    expect(weak).toBeLessThan(0.5);
+  });
+
+  it('returns zeros for a flat profile', () => {
+    const ridges = detectRidges(new Array(8).fill(128));
+    expect(ridges.every((r) => r === 0)).toBe(true);
   });
 });
