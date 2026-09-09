@@ -8,14 +8,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'TopoSonics',
   slug: 'toposonics',
   version: '0.1.0',
+  // Custom URL scheme for deep links / auth redirects. iOS derives one from the bundle
+  // identifier automatically, but Android only emits the matching intent filter when this
+  // is set — without it the two platforms disagree on linking behavior.
+  scheme: 'com.toposonics.app',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
-  splash: {
-    image: './assets/splash.png',
-    resizeMode: 'contain',
-    backgroundColor: '#0a0a0f',
-  },
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
@@ -31,21 +30,51 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: androidVersionCode,
     allowBackup: false,
     permissions: ['CAMERA', 'READ_MEDIA_IMAGES'],
-    // The app never records audio and never draws over other apps; block these so
-    // config plugins (e.g. expo-av) and prebuilds don't silently re-add high-risk
-    // permissions that Google Play flags in review.
+    // Defense in depth: the expo-audio plugin above is configured not to request these,
+    // but any other plugin or prebuild could re-add them. The app never records audio and
+    // never draws over other apps, and unused permissions draw Play Console review
+    // questions (foreground-service ones require an explicit declaration).
     blockedPermissions: [
       'android.permission.RECORD_AUDIO',
       'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     ],
   },
   web: {
     favicon: './assets/favicon.png',
   },
   plugins: [
-    'expo-av',
+    [
+      'expo-audio',
+      {
+        // Playback is a foreground-only preview: no lock-screen controls, no background
+        // audio. Leaving the defaults on would declare an AudioControlsService with
+        // foregroundServiceType="mediaPlayback" (which throws SecurityException on
+        // Android 14+ once the matching permission is absent) and add UIBackgroundModes
+        // "audio" on iOS, which App Review rejects when nothing plays in the background.
+        enableBackgroundPlayback: false,
+        enableBackgroundRecording: false,
+        // The app never records; don't request microphone access on either platform.
+        recordAudioAndroid: false,
+        microphonePermission: false,
+      },
+    ],
+    // SDK 52+ configures the native splash screen via this plugin (the top-level
+    // `splash` key was removed from ExpoConfig).
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash.png',
+        resizeMode: 'contain',
+        backgroundColor: '#0a0a0f',
+      },
+    ],
     'expo-secure-store',
     'expo-apple-authentication',
+    // Re-applies the guarded release signing config that `expo prebuild` would otherwise
+    // reset to RN's default of signing releases with the public debug keystore.
+    './plugins/withReleaseSigning',
     [
       'expo-image-picker',
       {

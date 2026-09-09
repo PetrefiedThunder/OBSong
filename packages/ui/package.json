@@ -13,13 +13,16 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "react": "^18.2.0"
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^18.2.48",
-    "react": "^18.2.0",
-    "typescript": "^5.3.3",
-    "vitest": "^4.0.17"
+    "typescript": "^5.3.3"
   },
   "publishConfig": {
     "access": "restricted"

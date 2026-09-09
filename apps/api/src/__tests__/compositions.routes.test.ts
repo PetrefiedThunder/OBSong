@@ -144,7 +144,7 @@ describe('POST /compositions (validation, #88)', () => {
 
 describe('GET /compositions (summary pagination, audit)', () => {
   it('returns an array of summaries with default pagination', async () => {
-    mocked.listCompositions.mockResolvedValue([summary(TEST_USER)]);
+    mocked.listCompositions.mockResolvedValue({ compositions: [summary(TEST_USER)] });
     const res = await app.inject({ method: 'GET', url: '/compositions' });
     expect(res.statusCode).toBe(200);
     const body = res.json() as { data: unknown[] };
@@ -153,7 +153,7 @@ describe('GET /compositions (summary pagination, audit)', () => {
   });
 
   it('summary rows carry noteCount but no noteEvents/imageData blobs', async () => {
-    mocked.listCompositions.mockResolvedValue([summary(TEST_USER)]);
+    mocked.listCompositions.mockResolvedValue({ compositions: [summary(TEST_USER)] });
     const res = await app.inject({ method: 'GET', url: '/compositions' });
     expect(res.statusCode).toBe(200);
     const row = (res.json() as { data: Record<string, unknown>[] }).data[0];
@@ -163,7 +163,7 @@ describe('GET /compositions (summary pagination, audit)', () => {
   });
 
   it('passes validated limit/offset through to the service', async () => {
-    mocked.listCompositions.mockResolvedValue([]);
+    mocked.listCompositions.mockResolvedValue({ compositions: [] });
     const res = await app.inject({ method: 'GET', url: '/compositions?limit=5&offset=10' });
     expect(res.statusCode).toBe(200);
     expect(mocked.listCompositions).toHaveBeenCalledWith(TEST_USER, { limit: 5, offset: 10 });
@@ -179,6 +179,49 @@ describe('GET /compositions (summary pagination, audit)', () => {
     const res = await app.inject({ method: 'GET', url: '/compositions?limit=101' });
     expect(res.statusCode).toBe(400);
     expect(mocked.listCompositions).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /compositions cursor pagination (#124)', () => {
+  const CURSOR = Buffer.from('2020-01-01T00:00:00.000Z|' + UUID, 'utf8').toString('base64url');
+
+  it('passes cursor mode to the service (offset omitted) and returns nextCursor when present', async () => {
+    mocked.listCompositions.mockResolvedValue({
+      compositions: [summary(TEST_USER)],
+      nextCursor: 'next-page',
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: `/compositions?limit=5&cursor=${encodeURIComponent(CURSOR)}`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mocked.listCompositions).toHaveBeenCalledWith(TEST_USER, { limit: 5, cursor: CURSOR });
+    const body = res.json() as { data: unknown[]; nextCursor?: string };
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.nextCursor).toBe('next-page');
+  });
+
+  it('omits nextCursor on the last page (additive envelope keeps data as a bare array)', async () => {
+    mocked.listCompositions.mockResolvedValue({ compositions: [summary(TEST_USER)] });
+    const res = await app.inject({ method: 'GET', url: `/compositions?cursor=${encodeURIComponent(CURSOR)}` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { data: unknown[]; nextCursor?: string };
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.nextCursor).toBeUndefined();
+  });
+
+  it('maps a malformed cursor to 400 INVALID_CURSOR, not 500', async () => {
+    mocked.listCompositions.mockRejectedValue(new Error('Invalid cursor'));
+    const res = await app.inject({ method: 'GET', url: '/compositions?cursor=not-valid' });
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { error: { code: string } }).error.code).toBe('INVALID_CURSOR');
+  });
+
+  it('strips unknown query keys rather than failing', async () => {
+    mocked.listCompositions.mockResolvedValue({ compositions: [] });
+    const res = await app.inject({ method: 'GET', url: '/compositions?bogus=1' });
+    expect(res.statusCode).toBe(200);
+    expect(mocked.listCompositions).toHaveBeenCalledWith(TEST_USER, { limit: 50, offset: 0 });
   });
 });
 

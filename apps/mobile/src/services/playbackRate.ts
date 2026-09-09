@@ -1,14 +1,14 @@
 /**
- * Pure playback-rate math for the expo-av beep voice. Kept in its own module (no expo-av
+ * Pure playback-rate math for the expo-audio beep voice. Kept in its own module (no expo-audio
  * or asset imports) so it can be unit-tested in a plain node environment.
  */
 
 export const BASE_FREQUENCY = 440;
 
 /**
- * Convert a note frequency into an expo-av playback rate for the 440 Hz beep sample.
+ * Convert a note frequency into an expo-audio playback rate for the 440 Hz beep sample.
  *
- * expo-av only honors rates in roughly [0.5, 2.5], i.e. 220-1100 Hz. A flat clamp maps
+ * The playback-rate window honored reliably across platforms is roughly [0.5, 2.5], i.e. 220-1100 Hz. A flat clamp maps
  * every note outside that window to the boundary rate, collapsing e.g. all of C2-G#3 to
  * a single monotone pitch. Instead the ratio is octave-folded into the window first —
  * halving/doubling preserves pitch class — so every out-of-range note lands in a playable

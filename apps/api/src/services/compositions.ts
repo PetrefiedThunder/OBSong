@@ -109,31 +109,97 @@ function mapRowToCompositionSummary(row: CompositionSummaryRow): CompositionSumm
 export interface ListCompositionsOptions {
   /** Page size (rows to return). */
   limit?: number;
-  /** Rows to skip before the page. */
+  /** Rows to skip before the page (offset pagination; ignored when cursor is set). */
   offset?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor` (base64url of `<isoCreatedAt>|<id>`).
+   * When present, results are keyset-paginated by the stable (created_at DESC, id DESC)
+   * ordering and offset is ignored.
+   */
+  cursor?: string;
+}
+
+export interface ListCompositionsResult {
+  compositions: CompositionSummary[];
+  /** Cursor to pass for the next page; undefined on the last page. */
+  nextCursor?: string;
+}
+
+function encodeCursor(createdAt: string, id: string): string {
+  return Buffer.from(`${createdAt}|${id}`, 'utf8').toString('base64url');
+}
+
+/** Returns null for a malformed cursor so the route can answer 400 instead of 500. */
+function decodeCursor(cursor: string): { createdAt: string; id: string } | null {
+  let decoded: string;
+  try {
+    decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+  } catch {
+    return null;
+  }
+  const sep = decoded.lastIndexOf('|');
+  if (sep <= 0) return null;
+  const createdAt = decoded.slice(0, sep);
+  const id = decoded.slice(sep + 1);
+  // created_at must round-trip as a real timestamp; id must be a UUID.
+  if (Number.isNaN(new Date(createdAt).getTime())) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+  return { createdAt, id };
 }
 
 export async function listCompositions(
   userId: string,
   options: ListCompositionsOptions = {}
-): Promise<CompositionSummary[]> {
+): Promise<ListCompositionsResult> {
   // Fail closed: never list the whole table. All access is via the service-role client,
   // which bypasses RLS, so this filter is the only tenant isolation.
   if (!userId) {
     throw new Error('listCompositions requires a userId');
   }
   const limit = options.limit ?? 50;
-  const offset = options.offset ?? 0;
-  const { data, error } = await supabaseAdmin
+  const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+  if (options.cursor && !cursor) {
+    throw new Error('Invalid cursor');
+  }
+
+  let query = supabaseAdmin
     .from('compositions')
     .select(SUMMARY_SELECT)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('id', { ascending: false });
+
+  if (cursor) {
+    // Keyset filter for (created_at, id) DESC: rows strictly after the cursor position.
+    query = query.or(
+      `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
+    );
+    // One extra row tells us whether another page exists.
+    query = query.range(0, limit);
+  } else {
+    const offset = options.offset ?? 0;
+    query = query.range(offset, offset + limit);
+  }
+
+  const { data, error } = await query;
   if (error) {
     throw error;
   }
-  return (data as unknown as CompositionSummaryRow[]).map(mapRowToCompositionSummary);
+  const rows = data as unknown as CompositionSummaryRow[];
+  const hasMore = rows.length > limit;
+  const pageRows = rows.slice(0, limit);
+
+  // With an explicit offset (no cursor) the client drives paging, so nextCursor is only
+  // emitted when this page provably isn't the last one. In cursor mode it is undefined on
+  // the final page, which is the termination signal.
+  const last = pageRows[pageRows.length - 1];
+  const nextCursor =
+    hasMore && last ? encodeCursor(last.created_at, last.id) : undefined;
+
+  return {
+    compositions: pageRows.map(mapRowToCompositionSummary),
+    nextCursor,
+  };
 }
 
 export async function getCompositionById(id: string): Promise<Composition | null> {

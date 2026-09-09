@@ -123,6 +123,18 @@ This uses the committed production profile with a Release build configuration.
 
 The repo is prewired for Android submit through EAS, but the Play service-account key is not committed.
 
+Preferred (no key file inside the repo):
+
+1. Store the Google Play service account JSON anywhere outside the repo tree and export:
+
+```bash
+export GOOGLE_SERVICE_ACCOUNT_KEY_PATH="$HOME/secrets/google-service-account.json"
+```
+
+`release:check:mobile` accepts this env var as an alternative to the in-tree file. (You can also manage submission credentials directly in EAS instead of using a local key file.)
+
+In-tree fallback (gitignored, but riskier — a warning is emitted by `release:check:mobile`):
+
 1. Create this folder locally:
 
 ```bash

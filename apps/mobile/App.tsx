@@ -53,7 +53,7 @@ export default function App() {
 
     let isActive = true;
 
-    void import('sentry-expo')
+    void import('@sentry/react-native')
       .then((Sentry) => {
         if (!isActive) {
           return;
@@ -61,7 +61,6 @@ export default function App() {
 
         Sentry.init({
           dsn: SENTRY_DSN,
-          enableInExpoDevelopment: true,
           debug: __DEV__,
         });
       })
