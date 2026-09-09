@@ -82,12 +82,15 @@ const updateBodySchema = {
 
 // Pagination for the list endpoint. Bounded limit keeps a single response well under the
 // API's under-pressure heap cap; unknown query keys are stripped by AJV's removeAdditional.
+// `cursor` is the additive keyset-pagination param (#124); offset still works for legacy
+// clients that don't send it.
 const listQuerySchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
     limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
     offset: { type: 'integer', minimum: 0, default: 0 },
+    cursor: { type: 'string', minLength: 1, maxLength: 512 },
   },
 } as const;
 
@@ -98,8 +101,10 @@ export async function compositionRoutes(fastify: FastifyInstance) {
    * imageData blobs are only served by GET /compositions/:id.
    */
   fastify.get<{
-    Querystring: { limit?: number; offset?: number };
-    Reply: ApiResponse<CompositionSummary[]> | ApiErrorResponse;
+    Querystring: { limit?: number; offset?: number; cursor?: string };
+    Reply:
+      | (ApiResponse<CompositionSummary[]> & { nextCursor?: string })
+      | ApiErrorResponse;
   }>(
     '/compositions',
     {
@@ -108,15 +113,31 @@ export async function compositionRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const { limit = 50, offset = 0 } = request.query;
-        const compositions = await listCompositions(request.userId as string, { limit, offset });
+        const { limit = 50, offset = 0, cursor } = request.query;
+        const result = await listCompositions(request.userId as string, {
+          limit,
+          // Cursor mode ignores offset entirely (keyset over (created_at, id) DESC).
+          ...(cursor ? { cursor } : { offset }),
+        });
 
+        // Additive envelope (#124): `data` stays an array for existing offset clients;
+        // cursor clients follow `nextCursor` until it is absent.
         return reply.send({
           success: true,
-          data: compositions,
+          data: result.compositions,
+          ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
         });
       } catch (error) {
         fastify.log.error(error);
+        if (error instanceof Error && error.message === 'Invalid cursor') {
+          return reply.status(400).send({
+            success: false,
+            error: {
+              code: 'INVALID_CURSOR',
+              message: 'Invalid cursor',
+            },
+          });
+        }
         return reply.status(500).send({
           success: false,
           error: {

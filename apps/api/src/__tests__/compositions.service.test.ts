@@ -23,6 +23,8 @@ interface Builder {
   eqCalls: Array<[string, unknown]>;
   selectCalls: string[];
   rangeCalls: Array<[number, number]>;
+  orderCalls: Array<[string, unknown]>;
+  orCalls: string[];
   then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => Promise<unknown>;
   [k: string]: unknown;
 }
@@ -31,12 +33,16 @@ function makeBuilder(result: unknown): Builder {
   const eqCalls: Array<[string, unknown]> = [];
   const selectCalls: string[] = [];
   const rangeCalls: Array<[number, number]> = [];
-  const builder = { eqCalls, selectCalls, rangeCalls } as Builder;
-  for (const m of ['select', 'insert', 'update', 'delete', 'order', 'single', 'eq', 'range']) {
+  const orderCalls: Array<[string, unknown]> = [];
+  const orCalls: string[] = [];
+  const builder = { eqCalls, selectCalls, rangeCalls, orderCalls, orCalls } as Builder;
+  for (const m of ['select', 'insert', 'update', 'delete', 'order', 'single', 'eq', 'range', 'or']) {
     builder[m] = vi.fn((...args: unknown[]) => {
       if (m === 'eq') eqCalls.push([args[0] as string, args[1]]);
       if (m === 'select') selectCalls.push(args[0] as string);
       if (m === 'range') rangeCalls.push([args[0] as number, args[1] as number]);
+      if (m === 'order') orderCalls.push([args[0] as string, args[1]]);
+      if (m === 'or') orCalls.push(args[0] as string);
       return builder;
     });
   }
@@ -95,7 +101,8 @@ describe('listCompositions summary projection + pagination (audit)', () => {
     const list = makeBuilder({ data: [summaryRow(USER)], error: null });
     fromMock.mockReturnValueOnce(asMock(list));
 
-    const [result] = await listCompositions(USER);
+    const { compositions } = await listCompositions(USER);
+    const [result] = compositions;
     expect(list.selectCalls[0]).not.toContain('*');
     expect(list.selectCalls[0]).toContain('title:data->>title');
     expect(list.selectCalls[0]).not.toContain('noteEvents');
@@ -108,7 +115,8 @@ describe('listCompositions summary projection + pagination (audit)', () => {
   it('maps a row to a summary, deriving noteCount and coercing tempo to a number', async () => {
     fromMock.mockReturnValueOnce(asMock(makeBuilder({ data: [summaryRow(USER)], error: null })));
 
-    const [result] = await listCompositions(USER);
+    const { compositions } = await listCompositions(USER);
+    const [result] = compositions;
     expect(result).toMatchObject({
       id: UUID,
       userId: USER,
@@ -122,25 +130,113 @@ describe('listCompositions summary projection + pagination (audit)', () => {
     const legacy = { ...summaryRow(USER), metadata: null, tempo: null };
     fromMock.mockReturnValueOnce(asMock(makeBuilder({ data: [legacy], error: null })));
 
-    const [result] = await listCompositions(USER);
+    const { compositions } = await listCompositions(USER);
+    const [result] = compositions;
     expect(result.noteCount).toBeUndefined();
     expect(result.tempo).toBeUndefined();
   });
 
-  it('applies the default page window via range(0, 49)', async () => {
+  it('orders by the stable (created_at DESC, id DESC) tuple', async () => {
     const list = makeBuilder({ data: [], error: null });
     fromMock.mockReturnValueOnce(asMock(list));
 
     await listCompositions(USER);
-    expect(list.rangeCalls).toEqual([[0, 49]]);
+    expect(list.orderCalls).toEqual([
+      ['created_at', { ascending: false }],
+      ['id', { ascending: false }],
+    ]);
   });
 
-  it('applies a custom limit/offset window via range(offset, offset+limit-1)', async () => {
+  it('fetches limit+1 rows in the default window (range(0, 50)) to detect a next page', async () => {
+    const list = makeBuilder({ data: [], error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    await listCompositions(USER);
+    expect(list.rangeCalls).toEqual([[0, 50]]);
+  });
+
+  it('applies a custom limit/offset window via range(offset, offset+limit)', async () => {
     const list = makeBuilder({ data: [], error: null });
     fromMock.mockReturnValueOnce(asMock(list));
 
     await listCompositions(USER, { limit: 10, offset: 20 });
-    expect(list.rangeCalls).toEqual([[20, 29]]);
+    expect(list.rangeCalls).toEqual([[20, 30]]);
+  });
+});
+
+describe('listCompositions cursor pagination (#124)', () => {
+  const TS = '2020-01-01T00:00:00.000Z';
+  const CURSOR = Buffer.from(`${TS}|${UUID}`, 'utf8').toString('base64url');
+
+  function pageRows(count: number) {
+    // Distinct ids/timestamps so cursor extraction is observable.
+    return Array.from({ length: count }, (_, i) => ({
+      ...row(USER),
+      id: `11111111-1111-4111-8111-1111111111${String(i).padStart(2, '0')}`,
+      created_at: `2020-01-0${i + 1}T00:00:00.000Z`,
+      // Summary-select shape: scalar projections instead of a `data` blob.
+      title: 'My Comp',
+      description: null,
+      mappingMode: 'LINEAR_LANDSCAPE',
+      key: 'C',
+      scale: 'C_MAJOR',
+      presetId: null,
+      tempo: null,
+      imageThumbnail: null,
+      metadata: null,
+    }));
+  }
+
+  it('applies the keyset or() filter and fetches limit+1 rows in cursor mode', async () => {
+    const list = makeBuilder({ data: [], error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    await listCompositions(USER, { limit: 10, cursor: CURSOR });
+    expect(list.orCalls).toEqual([
+      `created_at.lt.${TS},and(created_at.eq.${TS},id.lt.${UUID})`,
+    ]);
+    expect(list.rangeCalls).toEqual([[0, 10]]);
+  });
+
+  it('emits nextCursor from the last returned row when a further page exists', async () => {
+    // limit=2, 3 rows returned -> the extra row means another page exists.
+    const list = makeBuilder({ data: pageRows(3), error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    const { compositions, nextCursor } = await listCompositions(USER, { limit: 2, cursor: CURSOR });
+    expect(compositions).toHaveLength(2);
+    const expected = Buffer.from('2020-01-02T00:00:00.000Z|11111111-1111-4111-8111-111111111101', 'utf8').toString('base64url');
+    expect(nextCursor).toBe(expected);
+  });
+
+  it('returns no nextCursor on the final page', async () => {
+    const list = makeBuilder({ data: pageRows(2), error: null });
+    fromMock.mockReturnValueOnce(asMock(list));
+
+    const { compositions, nextCursor } = await listCompositions(USER, { limit: 2, cursor: CURSOR });
+    expect(compositions).toHaveLength(2);
+    expect(nextCursor).toBeUndefined();
+  });
+
+  it('round-trips: a cursor produced by one page is accepted as the next page filter', async () => {
+    const first = makeBuilder({ data: pageRows(3), error: null });
+    const second = makeBuilder({ data: [], error: null });
+    fromMock.mockReturnValueOnce(asMock(first)).mockReturnValueOnce(asMock(second));
+
+    const { nextCursor } = await listCompositions(USER, { limit: 2, cursor: CURSOR });
+    await listCompositions(USER, { limit: 2, cursor: nextCursor });
+    expect(second.orCalls[0]).toContain('created_at.lt.2020-01-02T00:00:00.000Z');
+  });
+
+  it('throws "Invalid cursor" for a malformed cursor without querying', async () => {
+    await expect(listCompositions(USER, { cursor: '!!!not-a-cursor!!!' })).rejects.toThrow(/invalid cursor/i);
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it('throws "Invalid cursor" for a cursor whose id is not a UUID', async () => {
+    const bad = Buffer.from(`${TS}|not-a-uuid`, 'utf8').toString('base64url');
+    await expect(listCompositions(USER, { cursor: bad })).rejects.toThrow(/invalid cursor/i);
+    expect(fromMock).not.toHaveBeenCalled();
   });
 });
 
