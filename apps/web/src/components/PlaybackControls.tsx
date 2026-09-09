@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { Button } from '@toposonics/ui';
 
 interface PlaybackControlsProps {
@@ -21,6 +22,7 @@ export function PlaybackControls({
   onTempoChange,
   disabled = false,
 }: PlaybackControlsProps) {
+  const tempoId = useId();
   return (
     <div className="space-y-4">
       <div className="flex gap-4">
@@ -46,10 +48,11 @@ export function PlaybackControls({
 
       <div>
         <div className="flex justify-between mb-2">
-          <label className="text-sm font-medium">Tempo</label>
+          <label htmlFor={tempoId} className="text-sm font-medium">Tempo</label>
           <span className="text-sm text-gray-400">{tempo} BPM</span>
         </div>
         <input
+          id={tempoId}
           type="range"
           min="60"
           max="180"
