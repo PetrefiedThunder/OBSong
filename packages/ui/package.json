@@ -10,7 +10,7 @@
     "dev": "tsc -p . --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('no tests')\""
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": ">=18"
