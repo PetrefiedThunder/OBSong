@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "expo-modules-core": "^57.0.10",
-    "vitest": "^4.0.17"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "react-native": "*"
