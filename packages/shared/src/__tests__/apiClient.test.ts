@@ -96,16 +96,49 @@ describe('createApiClient.fetchCompositions', () => {
     await client.fetchCompositions('tok', { limit: 10, offset: 20 });
     expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=10&offset=20');
   });
+
+  it('sends the cursor URL-encoded when provided', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    await client.fetchCompositions('tok', { limit: 10, cursor: 'a+b/c=' });
+    expect(fn.mock.calls[0][0]).toBe(
+      'http://api/compositions?limit=10&cursor=' + encodeURIComponent('a+b/c=')
+    );
+  });
+});
+
+describe('createApiClient.fetchCompositionsPage', () => {
+  it('returns the data array and nextCursor from the envelope', async () => {
+    const fn = stubFetch(
+      mockResponse({
+        status: 200,
+        body: { success: true, data: [{ id: 'c1' }], nextCursor: 'next1' },
+      })
+    );
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const page = await client.fetchCompositionsPage('tok');
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions');
+    expect(page).toEqual({ compositions: [{ id: 'c1' }], nextCursor: 'next1' });
+  });
+
+  it('omits nextCursor when the server omits it', async () => {
+    stubFetch(mockResponse({ status: 200, body: { success: true, data: [{ id: 'c1' }] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const page = await client.fetchCompositionsPage('tok');
+    expect(page.compositions).toEqual([{ id: 'c1' }]);
+    expect(page.nextCursor).toBeUndefined();
+  });
 });
 
 describe('createApiClient.fetchAllCompositions', () => {
-  it('pages until a short page and concatenates the results in order', async () => {
-    // First page full (100 rows), second page short (3 rows) => exactly two requests.
+  it('follows the nextCursor chain until it is absent and concatenates in order', async () => {
     const page1 = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
     const page2 = [{ id: 'c100' }, { id: 'c101' }, { id: 'c102' }];
     const fn = vi
       .fn()
-      .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page1 } }))
+      .mockResolvedValueOnce(
+        mockResponse({ status: 200, body: { success: true, data: page1, nextCursor: 'cur1' } })
+      )
       .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page2 } }));
     vi.stubGlobal('fetch', fn);
 
@@ -113,14 +146,14 @@ describe('createApiClient.fetchAllCompositions', () => {
     const result = await client.fetchAllCompositions('tok');
 
     expect(fn).toHaveBeenCalledTimes(2);
-    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=100&offset=0');
-    expect(fn.mock.calls[1][0]).toBe('http://api/compositions?limit=100&offset=100');
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=100');
+    expect(fn.mock.calls[1][0]).toBe('http://api/compositions?limit=100&cursor=cur1');
     expect(result).toHaveLength(103);
     expect(result[0]).toEqual({ id: 'c0' });
     expect(result[102]).toEqual({ id: 'c102' });
   });
 
-  it('stops after one request when the first page is short', async () => {
+  it('stops after one request when no nextCursor is returned', async () => {
     const fn = stubFetch(
       mockResponse({ status: 200, body: { success: true, data: [{ id: 'only' }] } })
     );
@@ -137,11 +170,13 @@ describe('createApiClient.fetchAllCompositions', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('warns instead of silently truncating when every page up to the guard is full', async () => {
+  it('warns instead of silently truncating when the cursor chain outlives the guard', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
     const fn = vi
       .fn()
-      .mockResolvedValue(mockResponse({ status: 200, body: { success: true, data: fullPage } }));
+      .mockResolvedValue(
+        mockResponse({ status: 200, body: { success: true, data: fullPage, nextCursor: 'cur' } })
+      );
     vi.stubGlobal('fetch', fn);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
