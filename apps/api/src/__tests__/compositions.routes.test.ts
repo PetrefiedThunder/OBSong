@@ -22,6 +22,7 @@ vi.mock('../services/compositions', () => ({
 }));
 
 import { compositionRoutes } from '../routes/compositions';
+import { CompositionConflictError } from '../services/compositionConflict';
 import * as svc from '../services/compositions';
 import type { Composition, CompositionSummary } from '@toposonics/types';
 
@@ -265,6 +266,20 @@ describe('PUT/DELETE ownership scoping (#92)', () => {
     const res = await app.inject({ method: 'PUT', url: `/compositions/${UUID}`, payload: { title: 'new' } });
     expect(res.statusCode).toBe(200);
     expect(mocked.updateComposition).toHaveBeenCalledWith(UUID, TEST_USER, expect.objectContaining({ title: 'new' }));
+  });
+
+  it('BE-002 returns a retryable 409 when concurrent update attempts are exhausted', async () => {
+    mocked.getCompositionById.mockResolvedValue(composition(TEST_USER));
+    mocked.updateComposition.mockRejectedValue(new CompositionConflictError());
+    const res = await app.inject({ method: 'PUT', url: '/compositions/' + UUID, payload: { title: 'new' } });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({
+      success: false,
+      error: {
+        code: 'COMPOSITION_CONFLICT',
+        message: 'Composition changed during update. Please retry.',
+      },
+    });
   });
 
   it('DELETE of a foreign composition returns 404', async () => {

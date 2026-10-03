@@ -36,7 +36,7 @@ function makeBuilder(result: unknown): Builder {
   const orderCalls: Array<[string, unknown]> = [];
   const orCalls: string[] = [];
   const builder = { eqCalls, selectCalls, rangeCalls, orderCalls, orCalls } as Builder;
-  for (const m of ['select', 'insert', 'update', 'delete', 'order', 'single', 'eq', 'range', 'or']) {
+  for (const m of ['select', 'insert', 'update', 'delete', 'order', 'single', 'eq', 'is', 'range', 'or']) {
     builder[m] = vi.fn((...args: unknown[]) => {
       if (m === 'eq') eqCalls.push([args[0] as string, args[1]]);
       if (m === 'select') selectCalls.push(args[0] as string);
