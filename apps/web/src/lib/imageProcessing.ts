@@ -62,6 +62,10 @@ export function extractPixelData(img: HTMLImageElement): {
     }
   }
 
+  // Canvas bitmaps and all analyzers must share positive integer dimensions.
+  width = Math.max(1, Math.round(width));
+  height = Math.max(1, Math.round(height));
+
   canvas.width = width;
   canvas.height = height;
 

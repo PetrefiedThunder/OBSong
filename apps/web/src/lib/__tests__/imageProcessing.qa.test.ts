@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
-import { extractPixelData, loadImageFromFile } from '../imageProcessing';
+import {
+  analyzeImageFile, analyzeImageFileDepthRidge, analyzeImageFileMultiVoice,
+  extractPixelData, loadImageFromFile,
+} from '../imageProcessing';
 import { generateImageThumbnail } from '../imageThumbnail';
 
 // Exercise the real workspace analyzer without requiring generated dist artifacts.
@@ -44,10 +47,10 @@ describe('QA image input boundaries', () => {
     }
   );
 
-  it.fails('FE-001: resized portrait dimensions remain integers accepted by the analyzer', () => {
+  it('FE-001: resized portrait dimensions remain integers accepted by the analyzer', () => {
     stubCanvas();
     const result = extractPixelData({ width: 1301, height: 2000 } as HTMLImageElement);
-    // Real canvas getImageData returns 780 * 1200 pixels, but the adapter returns width=780.6.
+    // The bitmap and analyzer must agree on the integer resized dimensions.
     expect(() => analyzeImageForLinearLandscape(result.pixels, result.width, result.height, {
       averageRows: true, rowsToAverage: 5,
     }))
@@ -56,7 +59,7 @@ describe('QA image input boundaries', () => {
     expect(result.pixels.length).toBe(result.width * result.height * 4);
   });
 
-  it.fails('FE-001: a very thin image keeps both resized dimensions at least one pixel', () => {
+  it('FE-001: a very thin image keeps both resized dimensions at least one pixel', () => {
     stubCanvas();
     const result = extractPixelData({ width: 1, height: 3000 } as HTMLImageElement);
     expect(result.width).toBeGreaterThanOrEqual(1);
@@ -68,6 +71,44 @@ describe('QA image input boundaries', () => {
     canvas.getContext.mockReturnValueOnce(null as never);
     expect(() => extractPixelData({ width: 8, height: 8 } as HTMLImageElement))
       .toThrow('Failed to get canvas context');
+  });
+});
+
+describe.each([
+  ['linear', analyzeImageFile],
+  ['depth/ridge', analyzeImageFileDepthRidge],
+  ['multi-voice', analyzeImageFileMultiVoice],
+] as const)('FE-001: %s analysis pipeline', (_mode, analyze) => {
+  it.each([
+    [1301, 2000, 781, 1200],
+    [2000, 1301, 1200, 781],
+    [1, 3000, 1, 1200],
+    [3000, 1, 1200, 1],
+  ])('uses a consistent positive integer bitmap for %ix%i input', async (width, height, expectedWidth, expectedHeight) => {
+    const { canvas, context } = stubCanvas();
+    vi.stubGlobal('Image', class {
+      width = width;
+      height = height;
+      onload: (() => void) | undefined;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    });
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:qa-image'), revokeObjectURL: vi.fn(),
+    });
+
+    const result = await analyze({} as File);
+    expect([result.width, result.height]).toEqual([expectedWidth, expectedHeight]);
+    expect([canvas.width, canvas.height]).toEqual([expectedWidth, expectedHeight]);
+    expect(context.getImageData).toHaveBeenCalledExactlyOnceWith(0, 0, expectedWidth, expectedHeight);
+    expect(context.drawImage).toHaveBeenCalledTimes(2);
+    for (const call of context.drawImage.mock.calls) {
+      expect(call.slice(1)).toEqual([0, 0, expectedWidth, expectedHeight]);
+    }
+    expect(result.analysis).toMatchObject({ width: expectedWidth, height: expectedHeight });
+    expect(result.analysis.brightnessProfile.length).toBeGreaterThan(0);
+    for (const profile of Object.values(result.analysis).filter(Array.isArray)) {
+      expect(profile.every(Number.isFinite)).toBe(true);
+    }
   });
 });
 
