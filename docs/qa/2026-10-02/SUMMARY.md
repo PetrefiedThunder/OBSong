@@ -45,3 +45,5 @@ Product behavior is unchanged. Changes consist of nine new Vitest test files, te
 Not tested: production/live Supabase or database/RLS behavior; native iOS/Android builds/devices, physical secure storage or audible quality; full screen-reader output; full Firefox/WebKit workflow parity; real fonts, production performance/CDN or sustained load; live dependency advisories; exact CI Node20 runtime. Real services are prohibited by scope, native hardware is unavailable, and the CI Node package install was blocked/unavailable. Local validation used Node26.7.0. Frontend/UI unit coverage remains low despite browser evidence. Hosted CI stays pending until the orchestrator opens the draft PR.
 
 The orchestrator's next step is to review this uncommitted diff, scan it, commit/push the QA branch, open the single draft PR, and attach the actual CI state. No merge or deployment is part of this handoff.
+
+Fix pass: see FIXES.md
