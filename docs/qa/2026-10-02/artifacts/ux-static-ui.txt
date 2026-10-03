@@ -1,0 +1,973 @@
+UTC start: 2026-10-03T01:21:29Z
+Command: command -v npx && sed -n "1,260p" apps/web/src/components/LoginModal.tsx && sed -n "1,260p" apps/web/src/components/ImageUploader.tsx && sed -n "1,240p" apps/web/src/app/studio/page.tsx && sed -n "1,220p" apps/web/src/app/layout.tsx && cat apps/web/src/app/globals.css
+Exit: 0
+
+/opt/homebrew/bin/npx
+'use client';
+
+import { useEffect, useId, useRef, useState } from 'react';
+import { Button } from '@toposonics/ui';
+
+interface LoginModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onLogin: (email: string, password?: string) => Promise<void>;
+  isLoggingIn: boolean;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+}
+
+export function LoginModal({
+  isOpen,
+  onClose,
+  onLogin,
+  isLoggingIn,
+  title = 'Sign In',
+  description = 'Enter your credentials to continue.',
+  submitLabel = 'Sign In',
+}: LoginModalProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const titleId = useId();
+  const descriptionId = useId();
+  const emailId = useId();
+  const passwordId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    // Move focus into the dialog on open.
+    dialogRef.current?.querySelector<HTMLElement>('input, button')?.focus();
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onLogin(email, password);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        className="bg-surface-primary p-8 rounded-xl shadow-lg w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id={titleId} className="text-2xl font-bold mb-4 text-white">
+          {title}
+        </h2>
+        <p id={descriptionId} className="text-gray-400 mb-6">
+          {description}
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor={emailId} className="block text-sm font-medium mb-2">
+              Email
+            </label>
+            <input
+              id={emailId}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label htmlFor={passwordId} className="block text-sm font-medium mb-2">
+              Password
+            </label>
+            <input
+              id={passwordId}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="flex gap-4 pt-4">
+            <Button type="button" variant="outline" onClick={onClose} fullWidth>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={isLoggingIn} fullWidth>
+              {submitLabel}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+'use client';
+
+import { useState, useRef, useMemo } from 'react';
+import { Button } from '@toposonics/ui';
+
+interface ImageUploaderProps {
+  onImageSelected: (file: File) => void;
+  preview: string | null;
+  /**
+   * Percentage (0-1) representing the current playback position for the scanline overlay
+   */
+  scanlineProgress?: number;
+  /**
+   * When true, shows the scanline overlay to mirror the current playback position
+   */
+  showScanline?: boolean;
+}
+
+/**
+ * Validates that the URL is safe for use in an img src attribute.
+ * Only allows blob: and data:image URLs to prevent XSS attacks.
+ */
+function isSafeImageUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    if (urlObj.protocol === 'blob:') return true;
+
+    if (urlObj.protocol === 'data:') {
+      return /^data:image\/[a-zA-Z0-9.+-]+;/.test(url);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function ImageUploader({
+  onImageSelected,
+  preview,
+  scanlineProgress = 0,
+  showScanline = false,
+}: ImageUploaderProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validate the preview URL to prevent XSS
+  const safePreview = useMemo(() => {
+    if (!preview) return null;
+    return isSafeImageUrl(preview) ? preview : null;
+  }, [preview]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      onImageSelected(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      onImageSelected(file);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {safePreview ? (
+        <div className="relative overflow-hidden rounded-xl">
+          <img
+            src={safePreview}
+            alt="Selected image"
+            className="w-full h-64 object-cover rounded-xl"
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            aria-hidden
+          >
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-[left,opacity] duration-75"
+              style={{
+                // Use container-relative `left` (not translateX): a translateX percentage is
+                // relative to the 2px line's own width, so it never sweeps across the image.
+                left: `${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%`,
+                opacity: showScanline ? 1 : 0,
+              }}
+            />
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Change Image
+          </Button>
+        </div>
+      ) : (
+        <div
+          className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+            isDragging
+              ? 'border-primary-500 bg-primary-500/10'
+              : 'border-gray-700 hover:border-gray-600'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="space-y-4">
+            <div className="text-6xl">📸</div>
+            <div>
+              <p className="text-lg font-medium mb-2">Drop an image here</p>
+              <p className="text-sm text-gray-400 mb-4">or click to browse</p>
+            </div>
+            <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
+              Select Image
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </div>
+  );
+}
+'use client';
+
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Button, Card } from '@toposonics/ui';
+import type {
+  KeyType,
+  ScaleType,
+  MappingMode,
+  NoteEvent,
+  ImageAnalysisResult,
+} from '@toposonics/types';
+import {
+  mapLinearLandscape,
+  mapDepthRidge,
+  mapImageToMultiVoiceComposition,
+  getPresetById,
+  getDefaultPreset,
+  getAllTopoPresets,
+  getScenePreset,
+  getAllScenePacks,
+  type TopoPreset,
+  type ScenePack,
+} from '@toposonics/core-audio';
+import {
+  analyzeImageFile,
+  analyzeImageFileDepthRidge,
+  analyzeImageFileMultiVoice,
+} from '@/lib/imageProcessing';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToneEngine } from '@/hooks/useToneEngine';
+import { ImageUploader } from '@/components/ImageUploader';
+import { MappingControls } from '@/components/MappingControls';
+import { PlaybackControls } from '@/components/PlaybackControls';
+import { TimelineVisualizer } from '@/components/TimelineVisualizer';
+import { ScenePackSelector } from '@/components/ScenePackSelector';
+import { exportCompositionToMidi } from '@/lib/midiExport';
+import { logAnalyticsEvent } from '@/lib/analytics';
+import { SaveCompositionCard } from '@/components/SaveCompositionCard';
+import { logError } from '@toposonics/shared';
+
+function StudioPageContent() {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+
+  // State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // When a scene-pack demo is loaded it changes mappingMode, which re-fires the
+  // analysis effect and would wipe the just-loaded demo notes. This flag makes the
+  // next effect run skip re-analysis (and the note reset) exactly once.
+  const demoLoadedRef = useRef(false);
+
+  // Image analysis result
+  const [analysis, setAnalysis] = useState<ImageAnalysisResult | null>(null);
+
+  // Musical parameters
+  const [key, setKey] = useState<KeyType>('C');
+  const [scale, setScale] = useState<ScaleType>('C_MAJOR');
+  const [mappingMode, setMappingMode] = useState<MappingMode>('LINEAR_LANDSCAPE');
+  const [presetId, setPresetId] = useState('sine-soft');
+  const [tempo, setTempo] = useState(90);
+
+  // TopoPreset state
+  const [selectedTopoPreset, setSelectedTopoPreset] = useState<TopoPreset | null>(null);
+
+  // ScenePack state
+  const [selectedScenePack, setSelectedScenePack] = useState<ScenePack | null>(null);
+
+  // Generated composition
+  const [noteEvents, setNoteEvents] = useState<NoteEvent[]>([]);
+
+  // Tone.js engine
+  const preset = getPresetById(presetId) || getDefaultPreset();
+  const { play, stop, isPlaying, isLoading: audioLoading, currentTime } = useToneEngine({
+    noteEvents,
+    tempo,
+    preset,
+  });
+
+  const compositionDurationBeats = useMemo(() => {
+    if (!noteEvents.length) return 0;
+    return noteEvents.reduce((max, event) => Math.max(max, event.start + event.duration), 0);
+  }, [noteEvents]);
+
+  const compositionDurationSeconds = useMemo(
+    () => compositionDurationBeats * (60 / Math.max(1, tempo)),
+    [compositionDurationBeats, tempo]
+  );
+
+  const scanlineProgress = useMemo(() => {
+    if (!compositionDurationSeconds) return 0;
+    return Math.min(currentTime / compositionDurationSeconds, 1);
+  }, [compositionDurationSeconds, currentTime]);
+
+  // Handle URL params for deep linking
+  useEffect(() => {
+    const sceneParam = searchParams.get('scene');
+    if (sceneParam) {
+      const allScenePacks = getAllScenePacks();
+      const targetScenePack = allScenePacks.find((pack) => pack.id === sceneParam);
+      if (targetScenePack) {
+        handleScenePackSelect(targetScenePack);
+      }
+    }
+    // Deep links should apply once per URL param change; preset helpers mutate local state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+    setImagePreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [selectedFile]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setAnalysis(null);
+      setIsAnalyzing(false);
+      return;
+    }
+
+    // A demo was just loaded (which changed mappingMode). Keep its notes instead of
+    // re-running analysis and clearing them; consume the flag so the next real change
+    // analyses normally.
+    if (demoLoadedRef.current) {
+      demoLoadedRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+
+    const runAnalysis = async () => {
+      stop();
+      setNoteEvents([]);
+      setIsAnalyzing(true);
+      setAnalysis(null);
+
+      try {
+        const result = (() => {
+          switch (mappingMode) {
+            case 'DEPTH_RIDGE':
+              return analyzeImageFileDepthRidge(selectedFile);
+            case 'MULTI_VOICE':
+              return analyzeImageFileMultiVoice(selectedFile);
+            case 'LINEAR_LANDSCAPE':
+            default:
+              return analyzeImageFile(selectedFile);
+          }
+        })();
+
+        const analysisResult = await result;
+        if (!cancelled) {
+          setAnalysis(analysisResult.analysis);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          logError(error as Error, { context: 'Image Analysis', mappingMode });
+          alert('Failed to analyze image');
+          setAnalysis(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAnalyzing(false);
+        }
+      }
+    };
+
+    runAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mappingMode, selectedFile, stop]);
+
+  // Handle image selection
+  const handleImageSelected = (file: File) => {
+    // Selecting an image is always a genuine analysis trigger; clear any pending
+    // demo-skip so this file is analysed normally.
+    demoLoadedRef.current = false;
+    setSelectedFile(file);
+  };
+
+  const applyPresetSettings = (preset: TopoPreset) => {
+    setSelectedTopoPreset(preset);
+    setKey(preset.defaultKey);
+    setScale(preset.defaultScale);
+    setTempo(preset.defaultTempoBpm);
+    setMappingMode(preset.mappingMode);
+  };
+
+  const applyScenePackSettings = (scenePack: ScenePack) => {
+    const allPresets = getAllTopoPresets();
+    const associatedPreset = getScenePreset(scenePack, allPresets);
+
+    if (associatedPreset) {
+      applyPresetSettings(associatedPreset);
+    }
+  };
+
+  // Handle scene pack selection
+  const handleScenePackSelect = (scenePack: ScenePack | null) => {
+    setSelectedScenePack(scenePack);
+
+    if (scenePack) {
+      applyScenePackSettings(scenePack);
+    } else {
+      // Clear preset when scene pack is cleared
+      setSelectedTopoPreset(null);
+    }
+  };
+
+  // Handle preset selection (manual override)
+  const handlePresetSelect = (preset: TopoPreset | null) => {
+    // Clear scene pack if manually selecting preset
+    setSelectedScenePack(null);
+
+    if (preset) {
+      applyPresetSettings(preset);
+    } else {
+      setSelectedTopoPreset(null);
+    }
+  };
+
+  // Handle demo loading
+  const handleLoadDemo = (demoNotes: NoteEvent[], scenePack: ScenePack) => {
+    // Load the demo composition
+    stop();
+    setNoteEvents(demoNotes);
+
+    // Preserve the demo notes if applying the scene pack changes mappingMode (which
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import Link from 'next/link';
+import './globals.css';
+import { AuthProvider } from '@/contexts/AuthContext';
+
+// Nonce-based CSP (see src/middleware.ts) requires per-request rendering: a static build
+// has no request nonce to stamp on Next's script tags, so 'strict-dynamic' would block
+// every chunk. Forcing dynamic rendering lets Next apply the request nonce to its scripts.
+export const dynamic = 'force-dynamic';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'TopoSonics - Turn Images into Music',
+  description:
+    'Transform static photos or live camera input into rich musical landscapes. Map visual features to pitch, time, and effects.',
+  keywords: ['generative music', 'image to audio', 'sonification', 'creative tools'],
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'TopoSonics',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#3b82f6',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body className={`${inter.className} font-sans`}>
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col">
+            <header className="border-b border-gray-800 bg-surface-primary">
+              <nav className="container mx-auto px-4 py-4">
+                <div className="flex items-center justify-between">
+                  <Link href="/" className="text-2xl font-bold text-primary-400">
+                    🎵 TopoSonics
+                  </Link>
+                  <div className="flex gap-6">
+                    <Link
+                      href="/studio"
+                      className="text-gray-300 hover:text-white transition-colors"
+                    >
+                      Studio
+                    </Link>
+                    <Link
+                      href="/compositions"
+                      className="text-gray-300 hover:text-white transition-colors"
+                    >
+                      Compositions
+                    </Link>
+                  </div>
+                </div>
+              </nav>
+            </header>
+            <main className="flex-1">{children}</main>
+            <footer className="border-t border-gray-800 bg-surface-primary py-6">
+              <div className="container mx-auto px-4 text-center text-gray-400 text-sm">
+                TopoSonics &copy; 2024 - Turn images into soundscapes
+              </div>
+            </footer>
+          </div>
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * TopoSonics Global Styles
+ * Dieter Rams-inspired: Minimal, functional, precise
+ */
+
+@layer base {
+  * {
+    @apply border-border-primary;
+  }
+
+  html {
+    @apply antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1, "kern" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background-primary text-text-primary;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Typography scale - Rams precision */
+  h1 {
+    @apply text-4xl font-bold tracking-tight text-text-primary;
+  }
+
+  h2 {
+    @apply text-3xl font-semibold tracking-tight text-text-primary;
+  }
+
+  h3 {
+    @apply text-2xl font-semibold tracking-tight text-text-primary;
+  }
+
+  h4 {
+    @apply text-xl font-medium tracking-tight text-text-primary;
+  }
+
+  h5 {
+    @apply text-lg font-medium text-text-primary;
+  }
+
+  h6 {
+    @apply text-base font-medium text-text-primary;
+  }
+
+  p {
+    @apply text-base text-text-secondary leading-relaxed;
+  }
+
+  /* Focus states - consistent, functional */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-background-primary;
+  }
+
+  /* Selection - musical notation cream */
+  ::selection {
+    @apply bg-notation-400 text-graphite-950;
+  }
+
+  ::-moz-selection {
+    @apply bg-notation-400 text-graphite-950;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Rams-inspired utility: precise spacing */
+  .rams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  /* Functional gradient overlays */
+  .gradient-sonic {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%);
+  }
+
+  .gradient-amber {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, transparent 100%);
+  }
+
+  .gradient-spectrum {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
+  }
+}
+
+/**
+ * Custom Scrollbar - Minimal, functional
+ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-surface-subtle;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-graphite-600 rounded-full;
+  transition: background-color 200ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-graphite-500;
+}
+
+::-webkit-scrollbar-thumb:active {
+  @apply bg-graphite-400;
+}
+
+/**
+ * Loading Spinner - Functional animation
+ */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/**
+ * Pulse - Subtle attention
+ */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/**
+ * Fade In - Gentle entrance
+ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 300ms ease-out;
+}
+
+/**
+ * Slide In - Directional entrance
+ */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 300ms ease-out;
+}
+
+/**
+ * Glow - Active state emphasis
+ */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.4);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/**
+ * Form Elements - Rams precision
+ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+textarea,
+select {
+  @apply
+    w-full
+    px-4 py-2
+    bg-surface-primary
+    border border-border-primary
+    rounded-lg
+    text-text-primary
+    placeholder:text-text-disabled
+    transition-all duration-200
+    focus:outline-none
+    focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary
+    focus:border-primary-500
+    disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+input[type="range"] {
+  @apply
+    w-full h-2
+    bg-graphite-700
+    rounded-full
+    appearance-none
+    cursor-pointer
+    transition-all duration-200;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  @apply
+    appearance-none
+    w-4 h-4
+    bg-sonic-500
+    rounded-full
+    cursor-pointer
+    transition-all duration-200
+    hover:bg-sonic-400
+    hover:scale-110
+    active:scale-95;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb {
+  @apply
+    w-4 h-4
+    bg-sonic-500
+    rounded-full
+    border-0
+    cursor-pointer
+    transition-all duration-200;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  @apply bg-sonic-400 scale-110;
+}
+
+input[type="range"]::-moz-range-thumb:active {
+  @apply scale-95;
+}
+
+/**
+ * Checkbox & Radio - Functional indicators
+ */
+input[type="checkbox"],
+input[type="radio"] {
+  @apply
+    w-4 h-4
+    border border-border-primary
+    bg-surface-primary
+    transition-all duration-200
+    cursor-pointer
+    focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  @apply
+    bg-sonic-500
+    border-sonic-500;
+}
+
+input[type="checkbox"] {
+  @apply rounded-sm;
+}
+
+input[type="radio"] {
+  @apply rounded-full;
+}
+
+/**
+ * Code Blocks - Monospace precision
+ */
+code,
+pre {
+  font-family: "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+}
+
+code {
+  @apply
+    px-1.5 py-0.5
+    bg-surface-secondary
+    text-notation-400
+    rounded
+    text-sm;
+}
+
+pre {
+  @apply
+    p-4
+    bg-surface-secondary
+    border border-border-subtle
+    rounded-lg
+    overflow-x-auto
+    text-sm;
+}
+
+pre code {
+  @apply p-0 bg-transparent;
+}
+
+/**
+ * Links - Subtle, functional
+ */
+a {
+  @apply
+    text-primary-400
+    transition-colors duration-200
+    hover:text-primary-300
+    focus:outline-none
+    focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-background-primary
+    active:text-primary-500;
+}
+
+/**
+ * Tables - Structured data
+ */
+table {
+  @apply w-full border-collapse;
+}
+
+th {
+  @apply
+    px-4 py-3
+    bg-surface-secondary
+    text-left text-sm font-semibold text-text-primary
+    border-b border-border-primary;
+}
+
+td {
+  @apply
+    px-4 py-3
+    text-sm text-text-secondary
+    border-b border-border-subtle;
+}
+
+tr:hover {
+  @apply bg-surface-subtle;
+}
+
+/**
+ * Disabled State - Universal
+ */
+[disabled] {
+  @apply opacity-40 cursor-not-allowed pointer-events-none;
+}
+
+/**
+ * Reduced Motion - Accessibility
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

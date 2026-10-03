@@ -1,0 +1,2016 @@
+UTC start: 2026-10-03T01:23:57Z
+Command: cat packages/core-audio/src/midi.ts packages/core-audio/src/mappers.ts packages/types/src/mapping.ts packages/types/src/composition.ts packages/core-audio/src/__tests__/mappers.test.ts packages/core-image/src/__tests__/analysis.test.ts packages/core-image/src/__tests__/analyzer.test.ts packages/core-image/vitest.config.ts packages/core-audio/vitest.config.ts
+Exit: 0
+
+/// <reference lib="dom" />
+import { Midi } from '@tonejs/midi';
+import { noteNameToMidi } from './scales';
+import type { Composition, NoteEvent } from '@toposonics/types';
+
+const TICKS_PER_BEAT = 480;
+const DEFAULT_TEMPO = 120;
+const MIN_DURATION_BEATS = 0.01;
+
+function normalizeVelocity(velocity?: number) {
+  const normalized = velocity ?? 0.8;
+  return Math.min(1, Math.max(0, normalized));
+}
+
+function sortEventsByStart(noteEvents: NoteEvent[]) {
+  return [...noteEvents].sort((a, b) => {
+    if (a.start === b.start) {
+      return a.duration - b.duration;
+    }
+    return a.start - b.start;
+  });
+}
+
+function buildMidi(noteEvents: NoteEvent[], tempoBpm: number, title?: string) {
+  const midi = new Midi();
+
+  // Note: PPQ is readonly in @tonejs/midi v2.0.28, defaults to 480
+  midi.header.setTempo(Math.max(1, tempoBpm || DEFAULT_TEMPO));
+
+  if (title?.trim()) {
+    midi.name = title.trim();
+  }
+
+  const tracks = new Map<string, ReturnType<Midi['addTrack']>>();
+
+  const getTrack = (trackId: string) => {
+    if (!tracks.has(trackId)) {
+      const track = midi.addTrack();
+      track.name = trackId;
+      tracks.set(trackId, track);
+    }
+
+    return tracks.get(trackId)!;
+  };
+
+  sortEventsByStart(noteEvents).forEach((event) => {
+    const trackId = event.trackId?.trim() || 'Main';
+    const track = getTrack(trackId);
+
+    track.addNote({
+      midi: noteNameToMidi(event.note),
+      ticks: Math.max(0, Math.round(event.start * TICKS_PER_BEAT)),
+      durationTicks: Math.max(1, Math.round(Math.max(MIN_DURATION_BEATS, event.duration) * TICKS_PER_BEAT)),
+      velocity: normalizeVelocity(event.velocity),
+      // Note: channel is not supported in @tonejs/midi v2.0.28 constructor
+    });
+  });
+
+  return midi;
+}
+
+function midiToBlob(midi: Midi): Blob {
+  const bytes = midi.toArray();
+  // Cast to BlobPart to fix type incompatibility
+  return new Blob([bytes as BlobPart], { type: 'audio/midi', endings: 'transparent' });
+}
+
+export function noteEventsToMidiBlob(noteEvents: NoteEvent[], tempoBpm: number, name?: string): Blob {
+  if (!noteEvents.length) {
+    throw new Error('No notes to export');
+  }
+
+  const midi = buildMidi(noteEvents, tempoBpm || DEFAULT_TEMPO, name?.trim());
+  return midiToBlob(midi);
+}
+
+export function compositionToMidiBlob(composition: Composition, tempoOverride?: number): Blob {
+  const tempo = tempoOverride ?? composition.tempo ?? DEFAULT_TEMPO;
+  return noteEventsToMidiBlob(composition.noteEvents, tempo, composition.title);
+}
+/**
+ * Mapping functions that convert ImageAnalysisResult to NoteEvent arrays
+ */
+
+import type {
+  ImageAnalysisResult,
+  NoteEvent,
+  LinearLandscapeOptions,
+  DepthRidgeOptions,
+  MultiVoiceOptions,
+  KeyType,
+  ScaleType,
+  TopoPreset,
+} from '@toposonics/types';
+import { getScaleNotes, brightnessToScaleIndex, noteNameToMidi, midiToNoteName } from './scales';
+
+// Constants for mapDepthRidge
+const RIDGE_VELOCITY_BOOST = 0.3;
+const RIDGE_DURATION_MULTIPLIER = 0.5;
+const RHYTHMIC_GAP_FACTOR = 0.25;
+const REVERB_DEPTH_SENSITIVITY = 0.5;
+
+function calculatePan(index: number, totalPoints: number, spread = 1): number {
+  if (totalPoints <= 1) return 0;
+  const normalizedPosition = index / (totalPoints - 1);
+  return (normalizedPosition * 2 - 1) * spread;
+}
+
+/** Clamp a value into [0, 1]. */
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+/** Linear interpolation between min and max by t (t is clamped to [0, 1]). */
+function lerp(min: number, max: number, t: number): number {
+  return min + (max - min) * clamp01(t);
+}
+
+/**
+ * Parse the (possibly negative) octave number out of a scientific-pitch note name.
+ * Fully anchored (^...$) so the match is linear — an unanchored `-?\d+$` retries every
+ * start position and is flagged as polynomial-time ReDoS on adversarial input.
+ */
+function octaveOf(noteName: string): number {
+  const match = /^[A-G]#?(-?\d+)$/.exec(noteName);
+  return match ? parseInt(match[1], 10) : 3;
+}
+
+/**
+ * Generate scale notes that span the octaves of [minNote, maxNote] (plus one octave of
+ * headroom on each side), rather than a hardcoded start octave. This makes low ranges such
+ * as A1-E2 reachable instead of silently producing an empty voice.
+ */
+function getScaleNotesForRange(
+  key: KeyType,
+  scale: ScaleType,
+  minNote: string,
+  maxNote: string
+): string[] {
+  const startOctave = octaveOf(minNote);
+  const span = Math.max(1, octaveOf(maxNote) - startOctave + 1);
+  // Start one octave below minNote (widening the span to compensate): getScaleNotes always
+  // begins at the KEY ROOT of its start octave, so starting at octaveOf(minNote) made
+  // in-scale degrees between C{startOctave} and the root that are >= minNote unreachable
+  // (e.g. key G with minNote D3 could never emit D3/E3/F#3). filterScaleToRange trims the
+  // out-of-range extras; getScaleNotes/noteNameToMidi support negative start octaves.
+  return getScaleNotes(key, scale, span + 2, startOctave - 1);
+}
+
+/**
+ * Keep only the scale notes within [minMidi, maxMidi]. If none fall in range, fall back
+ * to the single scale note nearest the range so the voice is never silently empty.
+ */
+function filterScaleToRange(scaleNotes: string[], minMidi: number, maxMidi: number): string[] {
+  const inRange = scaleNotes.filter((note) => {
+    const midi = noteNameToMidi(note);
+    return midi >= minMidi && midi <= maxMidi;
+  });
+  if (inRange.length > 0 || scaleNotes.length === 0) return inRange;
+
+  const target = (minMidi + maxMidi) / 2;
+  let nearest = scaleNotes[0];
+  let nearestDist = Infinity;
+  for (const note of scaleNotes) {
+    const dist = Math.abs(noteNameToMidi(note) - target);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = note;
+    }
+  }
+  return [nearest];
+}
+
+/**
+ * Map an image analysis result to musical notes using LINEAR_LANDSCAPE mode
+ *
+ * This mode:
+ * 1. Samples brightness horizontally across the image
+ * 2. Maps each brightness value to a pitch in the selected scale
+ * 3. Creates a sequence of notes with consistent timing
+ * 4. Applies panning based on horizontal position
+ * 5. Applies velocity based on brightness intensity
+ *
+ * @param analysis - Result from core-image analysis
+ * @param options - Mapping configuration
+ * @returns Array of musical note events
+ */
+export function mapLinearLandscape(
+  analysis: ImageAnalysisResult,
+  options: LinearLandscapeOptions
+): NoteEvent[] {
+  const {
+    key,
+    scale,
+    maxNotes = 64,
+    noteDurationBeats = 0.5,
+    enablePanning = true,
+    enableVelocityVariation = true,
+  } = options;
+
+  // Get the scale notes (multiple octaves for wider range)
+  const scaleNotes = getScaleNotes(key, scale, 3, 3);
+
+  // Determine how many notes to generate
+  const brightnessProfile = analysis.brightnessProfile;
+  const sampleCount = Math.min(brightnessProfile.length, maxNotes);
+
+  // Downsample brightness profile if needed
+  const step = brightnessProfile.length / sampleCount;
+  const sampledBrightness: number[] = [];
+  for (let i = 0; i < sampleCount; i++) {
+    const idx = Math.floor(i * step);
+    sampledBrightness.push(brightnessProfile[idx]);
+  }
+
+  // Generate note events
+  const noteEvents: NoteEvent[] = [];
+  let currentTime = 0;
+
+  for (let i = 0; i < sampledBrightness.length; i++) {
+    const brightness = sampledBrightness[i];
+
+    // Map brightness to a note in the scale
+    const scaleIndex = brightnessToScaleIndex(brightness, scaleNotes.length);
+    const note = scaleNotes[scaleIndex];
+
+    // Calculate velocity (0.3 to 1.0 range for better audibility)
+    let velocity = 0.7; // Default
+    if (enableVelocityVariation) {
+      const normalizedBrightness = brightness / 255;
+      velocity = 0.3 + normalizedBrightness * 0.7;
+    }
+
+    // Calculate pan (-1 to 1, left to right)
+    let pan = 0;
+    if (enablePanning) {
+      pan = calculatePan(i, sampledBrightness.length);
+    }
+
+    // Use depth for reverb if available. The brightness profile was downsampled with
+    // `idx = floor(i * step)`, so the depth profile (full length) must be indexed by the
+    // same source index, not the sampled index `i`, or reverb describes a different
+    // horizontal position than pitch.
+    let reverbSend = 0.2; // Default light reverb
+    const depthIdx = Math.floor(i * step);
+    if (analysis.depthProfile && analysis.depthProfile[depthIdx] !== undefined) {
+      // Lower depth (farther away) = more reverb
+      const depth = analysis.depthProfile[depthIdx];
+      reverbSend = 0.1 + (1 - depth) * 0.6; // Inverted: far = more reverb
+    }
+
+    // Create the note event
+    const noteEvent: NoteEvent = {
+      note,
+      start: currentTime,
+      duration: noteDurationBeats,
+      velocity,
+      pan,
+      effects: {
+        reverbSend,
+        filterCutoff: brightness / 255, // Brighter = more open filter
+      },
+    };
+
+    noteEvents.push(noteEvent);
+    currentTime += noteDurationBeats;
+  }
+
+  return noteEvents;
+}
+
+/**
+ * Map an image analysis result using DEPTH_RIDGE mode.
+ *
+ * This mode creates a sparse, accent-driven composition by:
+ * 1. Creating notes only where ridge strength exceeds a threshold.
+ * 2. Emphasizing ridges with higher velocity and longer duration.
+ * 3. Using the depth profile to control the reverb amount.
+ * 4. Varying the rhythm based on the spacing of the ridges.
+ *
+ * @param analysis - Result from core-image analysis
+ * @param options - Mapping configuration with ridge-specific options
+ * @returns Array of musical note events
+ */
+export function mapDepthRidge(
+  analysis: ImageAnalysisResult,
+  options: DepthRidgeOptions
+): NoteEvent[] {
+  const {
+    key,
+    scale,
+    maxNotes = 64,
+    noteDurationBeats = 0.5,
+    ridgeThreshold = 0.5,
+    depthToReverb = true,
+  } = options;
+
+  const scaleNotes = getScaleNotes(key, scale, 3, 3);
+  const brightnessProfile = analysis.brightnessProfile;
+  const ridgeStrength = analysis.ridgeStrength || [];
+
+  const noteEvents: NoteEvent[] = [];
+  let currentTime = 0;
+  let lastRidgeIndex = -1;
+
+  // Scan the WHOLE profile (not just the first maxNotes columns, which ignored the
+  // right half of the image) and stop once maxNotes notes have been emitted.
+  for (let i = 0; i < brightnessProfile.length && noteEvents.length < maxNotes; i++) {
+    const brightness = brightnessProfile[i];
+    const ridge = ridgeStrength[i] ?? 0;
+
+    if (ridgeStrength.length > 0 && ridge >= ridgeThreshold) {
+      if (lastRidgeIndex !== -1) {
+        const distance = i - lastRidgeIndex;
+        // Time advance is proportional to distance, creating rhythmic variation
+        currentTime += (distance / brightnessProfile.length) * noteDurationBeats * 8;
+      }
+      lastRidgeIndex = i;
+
+      const scaleIndex = brightnessToScaleIndex(brightness, scaleNotes.length);
+      const note = scaleNotes[scaleIndex];
+
+      // Emphasize ridges with higher velocity
+      const normalizedBrightness = brightness / 255;
+      const ridgeBoost = ridge * RIDGE_VELOCITY_BOOST;
+      const velocity = Math.min(1, 0.4 + normalizedBrightness * 0.6 + ridgeBoost);
+
+      const pan = calculatePan(i, brightnessProfile.length);
+
+      let reverbSend = 0.3;
+      if (depthToReverb && analysis.depthProfile && analysis.depthProfile[i] !== undefined) {
+        const depth = analysis.depthProfile[i];
+        reverbSend = 0.2 + (1 - depth) * REVERB_DEPTH_SENSITIVITY;
+      }
+
+      const noteEvent: NoteEvent = {
+        note,
+        start: currentTime,
+        duration: noteDurationBeats * (1 + ridge * RIDGE_DURATION_MULTIPLIER),
+        velocity,
+        pan,
+        effects: {
+          reverbSend,
+          filterCutoff: brightness / 255,
+        },
+      };
+
+      noteEvents.push(noteEvent);
+    } else {
+      currentTime += noteDurationBeats * RHYTHMIC_GAP_FACTOR;
+    }
+  }
+
+  // TODO: Add more sophisticated ridge-following logic:
+  // - Contour detection and melodic arcs
+  // - Harmonic layering at prominent features
+  // - Polyphonic textures for complex regions
+
+  return noteEvents;
+}
+
+/**
+ * Transpose all notes by a number of semitones
+ *
+ * @param notes - Array of note events
+ * @param semitones - Number of semitones to transpose (positive = up, negative = down)
+ * @returns Transposed note events
+ */
+export function transposeNotes(notes: NoteEvent[], semitones: number): NoteEvent[] {
+  return notes.map((note) => {
+    const midi = noteNameToMidi(note.note);
+    const transposedMidi = midi + semitones;
+    return {
+      ...note,
+      note: midiToNoteName(transposedMidi),
+    };
+  });
+}
+
+// ============================================================================
+// MULTI-VOICE MAPPING FUNCTIONS
+// ============================================================================
+
+/**
+ * Map horizon profile to bass voice
+ * Creates slow-moving bassline from image base/contour
+ *
+ * @param horizonProfile - Horizon heights (0-1)
+ * @param key - Musical key
+ * @param scale - Musical scale
+ * @param options - Bass voice options
+ * @returns Bass note events with trackId='bass'
+ */
+export function mapHorizonToBass(
+  horizonProfile: number[],
+  key: KeyType,
+  scale: ScaleType,
+  options: {
+    minNote?: string;
+    maxNote?: string;
+    noteDuration?: number;
+    maxNotes?: number;
+    velocityMin?: number;
+    velocityMax?: number;
+    reverbSend?: number;
+    filterBrightness?: number;
+    stereoSpread?: number;
+  } = {}
+): NoteEvent[] {
+  if (!horizonProfile || horizonProfile.length === 0) return [];
+  const {
+    minNote = 'C2',
+    maxNote = 'C3',
+    noteDuration = 3,
+    maxNotes = 16,
+    velocityMin = 0.6,
+    velocityMax = 0.9,
+    reverbSend = 0.15,
+    filterBrightness = 0.4,
+    stereoSpread = 0,
+  } = options;
+
+  // Get scale notes covering the requested bass range. Deriving the octave span from
+  // minNote/maxNote (instead of hardcoding startOctave=2) is what lets sub-C2 preset
+  // ranges like A1-E2 actually produce notes.
+  const minMidi = noteNameToMidi(minNote);
+  const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = getScaleNotesForRange(key, scale, minNote, maxNote);
+
+  // Filter to bass range, falling back to the nearest scale note if the range is empty.
+  const bassNotes = filterScaleToRange(scaleNotes, minMidi, maxMidi);
+
+  if (bassNotes.length === 0) return [];
+
+  // Downsample horizon for slower movement
+  const step = Math.max(1, Math.ceil(horizonProfile.length / maxNotes));
+  const sampledHorizon: number[] = [];
+
+  for (let i = 0; i < horizonProfile.length; i += step) {
+    // Average a few samples for stability
+    const end = Math.min(i + step, horizonProfile.length);
+    const segment = horizonProfile.slice(i, end);
+    const avg = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+    sampledHorizon.push(avg);
+  }
+
+  // Generate bass notes
+  const noteEvents: NoteEvent[] = [];
+  let currentTime = 0;
+
+  for (let i = 0; i < sampledHorizon.length; i++) {
+    const horizonHeight = sampledHorizon[i];
+
+    // Map horizon height to bass note (higher horizon = higher bass note)
+    const noteIndex = Math.floor(horizonHeight * bassNotes.length);
+    const clampedIndex = Math.min(noteIndex, bassNotes.length - 1);
+    const note = bassNotes[clampedIndex];
+
+    noteEvents.push({
+      note,
+      start: currentTime,
+      duration: noteDuration,
+      velocity: lerp(velocityMin, velocityMax, horizonHeight), // Subtle variation
+      // Bass defaults to center (stereoSpread = 0); a preset can widen it slightly.
+      pan: calculatePan(i, sampledHorizon.length, stereoSpread),
+      trackId: 'bass',
+      effects: {
+        // Scale the base reverb/filter formulas by the configured amounts (defaults keep
+        // the historical constants: reverb 0.15, filter base 0.4).
+        reverbSend: clamp01(reverbSend),
+        filterCutoff: clamp01((0.4 + horizonHeight * 0.3) * (filterBrightness / 0.4)),
+      },
+    });
+
+    currentTime += noteDuration;
+  }
+
+  return noteEvents;
+}
+
+/**
+ * Map ridge strength to melody voice
+ * Creates melodic phrases from prominent image features
+ *
+ * @param brightnessProfile - Brightness values (0-255)
+ * @param ridgeStrength - Ridge/peak strength (0-1)
+ * @param key - Musical key
+ * @param scale - Musical scale
+ * @param options - Melody voice options
+ * @returns Melody note events with trackId='melody'
+ */
+export function mapRidgesToMelody(
+  brightnessProfile: number[],
+  ridgeStrength: number[],
+  key: KeyType,
+  scale: ScaleType,
+  options: {
+    minNote?: string;
+    maxNote?: string;
+    ridgeThreshold?: number;
+    noteDuration?: number;
+    velocityMin?: number;
+    velocityMax?: number;
+    reverbSend?: number;
+    filterBrightness?: number;
+    stereoSpread?: number;
+  } = {}
+): NoteEvent[] {
+  if (!ridgeStrength || ridgeStrength.length === 0) return [];
+  const {
+    minNote = 'C4',
+    maxNote = 'C6',
+    ridgeThreshold = 0.4,
+    noteDuration = 0.75,
+    velocityMin = 0.6,
+    velocityMax = 1.0,
+    reverbSend = 0.3,
+    filterBrightness = 0.6,
+    stereoSpread = 0.6,
+  } = options;
+
+  // Get scale notes covering the requested melody range (derive the octave span from
+  // minNote/maxNote instead of hardcoding startOctave=4, so sub-C4 range portions are
+  // reachable).
+  const minMidi = noteNameToMidi(minNote);
+  const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = getScaleNotesForRange(key, scale, minNote, maxNote);
+
+  // Filter to melody range (nearest-note fallback if the range is empty).
+  const melodyNotes = filterScaleToRange(scaleNotes, minMidi, maxMidi);
+
+  if (melodyNotes.length === 0) return [];
+
+  const noteEvents: NoteEvent[] = [];
+  let currentTime = 0;
+
+  for (let i = 0; i < Math.min(brightnessProfile.length, ridgeStrength.length); i++) {
+    const brightness = brightnessProfile[i];
+    const ridge = ridgeStrength[i];
+
+    // Only create notes at significant ridges
+    if (ridge < ridgeThreshold) {
+      currentTime += noteDuration * 0.5; // Maintain tempo with gaps
+      continue;
+    }
+
+    // Map brightness to pitch
+    const normalizedBrightness = brightness / 255;
+    const noteIndex = Math.floor(normalizedBrightness * melodyNotes.length);
+    const clampedIndex = Math.min(noteIndex, melodyNotes.length - 1);
+    const note = melodyNotes[clampedIndex];
+
+    // Pan based on position, scaled by stereoSpread (default 0.6: less extreme than full pan)
+    const pan = calculatePan(i, brightnessProfile.length, stereoSpread);
+
+    noteEvents.push({
+      note,
+      start: currentTime,
+      duration: noteDuration * (0.8 + ridge * 0.4), // Longer for stronger ridges
+      velocity: lerp(velocityMin, velocityMax, ridge), // Emphasize strong ridges
+      pan,
+      trackId: 'melody',
+      effects: {
+        // Scale the base reverb/filter formulas by the configured amounts (defaults keep
+        // the historical formulas: 0.3 + ridge * 0.2 and 0.6 + brightness * 0.4).
+        reverbSend: clamp01((0.3 + ridge * 0.2) * (reverbSend / 0.3)),
+        filterCutoff: clamp01((0.6 + normalizedBrightness * 0.4) * (filterBrightness / 0.6)),
+      },
+    });
+
+    currentTime += noteDuration;
+  }
+
+  return noteEvents;
+}
+
+/**
+ * Map texture profile to pad/harmony voice
+ * Creates ambient chordal layer based on textural complexity
+ *
+ * @param textureProfile - Texture/variance values (0-1)
+ * @param key - Musical key
+ * @param scale - Musical scale
+ * @param options - Pad voice options
+ * @returns Pad note events with trackId='pad'
+ */
+export function mapTextureToPad(
+  textureProfile: number[],
+  key: KeyType,
+  scale: ScaleType,
+  options: {
+    minNote?: string;
+    maxNote?: string;
+    segments?: number;
+    noteDuration?: number;
+    velocityMin?: number;
+    velocityMax?: number;
+    reverbSend?: number;
+    filterBrightness?: number;
+    stereoSpread?: number;
+  } = {}
+): NoteEvent[] {
+  if (!textureProfile || textureProfile.length === 0) return [];
+  const {
+    minNote = 'C3',
+    maxNote = 'C5',
+    segments = 6,
+    noteDuration = 6,
+    velocityMin = 0.4,
+    velocityMax = 0.7,
+    reverbSend = 0.5,
+    filterBrightness = 0.5,
+    stereoSpread = 0.4,
+  } = options;
+
+  // Normalize `segments` to a finite positive integer bounded by the profile length. The
+  // loop already terminates via the start-past-end break below, but a non-finite or
+  // fractional value (e.g. from a malformed preset density) would otherwise produce a
+  // nonsensical loop count; this keeps the segmentation well-defined.
+  const segmentCount = Number.isFinite(segments)
+    ? Math.max(1, Math.min(textureProfile.length, Math.floor(segments)))
+    : 6;
+
+  // Segment texture into larger chunks
+  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segmentCount));
+  const textureSegments: number[] = [];
+
+  for (let i = 0; i < segmentCount; i++) {
+    const start = i * segmentSize;
+    if (start >= textureProfile.length) break;
+    const end = Math.min(start + segmentSize, textureProfile.length);
+    const segment = textureProfile.slice(start, end);
+    const avg = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+    textureSegments.push(avg);
+  }
+
+  // Get scale notes for chords covering the requested pad range (default C3-C5), with a
+  // nearest-note fallback so out-of-range presets never produce a silent pad.
+  const minMidi = noteNameToMidi(minNote);
+  const maxMidi = noteNameToMidi(maxNote);
+  const scaleNotes = filterScaleToRange(
+    getScaleNotesForRange(key, scale, minNote, maxNote),
+    minMidi,
+    maxMidi
+  );
+
+  if (scaleNotes.length === 0) return [];
+
+  const noteEvents: NoteEvent[] = [];
+  let currentTime = 0;
+
+  for (const textureValue of textureSegments) {
+    // Determine chord complexity based on texture
+    let chordDegrees: number[];
+
+    if (textureValue < 0.3) {
+      // Low texture: simple root note or dyad
+      chordDegrees = [0, 4]; // Root and 5th
+    } else if (textureValue < 0.7) {
+      // Medium texture: triad
+      chordDegrees = [0, 2, 4]; // Root, 3rd, 5th
+    } else {
+      // High texture: 7th chord
+      chordDegrees = [0, 2, 4, 6]; // Root, 3rd, 5th, 7th
+    }
+
+    // Only degrees that exist in the (range-filtered) scale produce notes.
+    const playableDegrees = chordDegrees.filter((degree) => degree < scaleNotes.length);
+
+    // Create chord notes
+    for (let chordIndex = 0; chordIndex < playableDegrees.length; chordIndex++) {
+      const note = scaleNotes[playableDegrees[chordIndex]];
+
+      // Deterministic stereo placement: spread the chord notes evenly across the stereo
+      // field, scaled by stereoSpread (replaces the old Math.random() pan so the same
+      // input always yields the same output).
+      const pan =
+        playableDegrees.length > 1
+          ? (chordIndex / (playableDegrees.length - 1) - 0.5) * stereoSpread
+          : 0;
+
+      noteEvents.push({
+        note,
+        start: currentTime,
+        duration: noteDuration,
+        velocity: lerp(velocityMin, velocityMax, textureValue), // Subtle
+        pan,
+        trackId: 'pad',
+        effects: {
+          // Scale the base reverb/filter formulas by the configured amounts (defaults keep
+          // the historical formulas: 0.5 + texture * 0.3 for both).
+          reverbSend: clamp01((0.5 + textureValue * 0.3) * (reverbSend / 0.5)),
+          filterCutoff: clamp01((0.5 + textureValue * 0.3) * (filterBrightness / 0.5)),
+        },
+      });
+    }
+
+    currentTime += noteDuration;
+  }
+
+  return noteEvents;
+}
+
+/**
+ * Map complete image to multi-voice composition
+ * Combines bass, melody, and pad voices into unified composition
+ *
+ * @param analysis - Complete image analysis result
+ * @param options - Multi-voice mapping configuration
+ * @param preset - Optional TopoPreset to apply voice configurations
+ * @returns Array of all note events across all voices
+ */
+export function mapImageToMultiVoiceComposition(
+  analysis: ImageAnalysisResult,
+  options: MultiVoiceOptions,
+  preset?: TopoPreset
+): NoteEvent[] {
+  const {
+    key,
+    scale,
+    bassOptions = {},
+    melodyOptions = {},
+    padOptions = {},
+  } = options;
+
+  // Apply the preset's per-voice configuration. Caller-supplied options still win; the
+  // preset fills in pitch range, enabled flags, velocity range, reverb/filter/stereo
+  // amounts, and density/durationFactor-derived timing. Without a preset, each voice
+  // falls back to its historical defaults exactly. NOTE: the enableFx voice is still a
+  // follow-up (there is no fx mapper yet).
+  const enableBass = options.enableBass ?? preset?.voices.bass.enabled ?? true;
+  const enableMelody = options.enableMelody ?? preset?.voices.melody.enabled ?? true;
+  const enablePad = options.enablePad ?? preset?.voices.pad.enabled ?? true;
+
+  const bassVoice = preset?.voices.bass;
+  const melodyVoice = preset?.voices.melody;
+  const padVoice = preset?.voices.pad;
+
+  const resolvedBassOptions = {
+    ...(bassVoice
+      ? {
+          minNote: bassVoice.minNote,
+          maxNote: bassVoice.maxNote,
+          // durationFactor scales the default 3-beat bass note; density drives note count.
+          noteDuration: 3 * bassVoice.durationFactor,
+          maxNotes: Math.round(4 + 28 * bassVoice.density),
+          velocityMin: bassVoice.velocityMin,
+          velocityMax: bassVoice.velocityMax,
+          reverbSend: bassVoice.reverbSend,
+          filterBrightness: bassVoice.filterBrightness,
+          stereoSpread: bassVoice.stereoSpread,
+        }
+      : {}),
+    ...bassOptions,
+  };
+  const resolvedMelodyOptions = {
+    ...(melodyVoice
+      ? {
+          minNote: melodyVoice.minNote,
+          maxNote: melodyVoice.maxNote,
+          // durationFactor scales the default 0.75-beat melody note; higher density lowers
+          // the ridge threshold so more ridges qualify as notes.
+          noteDuration: 0.75 * melodyVoice.durationFactor,
+          ridgeThreshold: Math.max(0.1, Math.min(0.7, 0.7 - 0.5 * melodyVoice.density)),
+          velocityMin: melodyVoice.velocityMin,
+          velocityMax: melodyVoice.velocityMax,
+          reverbSend: melodyVoice.reverbSend,
+          filterBrightness: melodyVoice.filterBrightness,
+          stereoSpread: melodyVoice.stereoSpread,
+        }
+      : {}),
+    ...melodyOptions,
+  };
+  const resolvedPadOptions = {
+    ...(padVoice
+      ? {
+          minNote: padVoice.minNote,
+          maxNote: padVoice.maxNote,
+          // durationFactor scales the default 6-beat pad chord; density drives how many
+          // chord segments the texture profile is split into.
+          noteDuration: 6 * padVoice.durationFactor,
+          segments: Math.round(3 + 9 * padVoice.density),
+          velocityMin: padVoice.velocityMin,
+          velocityMax: padVoice.velocityMax,
+          reverbSend: padVoice.reverbSend,
+          filterBrightness: padVoice.filterBrightness,
+          stereoSpread: padVoice.stereoSpread,
+        }
+      : {}),
+    ...padOptions,
+  };
+
+  const allNotes: NoteEvent[] = [];
+
+  // 1. Bass voice from horizon
+  if (enableBass && analysis.horizonProfile) {
+    const bassNotes = mapHorizonToBass(analysis.horizonProfile, key, scale, resolvedBassOptions);
+    allNotes.push(...bassNotes);
+  }
+
+  // 2. Melody voice from ridges
+  if (enableMelody && analysis.ridgeStrength) {
+    const melodyNotes = mapRidgesToMelody(
+      analysis.brightnessProfile,
+      analysis.ridgeStrength,
+      key,
+      scale,
+      resolvedMelodyOptions
+    );
+    allNotes.push(...melodyNotes);
+  }
+
+  // 3. Pad voice from texture
+  if (enablePad && analysis.textureProfile) {
+    const padNotes = mapTextureToPad(analysis.textureProfile, key, scale, resolvedPadOptions);
+    allNotes.push(...padNotes);
+  }
+
+  // Sort by start time for proper playback
+  allNotes.sort((a, b) => a.start - b.start);
+
+  return allNotes;
+}
+/**
+ * Shared types for mapping visual features into audio structures.
+ */
+
+/**
+ * Supported mapping modes for converting images to audio.
+ */
+export type MappingMode = 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE' | 'MULTI_VOICE';
+
+/**
+ * Voice types for multi-voice compositions. Each voice represents a distinct musical layer.
+ */
+export type VoiceType = 'bass' | 'melody' | 'pad' | 'fx';
+
+/**
+ * Musical scale types used to constrain generated notes.
+ */
+export type ScaleType =
+  | 'C_MAJOR'
+  | 'C_MINOR'
+  | 'D_MAJOR'
+  | 'E_MINOR'
+  | 'A_MINOR'
+  | 'A_SHARP_MINOR'
+  | 'G_MAJOR'
+  | 'C_PENTATONIC'
+  | 'A_MINOR_PENTATONIC'
+  | 'C_BLUES'
+  | 'D_DORIAN'
+  | 'A_DORIAN'
+  | 'C_MIXOLYDIAN'
+  | 'E_PHRYGIAN'
+  | 'A_HARMONIC_MINOR'
+  | 'C_LYDIAN'
+  | 'C_WHOLE_TONE';
+
+/**
+ * Musical key/root note for mapping and playback.
+ */
+export type KeyType = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
+
+/**
+ * Configuration for a single voice in a multi-voice preset.
+ */
+export interface VoiceConfig {
+  /** Whether this voice is enabled. */
+  enabled: boolean;
+  /** Minimum note in scientific notation (e.g., "C2"). */
+  minNote: string;
+  /** Maximum note in scientific notation (e.g., "C4"). */
+  maxNote: string;
+  /** Note density (0-1): 0 = sparse, 1 = dense. */
+  density: number;
+  /** Duration multiplier (0-2): 1 = normal, >1 longer, <1 shorter. */
+  durationFactor: number;
+  /** Minimum velocity (0-1). */
+  velocityMin: number;
+  /** Maximum velocity (0-1). */
+  velocityMax: number;
+  /** Reverb send amount (0-1). */
+  reverbSend: number;
+  /** Filter brightness (0-1): 0 = dark, 1 = bright. */
+  filterBrightness: number;
+  /** Stereo spread (0-1): 0 = center, 1 = wide. */
+  stereoSpread: number;
+}
+
+/**
+ * Weights for mapping visual features to a voice.
+ */
+export interface MappingBias {
+  /** Weight for horizon/contour influence (0-1). */
+  horizonWeight: number;
+  /** Weight for ridge/peak influence (0-1). */
+  ridgeWeight: number;
+  /** Weight for texture/variance influence (0-1). */
+  textureWeight: number;
+  /** Weight for depth influence (0-1). */
+  depthWeight: number;
+}
+
+/**
+ * A complete musical preset defining the behavior of all voices.
+ */
+export interface TopoPreset {
+  /** Unique preset identifier. */
+  id: string;
+  /** Human-readable preset name. */
+  name: string;
+  /** Description of the preset's character. */
+  description: string;
+  /** Default musical key. */
+  defaultKey: KeyType;
+  /** Default musical scale. */
+  defaultScale: ScaleType;
+  /** Default tempo in BPM. */
+  defaultTempoBpm: number;
+  /** Mapping mode to use. */
+  mappingMode: MappingMode;
+  /** Configuration for each voice. */
+  voices: {
+    bass: VoiceConfig;
+    melody: VoiceConfig;
+    pad: VoiceConfig;
+    /** @deprecated no fx mapper exists yet */
+    fx?: VoiceConfig;
+  };
+  /**
+   * Mapping biases for each voice.
+   * @deprecated not yet consumed by mappers
+   */
+  mappingBias?: {
+    bass: MappingBias;
+    melody: MappingBias;
+    pad: MappingBias;
+    fx: MappingBias;
+  };
+}
+
+/**
+ * Scene Pack: A curated experience bundle combining preset, visual guidance, and demo assets.
+ */
+export interface ScenePack {
+  /** Unique scene pack identifier. */
+  id: string;
+  /** Scene pack name. */
+  name: string;
+  /** Short tagline describing the scene. */
+  tagline: string;
+  /** Detailed description. */
+  description: string;
+  /** Category for grouping and filtering. */
+  category: 'Nature' | 'Urban' | 'Atmospheric';
+  /** Associated TopoPreset ID. */
+  presetId: string;
+  /** Recommended image subjects for this scene. */
+  recommendedSubjects: string[];
+  /** Recommended lighting conditions. */
+  recommendedLighting: string;
+  /** Optional usage notes. */
+  recommendedUsageNotes?: string;
+  /** Demo assets. */
+  demoAssets?: {
+    /** Path to sample image (e.g., "/demo/mountains-01.jpg"). */
+    sampleImagePath?: string;
+    /** Pre-generated composition ID. */
+    sampleCompositionId?: string;
+  };
+  /** UI theming hints. */
+  uiThemeHints?: {
+    /** Accent color (hex). */
+    accentColor?: string;
+    /** Background style preference. */
+    backgroundStyle?: 'dark' | 'light';
+    /** Tailwind gradient class suggestion. */
+    gradientClassName?: string;
+  };
+}
+
+/**
+ * Configuration options for the LINEAR_LANDSCAPE mapping mode.
+ */
+export interface LinearLandscapeOptions {
+  /** Musical key. */
+  key: KeyType;
+  /** Musical scale. */
+  scale: ScaleType;
+  /** Maximum number of notes to generate (downsamples if needed). */
+  maxNotes?: number;
+  /** Duration of each note in beats. */
+  noteDurationBeats?: number;
+  /** Whether to apply stereo panning based on horizontal position. */
+  enablePanning?: boolean;
+  /** Whether to apply velocity variation based on brightness. */
+  enableVelocityVariation?: boolean;
+}
+
+/**
+ * Configuration options for the DEPTH_RIDGE mapping mode (future).
+ */
+export interface DepthRidgeOptions extends LinearLandscapeOptions {
+  /** Sensitivity threshold for ridge detection (0-1). */
+  ridgeThreshold?: number;
+  /** Whether to emphasize depth in reverb amount. */
+  depthToReverb?: boolean;
+}
+
+/**
+ * Configuration options for the multi-voice mapping mode.
+ */
+export interface MultiVoiceOptions {
+  /** Musical key. */
+  key: KeyType;
+  /** Musical scale. */
+  scale: ScaleType;
+  /**
+   * Tempo in BPM. NOTE: not read by mapImageToMultiVoiceComposition itself (note times are
+   * in beats); callers use it for playback and MIDI export.
+   */
+  tempoBpm?: number;
+  /** Enable bass voice (horizon → low notes). */
+  enableBass?: boolean;
+  /** Enable melody voice (ridges → high notes). */
+  enableMelody?: boolean;
+  /** Enable pad voice (texture → chords/ambient). */
+  enablePad?: boolean;
+  /**
+   * Enable spatial FX layer.
+   * @deprecated no fx mapper exists yet
+   */
+  enableFx?: boolean;
+  /** Bass voice configuration. */
+  bassOptions?: {
+    /** Pitch range for bass (default: C2-C3). */
+    minNote?: string;
+    /** Pitch range for bass (default: C2-C3). */
+    maxNote?: string;
+    /** Note duration in beats (default: 3). */
+    noteDuration?: number;
+    /** Maximum number of bass notes (default: 16). */
+    maxNotes?: number;
+    /** Minimum velocity (0-1, default: 0.6). */
+    velocityMin?: number;
+    /** Maximum velocity (0-1, default: 0.9). */
+    velocityMax?: number;
+    /** Reverb send base amount (0-1, default: 0.15). */
+    reverbSend?: number;
+    /** Filter brightness scaling (0-1, default: 0.4). */
+    filterBrightness?: number;
+    /** Stereo spread (0-1, default: 0 = centered). */
+    stereoSpread?: number;
+  };
+  /** Melody voice configuration. */
+  melodyOptions?: {
+    /** Pitch range for melody (default: C4-C6). */
+    minNote?: string;
+    /** Pitch range for melody (default: C4-C6). */
+    maxNote?: string;
+    /** Minimum ridge threshold to trigger notes (0-1, default: 0.4). */
+    ridgeThreshold?: number;
+    /** Note duration in beats (default: 0.75). */
+    noteDuration?: number;
+    /** Minimum velocity (0-1, default: 0.6). */
+    velocityMin?: number;
+    /** Maximum velocity (0-1, default: 1.0). */
+    velocityMax?: number;
+    /** Reverb send base amount (0-1, default: 0.3). */
+    reverbSend?: number;
+    /** Filter brightness scaling (0-1, default: 0.6). */
+    filterBrightness?: number;
+    /** Stereo spread (0-1, default: 0.6). */
+    stereoSpread?: number;
+  };
+  /** Pad voice configuration. */
+  padOptions?: {
+    /** Pitch range for pad (default: C3-C5). */
+    minNote?: string;
+    /** Pitch range for pad (default: C3-C5). */
+    maxNote?: string;
+    /** Number of chord segments (default: 6). */
+    segments?: number;
+    /** Note duration in beats (default: 6). */
+    noteDuration?: number;
+    /** Minimum velocity (0-1, default: 0.4). */
+    velocityMin?: number;
+    /** Maximum velocity (0-1, default: 0.7). */
+    velocityMax?: number;
+    /** Reverb send base amount (0-1, default: 0.5). */
+    reverbSend?: number;
+    /** Filter brightness scaling (0-1, default: 0.5). */
+    filterBrightness?: number;
+    /** Stereo spread of chord notes (0-1, default: 0.4). */
+    stereoSpread?: number;
+  };
+}
+import { MappingMode, KeyType, ScaleType } from './mapping';
+import { NoteEvent } from './audio';
+
+/**
+ * A complete musical composition generated from an image.
+ */
+export interface Composition {
+  /** Unique composition identifier. */
+  id: string;
+  /** User ID of the creator. */
+  userId: string;
+  /** Composition title. */
+  title: string;
+  /** Optional description or notes. */
+  description?: string;
+  /** Array of all note events in this composition. */
+  noteEvents: NoteEvent[];
+  /** Mapping mode used to generate this composition. */
+  mappingMode: MappingMode;
+  /** Musical key. */
+  key: KeyType;
+  /** Musical scale. */
+  scale: ScaleType;
+  /** Sound preset used. */
+  presetId?: string;
+  /** Tempo in BPM (beats per minute). */
+  tempo?: number;
+  /** Optional: Base64-encoded thumbnail of source image. */
+  imageThumbnail?: string;
+  /** Optional: Full image data URL (may be large). */
+  imageData?: string;
+  /** Creation timestamp. */
+  createdAt: Date;
+  /** Last update timestamp. */
+  updatedAt: Date;
+  /** Optional: Additional metadata. */
+  metadata?: {
+    /** Source image width. */
+    imageWidth?: number;
+    /** Source image height. */
+    imageHeight?: number;
+    /** Number of generated notes. */
+    noteCount?: number;
+    /** Duration in seconds. */
+    duration?: number;
+    /** User-defined tags. */
+    tags?: string[];
+  };
+}
+
+/**
+ * Lightweight list-view projection of a composition. Deliberately excludes the heavy
+ * fields (noteEvents, imageData) so list responses and caches stay small.
+ */
+export interface CompositionSummary {
+  /** Unique composition identifier. */
+  id: string;
+  /** User ID of the creator. */
+  userId: string;
+  /** Composition title. */
+  title: string;
+  /** Optional description or notes. */
+  description?: string;
+  /** Mapping mode used to generate this composition. */
+  mappingMode: MappingMode;
+  /** Musical key. */
+  key: KeyType;
+  /** Musical scale. */
+  scale: ScaleType;
+  /** Sound preset used. */
+  presetId?: string;
+  /** Tempo in BPM (beats per minute). */
+  tempo?: number;
+  /** Optional: Base64-encoded thumbnail of source image. */
+  imageThumbnail?: string;
+  /** Number of note events; absent for rows saved before metadata.noteCount existed. */
+  noteCount?: number;
+  /** Creation timestamp. */
+  createdAt: Date;
+  /** Last update timestamp. */
+  updatedAt: Date;
+}
+
+/**
+ * DTO for creating a new composition (excludes generated fields).
+ */
+export type CreateCompositionDTO = Omit<Composition, 'id' | 'createdAt' | 'updatedAt'>;
+
+/**
+ * DTO for updating an existing composition.
+ */
+export type UpdateCompositionDTO = Partial<
+  Omit<Composition, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
+>;
+import { mapLinearLandscape, transposeNotes, mapDepthRidge, mapImageToMultiVoiceComposition, mapHorizonToBass, mapRidgesToMelody, mapTextureToPad } from '../mappers';
+import { noteNameToMidi, getScaleNotes } from '../scales';
+import { TOPO_PRESETS } from '../topoPresets';
+import type { ImageAnalysisResult, LinearLandscapeOptions, NoteEvent, DepthRidgeOptions, MultiVoiceOptions } from '@toposonics/types';
+
+describe('mapLinearLandscape', () => {
+  it('should generate a sequence of notes based on brightness', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 100,
+      height: 100,
+      brightnessProfile: [0, 64, 128, 192, 255],
+      depthProfile: [0, 0.25, 0.5, 0.75, 1],
+      ridgeStrength: [],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: LinearLandscapeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      maxNotes: 5,
+    };
+
+    const noteEvents = mapLinearLandscape(analysis, options);
+
+    // Check if the correct number of notes are generated
+    expect(noteEvents).toHaveLength(5);
+
+    // Check the properties of the first note
+    const firstNote = noteEvents[0];
+    expect(firstNote.note).toBe('C3'); // Darkest pixel, lowest note
+    expect(firstNote.velocity).toBeCloseTo(0.3); // Lowest velocity
+    expect(firstNote.pan).toBe(-1); // Farthest left
+    expect(firstNote.effects?.reverbSend).toBeCloseTo(0.7); // Farthest away, most reverb
+  });
+
+  it('should return an empty array for an empty brightness profile', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 100,
+      height: 100,
+      brightnessProfile: [],
+      depthProfile: [],
+      ridgeStrength: [],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: LinearLandscapeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+    };
+
+    const noteEvents = mapLinearLandscape(analysis, options);
+    expect(noteEvents).toEqual([]);
+  });
+
+  it('should respect the maxNotes option', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 100,
+      height: 100,
+      brightnessProfile: [0, 64, 128, 192, 255, 0, 64, 128, 192, 255],
+      depthProfile: [],
+      ridgeStrength: [],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: LinearLandscapeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      maxNotes: 5,
+    };
+
+    const noteEvents = mapLinearLandscape(analysis, options);
+    expect(noteEvents).toHaveLength(5);
+  });
+
+  it('should center pan for a single sampled note', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 1,
+      height: 100,
+      brightnessProfile: [128],
+      depthProfile: [],
+      ridgeStrength: [],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: LinearLandscapeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+    };
+
+    const noteEvents = mapLinearLandscape(analysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(noteEvents[0].pan).toBe(0);
+  });
+});
+
+describe('transposeNotes', () => {
+  const baseEvents: NoteEvent[] = [
+    { note: 'C4', start: 0, duration: 1, velocity: 0.8 },
+    { note: 'E4', start: 1, duration: 1, velocity: 0.8 },
+    { note: 'G4', start: 2, duration: 1, velocity: 0.8 },
+  ];
+
+  it('should transpose notes up by a given number of semitones', () => {
+    const transposed = transposeNotes(baseEvents, 2);
+    expect(transposed.map((n) => n.note)).toEqual(['D4', 'F#4', 'A4']);
+  });
+
+  it('should transpose notes down by a given number of semitones', () => {
+    const transposed = transposeNotes(baseEvents, -2);
+    expect(transposed.map((n) => n.note)).toEqual(['A#3', 'D4', 'F4']);
+  });
+
+  it('should handle octave changes correctly', () => {
+    const transposed = transposeNotes([{ note: 'B4', start: 0, duration: 1, velocity: 1 }], 1);
+    expect(transposed[0].note).toBe('C5');
+  });
+});
+
+describe('mapDepthRidge', () => {
+  it('should use depth to control reverb', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 100,
+      height: 100,
+      brightnessProfile: [128, 128],
+      depthProfile: [0, 1], // Far and near
+      ridgeStrength: [0.6, 0.6], // Strong enough to trigger notes
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: DepthRidgeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      ridgeThreshold: 0.5,
+      depthToReverb: true,
+    };
+
+    const noteEvents = mapDepthRidge(analysis, options);
+
+    expect(noteEvents).toHaveLength(2);
+
+    // Far note should have more reverb
+    expect(noteEvents[0].effects?.reverbSend).toBeCloseTo(0.7);
+
+    // Near note should have less reverb
+    expect(noteEvents[1].effects?.reverbSend).toBeCloseTo(0.2);
+  });
+
+  it('should vary rhythm based on ridge spacing', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 100,
+      height: 100,
+      brightnessProfile: [128, 128, 128, 128, 128],
+      depthProfile: [],
+      ridgeStrength: [0.6, 0.2, 0.7, 0.8, 0.3],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: DepthRidgeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      ridgeThreshold: 0.5,
+    };
+
+    const noteEvents = mapDepthRidge(analysis, options);
+
+    expect(noteEvents).toHaveLength(3);
+
+    // Check the start times of the notes. The expected values are
+    // computed based on the rhythm generation logic in mappers.ts.
+    const startTimes = noteEvents.map(n => n.start);
+    expect(startTimes[0]).toBe(0);
+    expect(startTimes[1]).toBeCloseTo(1.725, 3);
+    expect(startTimes[2]).toBeCloseTo(2.525, 3);
+  });
+
+  it('should center pan when only one ridge note is generated', () => {
+    const analysis: ImageAnalysisResult = {
+      width: 1,
+      height: 100,
+      brightnessProfile: [128],
+      depthProfile: [],
+      ridgeStrength: [0.8],
+      horizonProfile: [],
+      textureProfile: [],
+    };
+
+    const options: DepthRidgeOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      ridgeThreshold: 0.5,
+    };
+
+    const noteEvents = mapDepthRidge(analysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(noteEvents[0].pan).toBe(0);
+  });
+});
+
+describe('mapImageToMultiVoiceComposition', () => {
+  const baseAnalysis: ImageAnalysisResult = {
+    width: 10,
+    height: 10,
+    brightnessProfile: [100, 150],
+    ridgeStrength: [0.1, 0.8],
+    horizonProfile: [0.2, 0.3],
+    textureProfile: [0.9, 0.4],
+  };
+
+  it('should combine notes from all enabled voices', () => {
+    const options: MultiVoiceOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+    };
+
+    const noteEvents = mapImageToMultiVoiceComposition(baseAnalysis, options);
+
+    // Check that notes from all three voices are present
+    const trackIds = new Set(noteEvents.map((n) => n.trackId));
+    expect(trackIds).toContain('bass');
+    expect(trackIds).toContain('melody');
+    expect(trackIds).toContain('pad');
+
+    // Check that notes are sorted by start time
+    for (let i = 1; i < noteEvents.length; i++) {
+      expect(noteEvents[i].start).toBeGreaterThanOrEqual(noteEvents[i - 1].start);
+    }
+  });
+
+  it('should only include enabled voices', () => {
+    const options: MultiVoiceOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      enableBass: true,
+      enableMelody: false,
+      enablePad: true,
+    };
+
+    const noteEvents = mapImageToMultiVoiceComposition(baseAnalysis, options);
+    const trackIds = new Set(noteEvents.map((n) => n.trackId));
+
+    expect(trackIds).toContain('bass');
+    expect(trackIds).not.toContain('melody');
+    expect(trackIds).toContain('pad');
+  });
+
+  it('should avoid NaN pan in single-point melody mapping', () => {
+    const singlePointAnalysis: ImageAnalysisResult = {
+      width: 1,
+      height: 10,
+      brightnessProfile: [150],
+      ridgeStrength: [0.9],
+      horizonProfile: [0.2],
+      textureProfile: [0.4],
+    };
+    const options: MultiVoiceOptions = {
+      key: 'C',
+      scale: 'C_MAJOR',
+      enableBass: false,
+      enableMelody: true,
+      enablePad: false,
+    };
+
+    const noteEvents = mapImageToMultiVoiceComposition(singlePointAnalysis, options);
+    expect(noteEvents).toHaveLength(1);
+    expect(Number.isNaN(noteEvents[0].pan)).toBe(false);
+    expect(noteEvents[0].pan).toBe(0);
+  });
+});
+
+describe('mapHorizonToBass', () => {
+  it('produces notes for a sub-C2 preset range (A1-E2) in key A', () => {
+    // Previously getScaleNotes hardcoded startOctave=2, so this range filtered to nothing.
+    const notes = mapHorizonToBass([0.1, 0.5, 0.9], 'A', 'C_MAJOR', {
+      minNote: 'A1',
+      maxNote: 'E2',
+    });
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('A1'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('E2'));
+    }
+  });
+
+  it('reaches scale degrees below the key root (key B, C2-C3) instead of a monotone bassline', () => {
+    // Previously getScaleNotesForRange started at the key root's octave, so a B root with
+    // a C2-C3 range collapsed to the single pitch B2.
+    const horizon = Array.from({ length: 16 }, (_, i) => i / 15);
+    const notes = mapHorizonToBass(horizon, 'B', 'C_MAJOR', {
+      minNote: 'C2',
+      maxNote: 'C3',
+    });
+    expect(notes.length).toBeGreaterThan(0);
+    const distinctPitches = new Set(notes.map((n) => n.note));
+    expect(distinctPitches.size).toBeGreaterThan(1);
+    for (const note of notes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('C2'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('C3'));
+    }
+  });
+
+  it('keeps the default C-root output unchanged (existing-behavior guard)', () => {
+    // minNote (C2) IS the key root here, so the extra octave-below headroom must be fully
+    // trimmed by filterScaleToRange: same note set, output starting at C2, all in range.
+    const notes = mapHorizonToBass([0, 0.5, 1], 'C', 'C_MAJOR', {});
+    expect(notes.map((n) => n.note)).toEqual(['C2', 'G2', 'C3']);
+  });
+
+  it.each(['foggy-forest', 'industrial-grid'])(
+    'produces a non-empty, in-range bass voice for the %s preset (#109)',
+    (presetId) => {
+      // These presets use sub-C2 bass ranges (A1-E2 and A#1-F2) with non-C roots; the old
+      // hardcoded startOctave=2 filtered every candidate out and the bass voice silently
+      // disappeared.
+      const preset = TOPO_PRESETS.find((p) => p.id === presetId)!;
+      expect(preset).toBeDefined();
+
+      const horizon = Array.from({ length: 32 }, (_, i) => i / 31);
+      const notes = mapHorizonToBass(horizon, preset.defaultKey, preset.defaultScale, {
+        minNote: preset.voices.bass.minNote,
+        maxNote: preset.voices.bass.maxNote,
+      });
+
+      expect(notes.length).toBeGreaterThan(0);
+      const minMidi = noteNameToMidi(preset.voices.bass.minNote);
+      const maxMidi = noteNameToMidi(preset.voices.bass.maxNote);
+      for (const note of notes) {
+        const midi = noteNameToMidi(note.note);
+        expect(midi).toBeGreaterThanOrEqual(minMidi);
+        expect(midi).toBeLessThanOrEqual(maxMidi);
+      }
+    }
+  );
+});
+
+describe('mapRidgesToMelody', () => {
+  it('reaches in-range notes below the key root (key G, minNote D3 as in Ocean Horizon)', () => {
+    // The Ocean Horizon preset maps melody to D3-G5 in key G; previously the scale notes
+    // started at G3, so the in-range degrees D3/E3/F#3 could never be emitted.
+    const columns = 32;
+    const brightness = Array.from({ length: columns }, (_, i) =>
+      Math.round((i / (columns - 1)) * 255)
+    );
+    const ridges = Array.from({ length: columns }, () => 0.9); // Strong ridge every column
+
+    const notes = mapRidgesToMelody(brightness, ridges, 'G', 'G_MAJOR', {
+      minNote: 'D3',
+      maxNote: 'G5',
+    });
+
+    expect(notes.length).toBeGreaterThan(0);
+    const midis = notes.map((n) => noteNameToMidi(n.note));
+    for (const midi of midis) {
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('D3'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('G5'));
+    }
+    // The darkest columns must now reach below G3 (i.e. D3/E3/F#3 are playable).
+    expect(Math.min(...midis)).toBeLessThan(noteNameToMidi('G3'));
+  });
+});
+
+describe('preset threading and determinism', () => {
+  // A richer, fully deterministic fixture with enough columns to exercise every voice.
+  const richAnalysis: ImageAnalysisResult = {
+    width: 32,
+    height: 32,
+    brightnessProfile: Array.from({ length: 32 }, (_, i) => (i * 37) % 256),
+    ridgeStrength: Array.from({ length: 32 }, (_, i) => ((i * 29) % 100) / 100),
+    horizonProfile: Array.from({ length: 32 }, (_, i) => ((i * 13) % 100) / 100),
+    textureProfile: Array.from({ length: 32 }, (_, i) => ((i * 17) % 100) / 100),
+  };
+
+  const baseOptions: MultiVoiceOptions = { key: 'D', scale: 'D_MAJOR' };
+
+  it('is deterministic: the same input twice produces deep-equal output', () => {
+    const preset = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains');
+    expect(preset).toBeDefined();
+
+    const first = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, preset);
+    const second = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, preset);
+    expect(first.length).toBeGreaterThan(0);
+    expect(second).toEqual(first);
+
+    // No-preset path must be deterministic too.
+    const third = mapImageToMultiVoiceComposition(richAnalysis, baseOptions);
+    const fourth = mapImageToMultiVoiceComposition(richAnalysis, baseOptions);
+    expect(fourth).toEqual(third);
+  });
+
+  it('mapTextureToPad uses a deterministic chord-index pan (no randomness)', () => {
+    const texture = richAnalysis.textureProfile!;
+    const first = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    const second = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    expect(first.length).toBeGreaterThan(0);
+    expect(second).toEqual(first);
+
+    // Pan stays within the default stereoSpread (0.4) window.
+    for (const note of first) {
+      expect(Math.abs(note.pan ?? 0)).toBeLessThanOrEqual(0.2);
+    }
+  });
+
+  it('mapTextureToPad normalizes pathological segment counts without hanging', () => {
+    const texture = richAnalysis.textureProfile!;
+    // Non-finite falls back to the default (6); the result matches an unset segments option.
+    const infinite = mapTextureToPad(texture, 'C', 'C_MAJOR', { segments: Infinity });
+    const defaulted = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    expect(infinite).toEqual(defaulted);
+
+    // Zero / negative / fractional are clamped to a valid positive integer and still return.
+    for (const segments of [0, -5, 3.7]) {
+      const notes = mapTextureToPad(texture, 'C', 'C_MAJOR', { segments });
+      expect(Array.isArray(notes)).toBe(true);
+      expect(notes.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('two different TOPO_PRESETS produce different multi-voice output', () => {
+    const mountains = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains');
+    const industrial = TOPO_PRESETS.find((p) => p.id === 'industrial-grid');
+    expect(mountains).toBeDefined();
+    expect(industrial).toBeDefined();
+
+    const a = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, mountains);
+    const b = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, industrial);
+
+    expect(a.length).toBeGreaterThan(0);
+    expect(b.length).toBeGreaterThan(0);
+    expect(a).not.toEqual(b);
+  });
+
+  it('keeps pad notes within the preset pad range', () => {
+    const preset = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains')!;
+    const notes = mapImageToMultiVoiceComposition(richAnalysis, baseOptions, preset);
+    const padNotes = notes.filter((n) => n.trackId === 'pad');
+
+    expect(padNotes.length).toBeGreaterThan(0);
+    const minMidi = noteNameToMidi(preset.voices.pad.minNote);
+    const maxMidi = noteNameToMidi(preset.voices.pad.maxNote);
+    for (const note of padNotes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(minMidi);
+      expect(midi).toBeLessThanOrEqual(maxMidi);
+    }
+  });
+
+  it('keeps caller-supplied options over preset values', () => {
+    const preset = TOPO_PRESETS.find((p) => p.id === 'majestic-mountains')!;
+    const notes = mapImageToMultiVoiceComposition(
+      richAnalysis,
+      { ...baseOptions, padOptions: { minNote: 'C4', maxNote: 'C5' } },
+      preset
+    );
+    const padNotes = notes.filter((n) => n.trackId === 'pad');
+
+    expect(padNotes.length).toBeGreaterThan(0);
+    for (const note of padNotes) {
+      const midi = noteNameToMidi(note.note);
+      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('C4'));
+      expect(midi).toBeLessThanOrEqual(noteNameToMidi('C5'));
+    }
+  });
+
+  it('produces identical no-preset output regardless of the new optional fields', () => {
+    // Explicitly passing the documented defaults must match passing nothing.
+    const texture = richAnalysis.textureProfile!;
+    const implicit = mapTextureToPad(texture, 'C', 'C_MAJOR', {});
+    const explicit = mapTextureToPad(texture, 'C', 'C_MAJOR', {
+      minNote: 'C3',
+      maxNote: 'C5',
+      segments: 6,
+      noteDuration: 6,
+      velocityMin: 0.4,
+      velocityMax: 0.7,
+      reverbSend: 0.5,
+      filterBrightness: 0.5,
+      stereoSpread: 0.4,
+    });
+    expect(explicit).toEqual(implicit);
+  });
+});
+
+describe('new scales', () => {
+  it('generates correct harmonic minor notes (A_HARMONIC_MINOR)', () => {
+    expect(getScaleNotes('A', 'A_HARMONIC_MINOR', 1, 3)).toEqual([
+      'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G#4',
+    ]);
+  });
+
+  it('generates correct lydian notes (C_LYDIAN)', () => {
+    expect(getScaleNotes('C', 'C_LYDIAN', 1, 4)).toEqual([
+      'C4', 'D4', 'E4', 'F#4', 'G4', 'A4', 'B4',
+    ]);
+  });
+
+  it('generates correct whole tone notes (C_WHOLE_TONE)', () => {
+    expect(getScaleNotes('C', 'C_WHOLE_TONE', 1, 4)).toEqual([
+      'C4', 'D4', 'E4', 'F#4', 'G#4', 'A#4',
+    ]);
+    // Whole tone transposes cleanly to other keys as well.
+    expect(getScaleNotes('G', 'C_WHOLE_TONE', 1, 3)).toEqual([
+      'G3', 'A3', 'B3', 'C#4', 'D#4', 'F4',
+    ]);
+  });
+});
+
+describe('noteNameToMidi', () => {
+  it('rejects non-existent accidentals like E# and B#', () => {
+    expect(() => noteNameToMidi('E#4')).toThrow();
+    expect(() => noteNameToMidi('B#3')).toThrow();
+  });
+
+  it('round-trips negative octaves (C-1 => MIDI 0)', () => {
+    expect(noteNameToMidi('C-1')).toBe(0);
+  });
+});
+import { analyzeImageForLinearLandscape } from '../analyzer';
+
+describe('analyzeImageForLinearLandscape', () => {
+  it('should calculate the correct brightness profile', () => {
+    // Create a simple 3x3 image with a gradient from black to white
+    const pixels = new Uint8ClampedArray([
+      0, 0, 0, 255,   128, 128, 128, 255,   255, 255, 255, 255, // Row 1
+      0, 0, 0, 255,   128, 128, 128, 255,   255, 255, 255, 255, // Row 2
+      0, 0, 0, 255,   128, 128, 128, 255,   255, 255, 255, 255, // Row 3
+    ]);
+
+    const result = analyzeImageForLinearLandscape(pixels, 3, 3);
+
+    // The brightness profile should be the average of the rows
+    expect(result.brightnessProfile[0]).toBeCloseTo(0, 5);
+    expect(result.brightnessProfile[1]).toBeCloseTo(128, 5);
+    expect(result.brightnessProfile[2]).toBeCloseTo(255, 5);
+  });
+});
+import {
+  analyzeImageForLinearLandscape,
+  analyzeImageForDepthRidge,
+  analyzeImageForMultiVoice,
+} from '../analyzer';
+import { applySobelEdgeDetection, detectRidges } from '../depth';
+import { computeTextureFromBrightness } from '../texture';
+
+describe('Image Analyzers', () => {
+  // Create a simple 3x3 black and white test image (2 pixels black, 1 pixel white)
+  const width = 3;
+  const height = 3;
+  const pixels = new Uint8ClampedArray([
+    // Row 1
+    0, 0, 0, 255, // Black
+    0, 0, 0, 255, // Black
+    255, 255, 255, 255, // White
+    // Row 2
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    255, 255, 255, 255,
+    // Row 3
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    255, 255, 255, 255,
+  ]);
+
+  describe('analyzeImageForLinearLandscape', () => {
+    it('should correctly calculate a brightness profile from the center row', () => {
+      const result = analyzeImageForLinearLandscape(pixels, width, height, {
+        averageRows: false,
+      });
+
+      // Expected: Luminance is ~0 for black, ~255 for white
+      expect(result.brightnessProfile.length).toBe(3);
+      expect(result.brightnessProfile[0]).toBeCloseTo(0);
+      expect(result.brightnessProfile[1]).toBeCloseTo(0);
+      expect(result.brightnessProfile[2]).toBeCloseTo(255);
+    });
+
+    it('should correctly compute a simple depth profile', () => {
+      const result = analyzeImageForLinearLandscape(pixels, width, height);
+      // Depth is based on contrast, so we expect a dip in the middle
+      expect(result.depthProfile).toBeDefined();
+      expect(result.depthProfile?.length).toBe(3);
+    });
+  });
+
+  describe('analyzeImageForDepthRidge', () => {
+    it('should produce ridge and depth profiles of the correct length', () => {
+      const result = analyzeImageForDepthRidge(pixels, width, height);
+
+      expect(result.ridgeStrength).toBeDefined();
+      expect(result.depthProfile).toBeDefined();
+      expect(result.ridgeStrength?.length).toBe(width);
+      expect(result.depthProfile?.length).toBe(width);
+    });
+
+    it('should identify a strong ridge at the color boundary', () => {
+      const result = analyzeImageForDepthRidge(pixels, width, height);
+      // The strongest edge is between the second (black) and third (white) pixels
+      const maxRidge = Math.max(...(result.ridgeStrength || []));
+      const maxRidgeIndex = result.ridgeStrength?.indexOf(maxRidge);
+
+      // The peak should be at or next to the boundary
+      expect(maxRidgeIndex).toBe(2);
+      expect(maxRidge).toBeGreaterThan(0.9);
+    });
+
+    it('produces finite (non-NaN) profiles for a short image', () => {
+      // height 3 previously read rows -1 and 3 (out of bounds) -> all-NaN profiles.
+      const result = analyzeImageForDepthRidge(pixels, width, height);
+      expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+      expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
+      expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    });
+
+    it('produces finite (non-NaN) profiles for the smallest image (1x1)', () => {
+      const tiny = new Uint8ClampedArray([128, 128, 128, 255]);
+      const result = analyzeImageForDepthRidge(tiny, 1, 1);
+      expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+      expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
+      expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    });
+  });
+
+  describe('determinism', () => {
+    it('produces deep-equal profiles for the same input twice', () => {
+      const first = analyzeImageForDepthRidge(pixels, width, height);
+      const second = analyzeImageForDepthRidge(pixels, width, height);
+
+      // metadata.timestamp is wall-clock time, so compare everything except metadata.
+      const strip = ({ metadata: _metadata, ...rest }: typeof first) => rest;
+      expect(strip(second)).toEqual(strip(first));
+    });
+  });
+
+  describe('precomputed edge magnitudes', () => {
+    // A 64x16 image with varied content so the Sobel output is non-trivial.
+    const w = 64;
+    const h = 16;
+    const varied = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = Math.round((Math.sin(x * 0.4) * 0.5 + 0.5) * 255 * ((y % 4) / 3 || 0.2));
+        const i = (y * w + x) * 4;
+        varied[i] = v;
+        varied[i + 1] = v;
+        varied[i + 2] = v;
+        varied[i + 3] = 255;
+      }
+    }
+
+    it('accepts 0-1 float magnitudes and matches the self-computed result exactly', () => {
+      const sobel = applySobelEdgeDetection(varied, w, h);
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      const precomputed = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: sobel,
+      });
+
+      expect(precomputed.ridgeStrength).toEqual(self.ridgeStrength);
+      expect(precomputed.brightnessProfile).toEqual(self.brightnessProfile);
+      expect(precomputed.depthProfile).toEqual(self.depthProfile);
+    });
+
+    it('normalizes 0-255 byte magnitudes and stays close to the self-computed result', () => {
+      const sobel = applySobelEdgeDetection(varied, w, h);
+      const bytes = Uint8ClampedArray.from(sobel.map((v) => Math.round(v * 255)));
+
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      const precomputed = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: bytes,
+      });
+
+      expect(precomputed.ridgeStrength).toBeDefined();
+      expect(precomputed.ridgeStrength!.length).toBe(self.ridgeStrength!.length);
+
+      // Byte quantization introduces at most ~0.5/255 per pixel; after row averaging and
+      // smoothing the profiles must remain very close.
+      for (let i = 0; i < self.ridgeStrength!.length; i++) {
+        expect(Math.abs(precomputed.ridgeStrength![i] - self.ridgeStrength![i])).toBeLessThan(0.01);
+      }
+
+      // Brightness and depth are unaffected by the precomputed edges.
+      expect(precomputed.brightnessProfile).toEqual(self.brightnessProfile);
+      expect(precomputed.depthProfile).toEqual(self.depthProfile);
+    });
+
+    it('ignores a too-short precomputed buffer and falls back to the JS Sobel result', () => {
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      // Length w*h - 1: one pixel short, which would index out of bounds.
+      const short = new Array(w * h - 1).fill(0.5);
+      const result = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: short,
+      });
+
+      expect(result.ridgeStrength).toEqual(self.ridgeStrength);
+    });
+
+    it('ignores an oversized precomputed buffer and falls back to the JS Sobel result', () => {
+      const self = analyzeImageForDepthRidge(varied, w, h);
+      const oversized = new Array(w * h + 5).fill(0.5);
+      const result = analyzeImageForDepthRidge(varied, w, h, {
+        precomputedEdgeMagnitudes: oversized,
+      });
+
+      expect(result.ridgeStrength).toEqual(self.ridgeStrength);
+    });
+  });
+
+  describe('large images', () => {
+    it('does not overflow the call stack on a realistic (640x480) image', () => {
+      // Math.max(...edges) threw RangeError above ~125k elements; 640x480 = 307,200 px.
+      const w = 640;
+      const h = 480;
+      const big = new Uint8ClampedArray(w * h * 4);
+      for (let i = 0; i < big.length; i += 4) {
+        const v = (i / 4) % w < w / 2 ? 0 : 255;
+        big[i] = v;
+        big[i + 1] = v;
+        big[i + 2] = v;
+        big[i + 3] = 255;
+      }
+
+      expect(() => analyzeImageForDepthRidge(big, w, h)).not.toThrow();
+      const result = analyzeImageForDepthRidge(big, w, h);
+      expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+    });
+  });
+});
+
+describe('analyzeImageForMultiVoice (issue #81)', () => {
+  it('produces finite (non-NaN) profiles for a short image', () => {
+    // height 3 made the old unclamped window read rows -1 and 3 -> all-NaN profiles,
+    // which surfaced downstream as `note: undefined` and a noteNameToMidi throw.
+    const w = 8;
+    const h = 3;
+    const pixels = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      const v = ((i / 4) % w) * 32;
+      pixels[i] = v;
+      pixels[i + 1] = v;
+      pixels[i + 2] = v;
+      pixels[i + 3] = 255;
+    }
+
+    const result = analyzeImageForMultiVoice(pixels, w, h);
+    expect(result.brightnessProfile.every(Number.isFinite)).toBe(true);
+    expect(result.ridgeStrength?.every(Number.isFinite)).toBe(true);
+    expect(result.depthProfile?.every(Number.isFinite)).toBe(true);
+    expect(result.horizonProfile?.every(Number.isFinite)).toBe(true);
+    expect(result.textureProfile?.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('computeTextureFromBrightness (issue #110)', () => {
+  it('normalizes against the true max stdDev (127.5), not 255', () => {
+    // Alternating 0/255 has the maximum possible stdDev (127.5) and must saturate to 1.
+    // With the old /255 normalization it topped out at 0.5, making the "high" texture
+    // branch (>= 0.7) unreachable.
+    const extreme = Array.from({ length: 16 }, (_, i) => (i % 2 === 0 ? 0 : 255));
+    const texture = computeTextureFromBrightness(extreme, 8);
+    expect(texture.every(Number.isFinite)).toBe(true);
+    expect(Math.max(...texture)).toBeGreaterThan(0.7);
+  });
+
+  it('returns ~0 for a flat profile', () => {
+    const flat = new Array(16).fill(128);
+    const texture = computeTextureFromBrightness(flat, 8);
+    expect(texture.every((t) => t === 0)).toBe(true);
+  });
+});
+
+describe('detectRidges (issue #110)', () => {
+  it('preserves dynamic range for raw 0-255 brightness profiles', () => {
+    // One sharp edge among small ripples. The old code clamped gradient+peakBonus to 1.0
+    // BEFORE normalizing (a ~3/255 diff already saturated), collapsing every ridge to 1.
+    const profile = [
+      100, 102, 100, 102, 100, 102, 100, 102,
+      100, 250, // sharp edge at index 9
+      100, 102, 100, 102, 100, 102,
+    ];
+    const ridges = detectRidges(profile);
+
+    expect(ridges.length).toBe(profile.length);
+    expect(ridges.every(Number.isFinite)).toBe(true);
+    expect(Math.max(...ridges)).toBeLessThanOrEqual(1);
+
+    // Weak ripples must stay well below the dominant edge instead of clamping to ~1.
+    const weak = ridges[3];
+    const strong = Math.max(...ridges);
+    expect(strong).toBeGreaterThan(0.9);
+    expect(weak).toBeLessThan(0.5);
+  });
+
+  it('returns zeros for a flat profile', () => {
+    const ridges = detectRidges(new Array(8).fill(128));
+    expect(ridges.every((r) => r === 0)).toBe(true);
+  });
+});
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    exclude: ["dist/**", "node_modules/**"],
+  },
+});
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    exclude: ["dist/**", "node_modules/**"],
+  },
+});

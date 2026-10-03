@@ -1,0 +1,33 @@
+UTC start: 2026-10-03T01:27:28Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path('docs/qa/2026-10-02/tools/ux-browser.cjs');s=p.read_text()
+marker="  await step('Studio mobile screenshot and reflow',async()=>{"
+addition="""  await step('Valid 640x480 image recovery, generation, playback, MIDI and axe',async()=>{
+   await screenshot(page,'portrait-analysis-failure');
+   const dataUrl=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=640;c.height=480;const g=c.getContext('2d');const grad=g.createLinearGradient(0,0,640,480);grad.addColorStop(0,'white');grad.addColorStop(1,'black');g.fillStyle=grad;g.fillRect(0,0,640,480);return c.toDataURL('image/png');});
+   await page.locator('input[type=file]').setInputFiles({name:'qa-landscape-640x480.png',mimeType:'image/png',buffer:Buffer.from(dataUrl.split(',')[1],'base64')});
+   await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Generate Composition'&&!b.disabled));
+   await page.getByRole('button',{name:'Generate Composition'}).click();
+   await page.getByRole('button',{name:'Save to Library'}).waitFor();
+   const downloadPromise=page.waitForEvent('download');
+   await page.getByRole('button',{name:'Export as MIDI'}).click();
+   const download=await downloadPromise;await download.saveAs(path.join(out,'ux-generated.mid'));
+   const midi=fs.readFileSync(path.join(out,'ux-generated.mid'));
+   await page.getByRole('button',{name:'▶ Play',exact:true}).click();
+   await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.includes('Stop')&&!b.disabled));
+   const playing=await page.getByRole('button',{name:'▶ Playing...',exact:true}).count();
+   await page.getByRole('button',{name:'⏹ Stop',exact:true}).click();
+   return {playing,midiHeader:midi.subarray(0,4).toString(),midiBytes:midi.length,screenshot:await screenshot(page,'studio-generated'),axe:await scan(page,'studio-generated')};
+  });
+"""
+s=s.replace(marker,addition+marker)
+p.write_text(s)
+p=Path('docs/qa/2026-10-02/tools/ux-regression.spec.cjs');s=p.read_text().replace(" test.fail(true,'UX-001: modal has no focus containment.');\n",'').replace(" await page.getByRole('dialog').getByRole('button',{name:'Sign In',exact:true}).focus();", " test.fail(true,'UX-001: modal has no focus containment.');\n await page.getByRole('dialog').getByRole('button',{name:'Sign In',exact:true}).focus();").replace(" test.fail(true,'UX-002: selection is represented by CSS color only.');\n",'').replace(" await expect(page.getByRole('button',{name:'D',exact:true})).toHaveAttribute", " test.fail(true,'UX-002: selection is represented by CSS color only.');\n await expect(page.getByRole('button',{name:'D',exact:true})).toHaveAttribute")
+p.write_text(s)
+source=Path('docs/qa/2026-10-02/artifacts/ux-browser-report.json')
+Path('docs/qa/2026-10-02/artifacts/ux-browser-initial.json').write_text(source.read_text())
+PY
+
+
+Exit: 0

@@ -1,0 +1,26 @@
+UTC start: 2026-10-03T01:30:12Z
+Command: python3 - <<'PY'
+from pathlib import Path
+import json
+base=Path("docs/qa/2026-10-02")
+for p in sorted((base/"tools/docs").rglob("*"),reverse=True) if (base/"tools/docs").exists() else []:
+ if p.is_dir():p.rmdir()
+if (base/"tools/docs").exists():(base/"tools/docs").rmdir()
+report=json.loads((base/"artifacts/ux-regression-results.json").read_text())
+print("Regression stats",report["stats"])
+print("UX screenshots",len(list((base/"artifacts").glob("ux-*.png"))))
+print("Pass doc bytes",(base/"passes/UX.md").stat().st_size)
+print("Browser report final",json.loads((base/"artifacts/ux-browser-report.json").read_text())["ended"])
+PY
+node --check docs/qa/2026-10-02/tools/ux-browser.cjs
+node --check docs/qa/2026-10-02/tools/ux-auth.cjs
+node --check docs/qa/2026-10-02/tools/ux-perf.cjs
+node --check docs/qa/2026-10-02/tools/ux-playwright.config.cjs
+node --check docs/qa/2026-10-02/tools/ux-regression.spec.cjs
+
+Regression stats {'startTime': '2026-10-03T01:28:26.265Z', 'duration': 13724.027, 'expected': 6, 'skipped': 0, 'unexpected': 0, 'flaky': 0}
+UX screenshots 18
+Pass doc bytes 13925
+Browser report final 2026-10-03T01:28:00.922Z
+
+Exit: 0

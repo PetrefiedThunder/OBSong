@@ -1,0 +1,73 @@
+UTC start: 2026-10-03T01:29:31Z
+Command: python3 - <<'PY'
+from pathlib import Path
+import json
+qa=Path("docs/qa/2026-10-02")
+rows=[("API","backend-coverage-before","backend-coverage-after"),("Core image","core-image-before","core-image-after"),("Core audio","core-audio-before","core-audio-after"),("Web","coverage-web-before-oxc","coverage-web-after"),("Mobile","coverage-mobile-before","coverage-mobile-after")]
+for n in ["shared","types","ui","native-image-processing"]: rows.append((n,f"coverage-{n}-unchanged",f"coverage-{n}-unchanged"))
+text="""# Coverage and validation
+
+PR: opened by orchestrator
+
+CI status: pending at time of writing
+
+## Comparable V8 coverage
+
+Vitest and V8 provider are 4.1.11. Application scope includes all `src/**/*.{ts,tsx}`; API/core use `src/**/*.ts`. Tests are excluded from instrumentation. Before excludes newly added QA tests; after includes them. Production source is unchanged. Four packages received no added tests: their original-suite measurement is therefore both before and after. All nine workspace suites were measured. Barrel/type-only modules with zero executable statements are N/A, not a runtime coverage failure.
+
+Percentages below preserve identical per-package source and executable-line denominators. Expected-failure tests execute product code and contribute coverage. Coverage measures execution, not correctness. Browser scripts run without source instrumentation and are not included in these numbers.
+
+| Surface | Source files | Lines covered before → after | Statements % before → after | Branches % before → after | Functions % before → after | Raw reports |
+| --- | ---: | --- | --- | --- | --- | --- |
+"""
+for name,b,a in rows:
+ before=json.loads((qa/"artifacts"/b/"coverage-summary.json").read_text());after=json.loads((qa/"artifacts"/a/"coverage-summary.json").read_text()); bt,at=before["total"],after["total"]
+ def pct(m):return "N/A" if bt[m]["total"]==0 else f"{bt[m][pct]} → {at[m][pct]}"
+ l=bt["lines"];r=at["lines"]
+ line="N/A (0 executable lines)" if l["total"]==0 else f"{l[covered]}/{l[total]} ({l[pct]}%) → {r[covered]}/{r[total]} ({r[pct]}%)"
+ text+=f"| {name} | {len(after)-1} | {line} | {pct(statements)} | {pct(branches)} | {pct(functions)} | [Before](artifacts/{b}/coverage-summary.json), [after](artifacts/{a}/coverage-summary.json) |\n"
+text+="""
+## Test counts
+
+The original suite was rerun explicitly excluding all QA test filenames: **148 passed** across nine workspaces. Final `pnpm -r test`: **270 passed + 15 expected failures = 285 cases**, **137 added cases**. Of those additions, 122 pass normally and 15 reproduce confirmed product defects. All expected-failure assertions were separately run as ordinary assertions to prove their intended failure; see [Backend](passes/BACKEND.md), [Frontend](passes/FRONTEND.md), and [core supplement](passes/CORE-SUPPLEMENT.md). Browser cases and exploratory flows are listed separately in [UX](passes/UX.md).
+
+| Workspace | Before | After | Added |
+| --- | ---: | --- | ---: |
+| API | 43 | 97 pass + 7 expected fail | 61 |
+| Core image | 19 | 37 pass | 18 |
+| Core audio | 32 | 62 pass + 1 expected fail | 31 |
+| Web | 5 | 14 pass + 2 expected fail | 11 |
+| Mobile | 9 | 20 pass + 5 expected fail | 16 |
+| Shared | 16 | 16 pass | 0 |
+| UI | 8 | 8 pass | 0 |
+| Types | 11 | 11 pass | 0 |
+| Native bridge | 5 | 5 pass | 0 |
+
+[Original suite evidence](artifacts/review-original-suite-baseline.txt), [final suite evidence](artifacts/review-final-workspace-tests.txt), [unchanged-package coverage](artifacts/review-unchanged-package-coverage.txt), [final static checks](artifacts/review-final-static-checks.txt).
+
+## Invalid attempts retained
+
+The first workspace run picked up an in-progress new image test before shared build output/source aliases were ready; original tests passed, but that whole run was not a clean baseline. The explicit original-suite rerun supersedes it. The first typecheck ran before workspace project-reference outputs existed and failed TS6305; CI already builds before typechecking, and the post-build/final checks pass.
+
+The first two web coverage attempts excluded TSX files because Next preserves JSX and Vite 8 did not honor the attempted esbuild transform. Their artifacts remain as dead ends (`coverage-web-before` and `coverage-web-before-valid`; the latter name is misleading). Only `coverage-web-before-oxc` is authoritative: it includes the same 26 files and 1,058 executable lines as after. A two-line test configuration change enables OXC automatic JSX for valid instrumentation. No product source was modified.
+
+## Remaining untested areas
+
+- API server/bootstrap/plugins (0% line coverage), real Supabase token verification, PostgreSQL constraints/RLS/transactions, actual proxy topology and load. API route/auth/service tests use in-process injection and mocked dependencies.
+- Web page/components, most auth/playback engine code and middleware still have little direct unit coverage; browser flows add behavior evidence but no instrumented line percentage. UI primitives are only 15% covered.
+- Mobile screens, native runtime/audio/image decoders and real Keychain/Keystore behavior. The mobile build script only prints an EAS requirement; it is not a native build.
+- Domain inputs outside the seeded valid-value corpus, arbitrary image contents/presets and subjective musical/audio quality. MIDI is now 96.96% line covered, but actual DAW import remains untested.
+- Shared API retry/timeout and logging/config paths remain partly uncovered; no invented idempotency contract was imposed on create operations.
+- Accessibility is sampled with axe and manual DOM/focus inspection, not complete WCAG certification or an actual screen-reader listening session.
+- Hosted CI and exact Node 20.19.4 parity are pending. Local runtime is Node 26.7.0. Installing the CI Node package was attempted; npm blocked its install script, and the direct binary package version was unavailable (ETARGET). These are environment limitations, not product findings.
+- Live vulnerability advisories were not queried: the orchestrator allows network only for installing/fetching public packages. Dependency inventory is captured, but vulnerability count is unknown. The offline secret scan does not include environment/credential files or git history.
+"""
+(qa/"COVERAGE.md").write_text(text)
+print("Wrote coverage table for",len(rows),"workspace packages")
+PY
+
+Traceback (most recent call last):
+  File "<stdin>", line 25, in <module>
+NameError: name 'covered' is not defined. Did you mean: 'reversed'?
+
+Exit: 1

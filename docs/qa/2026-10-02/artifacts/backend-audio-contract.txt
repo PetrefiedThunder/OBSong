@@ -1,0 +1,224 @@
+UTC start: 2026-10-03T01:21:36Z
+Command: cat packages/types/src/audio.ts && cat packages/types/src/mapping.ts | head -n 55 && rg -n "noteNameToMidi|noteToMidi|new Midi|addNote|pitch" packages apps/web/src/lib/midiExport.ts -g "*.ts" -g "!node_modules/**" -g "!dist/**" | head -n 80 && cat docs/qa/2026-10-02/tools/run.py
+Exit: 0
+
+/**
+ * Audio and musical event structures shared across the platform.
+ */
+export interface NoteEvent {
+  /** Note in scientific pitch notation (e.g., "C4", "A#5"). */
+  note: string;
+  /** Start time in seconds (or beats, depending on context). */
+  start: number;
+  /** Duration in seconds (or beats). */
+  duration: number;
+  /** Velocity/volume (0-1). */
+  velocity: number;
+  /** Optional: Stereo pan position (-1 = left, 0 = center, 1 = right). */
+  pan?: number;
+  /** Optional: Track/layer identifier for multi-track compositions (use VoiceType for multi-voice mode). */
+  trackId?: string;
+  /** Optional: Effect parameters for this note. */
+  effects?: {
+    /** Reverb send amount (0-1). */
+    reverbSend?: number;
+    /** Filter cutoff frequency multiplier (0-1). */
+    filterCutoff?: number;
+    /** Additional custom effect parameters. */
+    [key: string]: number | undefined;
+  };
+}
+
+/**
+ * Sound preset/instrument configuration used by Tone.js or other synth engines.
+ */
+export interface SoundPreset {
+  /** Unique preset identifier. */
+  id: string;
+  /** Human-readable preset name. */
+  name: string;
+  /** Base oscillator waveform type. */
+  oscillatorType: 'sine' | 'square' | 'triangle' | 'sawtooth';
+  /** Optional description of the preset's character. */
+  description?: string;
+  /** Optional: Advanced synthesis parameters. */
+  synthesis?: {
+    /** ADSR envelope settings. */
+    envelope?: {
+      attack: number;
+      decay: number;
+      sustain: number;
+      release: number;
+    };
+    /** Filter settings. */
+    filter?: {
+      type: 'lowpass' | 'highpass' | 'bandpass';
+      frequency: number;
+      resonance: number;
+    };
+    /** Effect chain. */
+    effects?: {
+      reverb?: { wet: number; decay: number };
+      delay?: { time: number; feedback: number };
+    };
+  };
+}
+/**
+ * Shared types for mapping visual features into audio structures.
+ */
+
+/**
+ * Supported mapping modes for converting images to audio.
+ */
+export type MappingMode = 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE' | 'MULTI_VOICE';
+
+/**
+ * Voice types for multi-voice compositions. Each voice represents a distinct musical layer.
+ */
+export type VoiceType = 'bass' | 'melody' | 'pad' | 'fx';
+
+/**
+ * Musical scale types used to constrain generated notes.
+ */
+export type ScaleType =
+  | 'C_MAJOR'
+  | 'C_MINOR'
+  | 'D_MAJOR'
+  | 'E_MINOR'
+  | 'A_MINOR'
+  | 'A_SHARP_MINOR'
+  | 'G_MAJOR'
+  | 'C_PENTATONIC'
+  | 'A_MINOR_PENTATONIC'
+  | 'C_BLUES'
+  | 'D_DORIAN'
+  | 'A_DORIAN'
+  | 'C_MIXOLYDIAN'
+  | 'E_PHRYGIAN'
+  | 'A_HARMONIC_MINOR'
+  | 'C_LYDIAN'
+  | 'C_WHOLE_TONE';
+
+/**
+ * Musical key/root note for mapping and playback.
+ */
+export type KeyType = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
+
+/**
+ * Configuration for a single voice in a multi-voice preset.
+ */
+export interface VoiceConfig {
+  /** Whether this voice is enabled. */
+  enabled: boolean;
+  /** Minimum note in scientific notation (e.g., "C2"). */
+  minNote: string;
+  /** Maximum note in scientific notation (e.g., "C4"). */
+  maxNote: string;
+  /** Note density (0-1): 0 = sparse, 1 = dense. */
+  density: number;
+  /** Duration multiplier (0-2): 1 = normal, >1 longer, <1 shorter. */
+  durationFactor: number;
+packages/core-image/src/analyzer.ts:164:  // 3. Extract brightness profile for pitch mapping (clamp the row window like
+packages/core-image/src/__tests__/analyzer.test.ts:195:    // which surfaced downstream as `note: undefined` and a noteNameToMidi throw.
+packages/core-audio/src/index.ts:17:  noteNameToMidi,
+packages/core-audio/src/scales.ts:65: * @returns Array of note names in scientific pitch notation (e.g., ["C3", "D3", "E3", ...])
+packages/core-audio/src/scales.ts:125: * @returns Note name in scientific pitch notation
+packages/core-audio/src/scales.ts:129:  // yield "undefined<oct>" (which noteNameToMidi then rejects). Normalize into [0, 12).
+packages/core-audio/src/scales.ts:138: * @param noteName - Note in scientific pitch notation (e.g., "C4")
+packages/core-audio/src/scales.ts:141:export function noteNameToMidi(noteName: string): number {
+packages/core-audio/src/scales.ts:163: * @param noteName - Note in scientific pitch notation
+packages/core-audio/src/scales.ts:167:  const midi = noteNameToMidi(noteName);
+packages/core-audio/src/mappers.ts:15:import { getScaleNotes, brightnessToScaleIndex, noteNameToMidi, midiToNoteName } from './scales';
+packages/core-audio/src/mappers.ts:40: * Parse the (possibly negative) octave number out of a scientific-pitch note name.
+packages/core-audio/src/mappers.ts:66:  // out-of-range extras; getScaleNotes/noteNameToMidi support negative start octaves.
+packages/core-audio/src/mappers.ts:76:    const midi = noteNameToMidi(note);
+packages/core-audio/src/mappers.ts:85:    const dist = Math.abs(noteNameToMidi(note) - target);
+packages/core-audio/src/mappers.ts:99: * 2. Maps each brightness value to a pitch in the selected scale
+packages/core-audio/src/mappers.ts:163:    // horizontal position than pitch.
+packages/core-audio/src/mappers.ts:291:    const midi = noteNameToMidi(note.note);
+packages/core-audio/src/mappers.ts:346:  const minMidi = noteNameToMidi(minNote);
+packages/core-audio/src/mappers.ts:347:  const maxMidi = noteNameToMidi(maxNote);
+packages/core-audio/src/mappers.ts:445:  const minMidi = noteNameToMidi(minNote);
+packages/core-audio/src/mappers.ts:446:  const maxMidi = noteNameToMidi(maxNote);
+packages/core-audio/src/mappers.ts:467:    // Map brightness to pitch
+packages/core-audio/src/mappers.ts:559:  const minMidi = noteNameToMidi(minNote);
+packages/core-audio/src/mappers.ts:560:  const maxMidi = noteNameToMidi(maxNote);
+packages/core-audio/src/mappers.ts:647:  // preset fills in pitch range, enabled flags, velocity range, reverb/filter/stereo
+packages/core-audio/src/midi.ts:3:import { noteNameToMidi } from './scales';
+packages/core-audio/src/midi.ts:25:  const midi = new Midi();
+packages/core-audio/src/midi.ts:50:    track.addNote({
+packages/core-audio/src/midi.ts:51:      midi: noteNameToMidi(event.note),
+packages/core-audio/src/__tests__/mappers.test.ts:2:import { noteNameToMidi, getScaleNotes } from '../scales';
+packages/core-audio/src/__tests__/mappers.test.ts:285:      const midi = noteNameToMidi(note.note);
+packages/core-audio/src/__tests__/mappers.test.ts:286:      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('A1'));
+packages/core-audio/src/__tests__/mappers.test.ts:287:      expect(midi).toBeLessThanOrEqual(noteNameToMidi('E2'));
+packages/core-audio/src/__tests__/mappers.test.ts:293:    // a C2-C3 range collapsed to the single pitch B2.
+packages/core-audio/src/__tests__/mappers.test.ts:303:      const midi = noteNameToMidi(note.note);
+packages/core-audio/src/__tests__/mappers.test.ts:304:      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('C2'));
+packages/core-audio/src/__tests__/mappers.test.ts:305:      expect(midi).toBeLessThanOrEqual(noteNameToMidi('C3'));
+packages/core-audio/src/__tests__/mappers.test.ts:332:      const minMidi = noteNameToMidi(preset.voices.bass.minNote);
+packages/core-audio/src/__tests__/mappers.test.ts:333:      const maxMidi = noteNameToMidi(preset.voices.bass.maxNote);
+packages/core-audio/src/__tests__/mappers.test.ts:335:        const midi = noteNameToMidi(note.note);
+packages/core-audio/src/__tests__/mappers.test.ts:359:    const midis = notes.map((n) => noteNameToMidi(n.note));
+packages/core-audio/src/__tests__/mappers.test.ts:361:      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('D3'));
+packages/core-audio/src/__tests__/mappers.test.ts:362:      expect(midi).toBeLessThanOrEqual(noteNameToMidi('G5'));
+packages/core-audio/src/__tests__/mappers.test.ts:365:    expect(Math.min(...midis)).toBeLessThan(noteNameToMidi('G3'));
+packages/core-audio/src/__tests__/mappers.test.ts:445:    const minMidi = noteNameToMidi(preset.voices.pad.minNote);
+packages/core-audio/src/__tests__/mappers.test.ts:446:    const maxMidi = noteNameToMidi(preset.voices.pad.maxNote);
+packages/core-audio/src/__tests__/mappers.test.ts:448:      const midi = noteNameToMidi(note.note);
+packages/core-audio/src/__tests__/mappers.test.ts:465:      const midi = noteNameToMidi(note.note);
+packages/core-audio/src/__tests__/mappers.test.ts:466:      expect(midi).toBeGreaterThanOrEqual(noteNameToMidi('C4'));
+packages/core-audio/src/__tests__/mappers.test.ts:467:      expect(midi).toBeLessThanOrEqual(noteNameToMidi('C5'));
+packages/core-audio/src/__tests__/mappers.test.ts:514:describe('noteNameToMidi', () => {
+packages/core-audio/src/__tests__/mappers.test.ts:516:    expect(() => noteNameToMidi('E#4')).toThrow();
+packages/core-audio/src/__tests__/mappers.test.ts:517:    expect(() => noteNameToMidi('B#3')).toThrow();
+packages/core-audio/src/__tests__/mappers.test.ts:521:    expect(noteNameToMidi('C-1')).toBe(0);
+packages/types/src/audio.ts:5:  /** Note in scientific pitch notation (e.g., "C4", "A#5"). */
+#!/usr/bin/env python3
+"""Run a local QA command with UTC logging and a credential-free environment."""
+import datetime
+import fcntl
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+QA = ROOT / 'docs/qa/2026-10-02'
+group, label, command = sys.argv[1:4]
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+artifact = QA / 'artifacts' / f'{group}-{label}.txt'
+env = {k: v for k, v in os.environ.items() if k in {
+    'PATH', 'HOME', 'TMPDIR', 'LANG', 'TERM', 'PW_TEST_CONNECT_WS_ENDPOINT',
+}}
+env.update({
+    'CI': '1', 'NEXT_TELEMETRY_DISABLED': '1',
+    'COREPACK_HOME': '/private/tmp/obsong-qa-corepack',
+    'XDG_CACHE_HOME': '/private/tmp/obsong-qa-cache',
+    'npm_config_userconfig': '/dev/null',
+})
+def clean(text):
+    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+    text = re.sub(r'(?i)(Bearer\s+)[A-Za-z0-9._-]+', r'\1[REDACTED]', text)
+    text = re.sub(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[REDACTED]', text)
+    return text
+
+def log(message):
+    for path in (QA / 'SESSION-LOG.md', QA / 'passes' / f'{group.upper()}-LOG.md'):
+        with path.open('a') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            stream.write(message)
+
+log(f'\n- {stamp} **{group}/{label} started**: `{command.replace(chr(10), " ")}`\n')
+started = time.monotonic()
+result = subprocess.run(command, shell=True, executable='/bin/zsh', cwd=ROOT,
+                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+output = clean(result.stdout)
+artifact.write_text(f'UTC start: {stamp}\nCommand: {command}\nExit: {result.returncode}\n\n{output}')
+end = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+log(f'- {end} **{group}/{label} ended**: exit {result.returncode}; {time.monotonic()-started:.1f}s. '
+    f'[Output](artifacts/{artifact.name}).\n')
+print(output, end='')
+sys.exit(result.returncode)

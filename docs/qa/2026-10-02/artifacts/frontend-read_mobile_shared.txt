@@ -1,0 +1,1395 @@
+UTC start: 2026-10-03T01:21:22Z
+Command: cat packages/shared/src/apiClient.ts packages/shared/src/__tests__/apiClient.test.ts apps/mobile/src/state/compositionCache.ts apps/mobile/src/state/CompositionsProvider.tsx apps/mobile/src/services/playbackRate.ts apps/mobile/src/auth/AuthProvider.tsx apps/web/src/hooks/useToneEngine.utils.ts apps/web/src/app/studio/page.tsx
+Exit: 0
+
+/**
+ * Shared API client utilities
+ * Provides a unified interface for making API requests
+ */
+
+import type {
+  ApiResponse,
+  ApiErrorResponse,
+  Composition,
+  CompositionSummary,
+  CreateCompositionDTO,
+  UpdateCompositionDTO,
+} from '@toposonics/types';
+
+export interface ApiClientConfig {
+  baseUrl: string;
+}
+
+export interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: unknown;
+  token?: string | null;
+}
+
+export interface FetchCompositionsOptions {
+  /** Page size; the server accepts 1-100 and defaults to 50. */
+  limit?: number;
+  /**
+   * Rows to skip before the page; defaults to 0. Legacy offset pagination —
+   * prefer `cursor` for a stable read under concurrent writes (#124).
+   * Ignored when `cursor` is set.
+   */
+  offset?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. Keyset-paginates over
+   * (created_at DESC, id DESC) so rows inserted mid-pagination can't shift the
+   * read window the way offset paging can.
+   */
+  cursor?: string;
+}
+
+/** A page of composition summaries plus the cursor for the next page, if any. */
+export interface CompositionsPage {
+  compositions: CompositionSummary[];
+  /** Present only when another page exists. */
+  nextCursor?: string;
+}
+
+/**
+ * Generic API request function
+ * Handles auth headers and response parsing
+ */
+export async function apiRequest<T>(
+  baseUrl: string,
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  // 204/empty bodies (e.g. DELETE) have nothing to parse.
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return undefined as T;
+  }
+
+  // Parse defensively: a gateway/proxy may return non-JSON (HTML) error pages, and we
+  // must not let a JSON.parse failure mask the real HTTP status.
+  let parsed: (ApiResponse<T> | ApiErrorResponse) | null = null;
+  try {
+    parsed = (await response.json()) as ApiResponse<T> | ApiErrorResponse;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    throw new Error('Invalid JSON response from server');
+  }
+
+  // A body that parses to null/non-object (e.g. a proxy returning bare `null`) would make
+  // `parsed.success` throw a TypeError and mask the real status.
+  if (parsed == null || typeof parsed !== 'object') {
+    throw new Error(response.ok ? 'Invalid response from server' : `HTTP ${response.status}`);
+  }
+
+  if (!response.ok || !parsed.success) {
+    const errorResponse = parsed as ApiErrorResponse;
+    const message = errorResponse.error?.message ?? `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  return (parsed as ApiResponse<T>).data;
+}
+
+/**
+ * Generic API request function that keeps the full success envelope, for
+ * endpoints that put metadata (e.g. `nextCursor`) next to `data`.
+ */
+export async function apiRequestEnvelope<T, M extends Record<string, unknown> = {}>(
+  baseUrl: string,
+  path: string,
+  options: RequestOptions = {}
+): Promise<{ data: T } & M> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.token) {
+    headers.Authorization = 'Bearer ' + options.token;
+  }
+
+  const response = await fetch(baseUrl + path, {
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  // 204/empty bodies (e.g. DELETE) have nothing to parse.
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    return { data: undefined as T } as { data: T } & M;
+  }
+
+  // Parse defensively: a gateway/proxy may return non-JSON (HTML) error pages, and we
+  // must not let a JSON.parse failure mask the real HTTP status.
+  let parsed: (ApiResponse<T> | ApiErrorResponse) | null = null;
+  try {
+    parsed = (await response.json()) as ApiResponse<T> | ApiErrorResponse;
+  } catch {
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    throw new Error('Invalid JSON response from server');
+  }
+
+  // A body that parses to null/non-object would make `parsed.success` throw a
+  // TypeError and mask the real status.
+  if (parsed == null || typeof parsed !== 'object') {
+    throw new Error(response.ok ? 'Invalid response from server' : 'HTTP ' + response.status);
+  }
+
+  if (!response.ok || !parsed.success) {
+    const errorResponse = parsed as ApiErrorResponse;
+    const message = errorResponse.error?.message ?? 'HTTP ' + response.status;
+    throw new Error(message);
+  }
+
+  const { success: _success, ...rest } = parsed as ApiResponse<T> & Record<string, unknown>;
+  return rest as { data: T } & M;
+}
+
+/**
+ * Create an API client with a base URL
+ */
+export function createApiClient(config: ApiClientConfig) {
+  const { baseUrl } = config;
+
+  /**
+   * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
+   * Requires authentication for private library access
+   */
+  const fetchCompositions = async (
+    token: string | null,
+    options: FetchCompositionsOptions = {}
+  ): Promise<CompositionSummary[]> => {
+    const page = await fetchCompositionsPage(token, options);
+    return page.compositions;
+  };
+
+  /**
+   * Like fetchCompositions but also returns the `nextCursor` from the response
+   * envelope, for callers driving cursor pagination themselves (#124).
+   */
+  const fetchCompositionsPage = async (
+    token: string | null,
+    options: FetchCompositionsOptions = {}
+  ): Promise<CompositionsPage> => {
+    // Build the query string by hand: React Native's URLSearchParams lacks set().
+    const params: string[] = [];
+    if (options.limit !== undefined) params.push(`limit=${options.limit}`);
+    if (options.offset !== undefined) params.push(`offset=${options.offset}`);
+    if (options.cursor !== undefined) params.push(`cursor=${encodeURIComponent(options.cursor)}`);
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    const envelope = await apiRequestEnvelope<CompositionSummary[], { nextCursor?: string }>(
+      baseUrl,
+      `/compositions${query}`,
+      { token }
+    );
+    return { compositions: envelope.data, nextCursor: envelope.nextCursor };
+  };
+
+  return {
+    fetchCompositions,
+    fetchCompositionsPage,
+
+    /**
+     * Fetch the user's entire composition library by following the cursor chain
+     * until the server stops returning `nextCursor`. Cursor (keyset) pagination
+     * keeps a stable read window even if rows are inserted mid-pagination (#124),
+     * which offset paging can't guarantee. Summaries are small (no noteEvents /
+     * imageData blobs), so loading the full library stays cheap. Bounded at 50
+     * pages (5000 rows) as a runaway guard. A closure over fetchCompositionsPage
+     * (not `this`) so the method survives the destructuring re-exports in the apps.
+     */
+    async fetchAllCompositions(token: string | null): Promise<CompositionSummary[]> {
+      const pageSize = 100;
+      const maxPages = 50;
+      const all: CompositionSummary[] = [];
+      let cursor: string | undefined;
+      let exhausted = false;
+
+      for (let page = 0; page < maxPages; page++) {
+        const result = await fetchCompositionsPage(token, {
+          limit: pageSize,
+          ...(cursor ? { cursor } : {}),
+        });
+        all.push(...result.compositions);
+        if (!result.nextCursor) {
+          exhausted = true;
+          break;
+        }
+        cursor = result.nextCursor;
+      }
+
+      // The cursor chain never terminated, so more rows may exist beyond the
+      // runaway guard. Don't silently present a truncated result as complete.
+      if (!exhausted) {
+        console.warn(
+          `fetchAllCompositions stopped at the ${maxPages * pageSize}-row guard; ` +
+            'the library may be larger than what was returned.'
+        );
+      }
+
+      return all;
+    },
+
+    /**
+     * Fetch a single composition by ID
+     * Requires authentication for private composition access
+     */
+    async fetchComposition(id: string, token: string | null): Promise<Composition> {
+      return apiRequest<Composition>(baseUrl, `/compositions/${id}`, { token });
+    },
+
+    /**
+     * Create a new composition
+     * Requires authentication - userId is extracted from the auth token by the API server
+     */
+    async createComposition(
+      payload: Omit<CreateCompositionDTO, 'userId'>,
+      token: string
+    ): Promise<Composition> {
+      return apiRequest<Composition>(baseUrl, '/compositions', {
+        method: 'POST',
+        body: payload,
+        token,
+      });
+    },
+
+    /**
+     * Update a composition
+     * Requires authentication - only the owner can update their composition
+     */
+    async updateComposition(
+      id: string,
+      updates: UpdateCompositionDTO,
+      token: string
+    ): Promise<Composition> {
+      return apiRequest<Composition>(baseUrl, `/compositions/${id}`, {
+        method: 'PUT',
+        body: updates,
+        token,
+      });
+    },
+
+    /**
+     * Delete a composition
+     * Requires authentication - only the owner can delete their composition
+     */
+    async deleteComposition(id: string, token: string): Promise<void> {
+      await apiRequest<void>(baseUrl, `/compositions/${id}`, {
+        method: 'DELETE',
+        token,
+      });
+    },
+  };
+}
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { apiRequest, createApiClient } from '../apiClient';
+
+/** Build a minimal Response-like object for the global fetch mock. */
+function mockResponse(opts: {
+  status: number;
+  ok?: boolean;
+  body?: unknown;
+  jsonThrows?: boolean;
+  contentLength?: string;
+}) {
+  const headers = new Map<string, string>();
+  if (opts.contentLength !== undefined) headers.set('content-length', opts.contentLength);
+  return {
+    status: opts.status,
+    ok: opts.ok ?? (opts.status >= 200 && opts.status < 300),
+    headers: { get: (k: string) => headers.get(k.toLowerCase()) ?? null },
+    json: opts.jsonThrows
+      ? () => Promise.reject(new SyntaxError('Unexpected token < in JSON'))
+      : () => Promise.resolve(opts.body),
+  };
+}
+
+function stubFetch(response: ReturnType<typeof mockResponse>) {
+  const fn = vi.fn().mockResolvedValue(response);
+  vi.stubGlobal('fetch', fn);
+  return fn;
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe('apiRequest', () => {
+  it('returns data on a successful JSON response', async () => {
+    stubFetch(mockResponse({ status: 200, body: { success: true, data: { id: 'x' } } }));
+    const result = await apiRequest<{ id: string }>('http://api', '/thing');
+    expect(result).toEqual({ id: 'x' });
+  });
+
+  it('attaches a Bearer [REDACTED] when provided', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: null } }));
+    await apiRequest('http://api', '/thing', { token: 'tok123' });
+    const init = fn.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer [REDACTED]');
+  });
+
+  it('returns without parsing on 204 No Content', async () => {
+    const fn = stubFetch(mockResponse({ status: 204, ok: true }));
+    // json() would reject if called; reaching here proves it was not parsed.
+    const result = await apiRequest('http://api', '/thing', { method: 'DELETE' });
+    expect(result).toBeUndefined();
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
+  it('treats content-length: 0 as an empty body', async () => {
+    const result = await stubFetchAndCall({ status: 200, ok: true, contentLength: '0' });
+    expect(result).toBeUndefined();
+  });
+
+  it('throws HTTP <status> when an error response body is not JSON', async () => {
+    stubFetch(mockResponse({ status: 502, ok: false, jsonThrows: true }));
+    await expect(apiRequest('http://api', '/thing')).rejects.toThrow('HTTP 502');
+  });
+
+  it('surfaces the API error message on a JSON error response', async () => {
+    stubFetch(
+      mockResponse({
+        status: 400,
+        ok: false,
+        body: { success: false, error: { code: 'INVALID_INPUT', message: 'bad title' } },
+      })
+    );
+    await expect(apiRequest('http://api', '/thing')).rejects.toThrow('bad title');
+  });
+
+  it('throws on ok:true but success:false', async () => {
+    stubFetch(mockResponse({ status: 200, ok: true, body: { success: false, error: {} } }));
+    await expect(apiRequest('http://api', '/thing')).rejects.toThrow('HTTP 200');
+  });
+});
+
+describe('createApiClient.fetchCompositions', () => {
+  it('requests /compositions with no query string by default', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchCompositions('tok');
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions');
+    expect(result).toEqual([]);
+  });
+
+  it('appends limit/offset as a query string when provided', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    await client.fetchCompositions('tok', { limit: 10, offset: 20 });
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=10&offset=20');
+  });
+
+  it('sends the cursor URL-encoded when provided', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    await client.fetchCompositions('tok', { limit: 10, cursor: 'a+b/c=' });
+    expect(fn.mock.calls[0][0]).toBe(
+      'http://api/compositions?limit=10&cursor=' + encodeURIComponent('a+b/c=')
+    );
+  });
+});
+
+describe('createApiClient.fetchCompositionsPage', () => {
+  it('returns the data array and nextCursor from the envelope', async () => {
+    const fn = stubFetch(
+      mockResponse({
+        status: 200,
+        body: { success: true, data: [{ id: 'c1' }], nextCursor: 'next1' },
+      })
+    );
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const page = await client.fetchCompositionsPage('tok');
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions');
+    expect(page).toEqual({ compositions: [{ id: 'c1' }], nextCursor: 'next1' });
+  });
+
+  it('omits nextCursor when the server omits it', async () => {
+    stubFetch(mockResponse({ status: 200, body: { success: true, data: [{ id: 'c1' }] } }));
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const page = await client.fetchCompositionsPage('tok');
+    expect(page.compositions).toEqual([{ id: 'c1' }]);
+    expect(page.nextCursor).toBeUndefined();
+  });
+});
+
+describe('createApiClient.fetchAllCompositions', () => {
+  it('follows the nextCursor chain until it is absent and concatenates in order', async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
+    const page2 = [{ id: 'c100' }, { id: 'c101' }, { id: 'c102' }];
+    const fn = vi
+      .fn()
+      .mockResolvedValueOnce(
+        mockResponse({ status: 200, body: { success: true, data: page1, nextCursor: 'cur1' } })
+      )
+      .mockResolvedValueOnce(mockResponse({ status: 200, body: { success: true, data: page2 } }));
+    vi.stubGlobal('fetch', fn);
+
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(fn.mock.calls[0][0]).toBe('http://api/compositions?limit=100');
+    expect(fn.mock.calls[1][0]).toBe('http://api/compositions?limit=100&cursor=cur1');
+    expect(result).toHaveLength(103);
+    expect(result[0]).toEqual({ id: 'c0' });
+    expect(result[102]).toEqual({ id: 'c102' });
+  });
+
+  it('stops after one request when no nextCursor is returned', async () => {
+    const fn = stubFetch(
+      mockResponse({ status: 200, body: { success: true, data: [{ id: 'only' }] } })
+    );
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([{ id: 'only' }]);
+  });
+
+  it('survives destructuring (no `this` dependence)', async () => {
+    const fn = stubFetch(mockResponse({ status: 200, body: { success: true, data: [] } }));
+    const { fetchAllCompositions } = createApiClient({ baseUrl: 'http://api' });
+    await expect(fetchAllCompositions('tok')).resolves.toEqual([]);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns instead of silently truncating when the cursor chain outlives the guard', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: `c${i}` }));
+    const fn = vi
+      .fn()
+      .mockResolvedValue(
+        mockResponse({ status: 200, body: { success: true, data: fullPage, nextCursor: 'cur' } })
+      );
+    vi.stubGlobal('fetch', fn);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const client = createApiClient({ baseUrl: 'http://api' });
+    const result = await client.fetchAllCompositions('tok');
+
+    // Guard stops after exactly 50 pages and flags the possible truncation.
+    expect(fn).toHaveBeenCalledTimes(50);
+    expect(result).toHaveLength(5000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+});
+
+async function stubFetchAndCall(opts: Parameters<typeof mockResponse>[0]) {
+  stubFetch(mockResponse(opts));
+  return apiRequest('http://api', '/thing');
+}
+export const COMPOSITION_LIST_CACHE_PREFIX = '@toposonics:compositions:list';
+
+export function getCompositionListCacheKey(userId: string): string {
+  return `${COMPOSITION_LIST_CACHE_PREFIX}:${userId}`;
+}
+
+export function getCompositionDetailCacheKey(userId: string, compositionId: string): string {
+  return `@toposonics:compositions:${userId}:${compositionId}`;
+}
+
+export function canUseCompositionCache(
+  token: string | null,
+  userId: string | null
+): boolean {
+  return Boolean(token && userId);
+}
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Composition, CompositionSummary, CreateCompositionDTO } from '@toposonics/types';
+import {
+  fetchComposition,
+  fetchAllCompositions,
+  createComposition,
+  deleteComposition as apiDeleteComposition,
+} from '../services/apiClient';
+import { useAuth } from '../auth/AuthProvider';
+import {
+  canUseCompositionCache,
+  getCompositionDetailCacheKey,
+  getCompositionListCacheKey,
+} from './compositionCache';
+
+interface CompositionsContextValue {
+  /** Lightweight list summaries; full compositions live in compositionsById. */
+  compositions: CompositionSummary[];
+  /** Full compositions (with noteEvents), populated on demand by loadComposition. */
+  compositionsById: Record<string, Composition>;
+  loading: boolean;
+  usingCache: boolean;
+  refresh: () => Promise<void>;
+  loadComposition: (id: string) => Promise<Composition | null>;
+  saveComposition: (payload: Omit<CreateCompositionDTO, 'userId'>) => Promise<Composition | null>;
+  removeComposition: (id: string) => Promise<void>;
+}
+
+const CompositionsContext = createContext<CompositionsContextValue | undefined>(undefined);
+
+export function CompositionsProvider({ children }: { children: React.ReactNode }) {
+  const { token, user } = useAuth();
+  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
+  const [compositionsById, setCompositionsById] = useState<Record<string, Composition>>({});
+  const [loading, setLoading] = useState(true);
+  const [usingCache, setUsingCache] = useState(false);
+
+  const activeUserId = user?.id ?? null;
+  // Tracks the currently active user so in-flight fetches from a previous user
+  // (slow network + sign-out/account-switch) can be discarded before they write state.
+  const activeUserIdRef = React.useRef(activeUserId);
+  useEffect(() => {
+    activeUserIdRef.current = activeUserId;
+  }, [activeUserId]);
+
+  // Mirror the committed list in a ref so mutations can derive the next list synchronously
+  // and persist it. Reading a variable assigned inside a functional state updater is unsafe:
+  // React may run the updater during a later render, after saveToCache already ran.
+  const compositionsRef = React.useRef(compositions);
+  useEffect(() => {
+    compositionsRef.current = compositions;
+  }, [compositions]);
+
+  const saveToCache = useCallback(async (items: CompositionSummary[]) => {
+    if (!activeUserId) return;
+
+    try {
+      await AsyncStorage.setItem(
+        getCompositionListCacheKey(activeUserId),
+        JSON.stringify({ items, cachedAt: Date.now() })
+      );
+    } catch (err) {
+      console.warn('Failed to cache compositions', err);
+    }
+  }, [activeUserId]);
+
+  const saveDetailToCache = useCallback(async (item: Composition) => {
+    if (!activeUserId) return;
+
+    try {
+      await AsyncStorage.setItem(getCompositionDetailCacheKey(activeUserId, item.id), JSON.stringify(item));
+    } catch (err) {
+      console.warn('Failed to cache composition detail', err);
+    }
+  }, [activeUserId]);
+
+  const hydrateFromCache = useCallback(async () => {
+    if (!activeUserId) return;
+
+    try {
+      const cached = await AsyncStorage.getItem(getCompositionListCacheKey(activeUserId));
+      if (cached) {
+        // Caches written before the summary migration hold full compositions; they still
+        // satisfy every summary field the list UI reads, so no migration is needed. They
+        // are no longer merged into compositionsById — that map holds full compositions
+        // only, populated by loadComposition (which has its own detail cache).
+        const parsed = JSON.parse(cached) as { items: CompositionSummary[] };
+        setCompositions(parsed.items);
+        setUsingCache(true);
+      }
+    } catch (err) {
+      console.warn('Failed to hydrate compositions cache', err);
+    }
+  }, [activeUserId]);
+
+  useEffect(() => {
+    setCompositions([]);
+    setCompositionsById({});
+    setUsingCache(false);
+  }, [activeUserId]);
+
+  const refresh = useCallback(async () => {
+    if (!canUseCompositionCache(token, activeUserId)) {
+      setCompositions([]);
+      setCompositionsById({});
+      setUsingCache(false);
+      setLoading(false);
+      return;
+    }
+
+    const requestUserId = activeUserId;
+    setLoading(true);
+    setUsingCache(false);
+    try {
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions();
+      // Discard results if the active user changed while the request was in flight,
+      // so we never repopulate a signed-out screen (or another account) with A's data.
+      if (activeUserIdRef.current !== requestUserId) return;
+      // The list endpoint now returns summaries (no noteEvents/imageData), so they are
+      // not merged into compositionsById — full records come from loadComposition.
+      setCompositions(data);
+      await saveToCache(data);
+    } catch (err) {
+      if (activeUserIdRef.current !== requestUserId) return;
+      console.warn('Falling back to cached compositions', err);
+      await hydrateFromCache();
+    } finally {
+      if (activeUserIdRef.current === requestUserId) {
+        setLoading(false);
+      }
+    }
+  }, [activeUserId, token, hydrateFromCache, saveToCache]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const loadComposition = useCallback(
+    async (id: string) => {
+      if (!canUseCompositionCache(token, activeUserId)) {
+        return null;
+      }
+
+      const cacheUserId = activeUserId as string;
+      const requestUserId = activeUserId;
+
+      try {
+        const data = await fetchComposition(id);
+        if (activeUserIdRef.current === requestUserId) {
+          setCompositionsById((prev) => ({ ...prev, [id]: data }));
+          await saveDetailToCache(data);
+        }
+        return data;
+      } catch (err) {
+        console.warn('Failed to fetch composition, using cache', err);
+        const cached = await AsyncStorage.getItem(
+          getCompositionDetailCacheKey(cacheUserId, id)
+        );
+        if (cached) {
+          return JSON.parse(cached) as Composition;
+        }
+        return null;
+      }
+    },
+    [activeUserId, token, saveDetailToCache]
+  );
+
+  const saveComposition = useCallback(
+    async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
+      if (!canUseCompositionCache(token, activeUserId)) return null;
+
+      const requestUserId = activeUserId;
+      const created = await createComposition(payload);
+      // Discard if the active user changed while the save was in flight (consistent with
+      // refresh/loadComposition), so we don't write into the wrong user's state/cache.
+      if (activeUserIdRef.current !== requestUserId) return created;
+
+      // The list holds lightweight summaries: derive one from the created composition so
+      // the noteEvents/imageData blobs stay out of the list state and its cache.
+      const createdSummary: CompositionSummary = {
+        id: created.id,
+        userId: created.userId,
+        title: created.title,
+        description: created.description,
+        mappingMode: created.mappingMode,
+        key: created.key,
+        scale: created.scale,
+        presetId: created.presetId,
+        tempo: created.tempo,
+        imageThumbnail: created.imageThumbnail,
+        noteCount: created.noteEvents.length,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      };
+      // Derive the next list from the committed ref (not inside a functional updater) so the
+      // exact list we persist is the one we set. Assign the ref immediately so a second
+      // mutation completing before React's sync effect runs builds on this list, not a stale one.
+      const nextList = [createdSummary, ...compositionsRef.current];
+      compositionsRef.current = nextList;
+      setCompositions(nextList);
+      void saveToCache(nextList);
+      setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
+      await saveDetailToCache(created);
+      return created;
+    },
+    [activeUserId, token, saveDetailToCache, saveToCache]
+  );
+
+  const removeComposition = useCallback(
+    async (id: string) => {
+      await apiDeleteComposition(id);
+
+      // Prune from in-memory state and the persisted caches so the deleted item
+      // doesn't reappear from cache on the next mount. Derive the next list from the
+      // committed ref so saveToCache persists exactly what we set; assign the ref
+      // immediately so back-to-back mutations never build on a stale list.
+      const nextList = compositionsRef.current.filter((c) => c.id !== id);
+      compositionsRef.current = nextList;
+      setCompositions(nextList);
+      setCompositionsById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      void saveToCache(nextList);
+      if (activeUserId) {
+        try {
+          await AsyncStorage.removeItem(getCompositionDetailCacheKey(activeUserId, id));
+        } catch (err) {
+          console.warn('Failed to evict composition detail cache', err);
+        }
+      }
+    },
+    [activeUserId, saveToCache]
+  );
+
+  const value = useMemo(
+    () => ({
+      compositions,
+      compositionsById,
+      loading,
+      usingCache,
+      refresh,
+      loadComposition,
+      saveComposition,
+      removeComposition,
+    }),
+    [
+      compositions,
+      compositionsById,
+      loading,
+      usingCache,
+      refresh,
+      loadComposition,
+      saveComposition,
+      removeComposition,
+    ]
+  );
+
+  return <CompositionsContext.Provider value={value}>{children}</CompositionsContext.Provider>;
+}
+
+export function useCompositions() {
+  const ctx = useContext(CompositionsContext);
+  if (!ctx) throw new Error('useCompositions must be used within CompositionsProvider');
+  return ctx;
+}
+/**
+ * Pure playback-rate math for the expo-audio beep voice. Kept in its own module (no expo-audio
+ * or asset imports) so it can be unit-tested in a plain node environment.
+ */
+
+export const BASE_FREQUENCY = 440;
+
+/**
+ * Convert a note frequency into an expo-audio playback rate for the 440 Hz beep sample.
+ *
+ * The playback-rate window honored reliably across platforms is roughly [0.5, 2.5], i.e. 220-1100 Hz. A flat clamp maps
+ * every note outside that window to the boundary rate, collapsing e.g. all of C2-G#3 to
+ * a single monotone pitch. Instead the ratio is octave-folded into the window first —
+ * halving/doubling preserves pitch class — so every out-of-range note lands in a playable
+ * octave and stays distinct from its neighbors. The clamp remains only as a safety net.
+ */
+export function computePlaybackRate(frequency: number, base: number = BASE_FREQUENCY): number {
+  if (!Number.isFinite(frequency) || frequency <= 0 || !Number.isFinite(base) || base <= 0) {
+    return 1;
+  }
+
+  // The ratio itself can still underflow to 0 or overflow to Infinity with finite positive
+  // inputs (e.g. MIN_VALUE / MAX_VALUE); either would make the folding loops spin forever.
+  const ratio = frequency / base;
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return 1;
+  }
+
+  let rate = ratio;
+  while (rate < 0.5) rate *= 2;
+  while (rate > 2.5) rate /= 2;
+
+  return Math.max(0.5, Math.min(2.5, rate));
+}
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { Platform } from 'react-native';
+import type { Session } from '@supabase/supabase-js';
+import type { User } from '@toposonics/types';
+import { supabase } from './supabaseClient';
+
+interface AuthContextValue {
+  session: Session | null;
+  user: User | null;
+  token: string | null;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  signOut: () => Promise<void>;
+  loading: boolean;
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function mapUser(session: Session | null): User | null {
+  if (!session) return null;
+  const supabaseUser = session.user;
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    displayName: (supabaseUser.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+    createdAt: new Date(supabaseUser.created_at),
+    lastLoginAt: supabaseUser.last_sign_in_at ? new Date(supabaseUser.last_sign_in_at) : undefined,
+  };
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setLoading(false);
+    };
+
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  const signInWithApple = async () => {
+    if (Platform.OS !== 'ios') {
+      throw new Error('Apple Sign-In is currently available on iOS only.');
+    }
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      ],
+    });
+
+    if (!credential.identityToken) {
+      throw new Error('Apple Sign-In failed: missing identity token');
+    }
+
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+      nonce: (credential as { nonce?: string }).nonce,
+    });
+
+    if (error) {
+      throw error;
+    }
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const user = mapUser(session);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        token: session?.access_token ?? null,
+        signInWithPassword,
+        signInWithApple,
+        signOut,
+        loading,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return ctx;
+}
+import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
+
+export type AudioTopology = 'single' | 'multi';
+
+const MULTI_VOICE_TRACK_IDS: VoiceType[] = ['bass', 'melody', 'pad', 'fx'];
+
+export function getAudioTopology(noteEvents: NoteEvent[]): AudioTopology {
+  return noteEvents.some(
+    (event) => !!event.trackId && MULTI_VOICE_TRACK_IDS.includes(event.trackId as VoiceType)
+  )
+    ? 'multi'
+    : 'single';
+}
+
+export function getAudioGraphSignature(
+  noteEvents: NoteEvent[],
+  preset: SoundPreset
+): string {
+  return JSON.stringify({
+    topology: getAudioTopology(noteEvents),
+    oscillatorType: preset.oscillatorType,
+    synthesis: preset.synthesis ?? null,
+  });
+}
+'use client';
+
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Button, Card } from '@toposonics/ui';
+import type {
+  KeyType,
+  ScaleType,
+  MappingMode,
+  NoteEvent,
+  ImageAnalysisResult,
+} from '@toposonics/types';
+import {
+  mapLinearLandscape,
+  mapDepthRidge,
+  mapImageToMultiVoiceComposition,
+  getPresetById,
+  getDefaultPreset,
+  getAllTopoPresets,
+  getScenePreset,
+  getAllScenePacks,
+  type TopoPreset,
+  type ScenePack,
+} from '@toposonics/core-audio';
+import {
+  analyzeImageFile,
+  analyzeImageFileDepthRidge,
+  analyzeImageFileMultiVoice,
+} from '@/lib/imageProcessing';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToneEngine } from '@/hooks/useToneEngine';
+import { ImageUploader } from '@/components/ImageUploader';
+import { MappingControls } from '@/components/MappingControls';
+import { PlaybackControls } from '@/components/PlaybackControls';
+import { TimelineVisualizer } from '@/components/TimelineVisualizer';
+import { ScenePackSelector } from '@/components/ScenePackSelector';
+import { exportCompositionToMidi } from '@/lib/midiExport';
+import { logAnalyticsEvent } from '@/lib/analytics';
+import { SaveCompositionCard } from '@/components/SaveCompositionCard';
+import { logError } from '@toposonics/shared';
+
+function StudioPageContent() {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+
+  // State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // When a scene-pack demo is loaded it changes mappingMode, which re-fires the
+  // analysis effect and would wipe the just-loaded demo notes. This flag makes the
+  // next effect run skip re-analysis (and the note reset) exactly once.
+  const demoLoadedRef = useRef(false);
+
+  // Image analysis result
+  const [analysis, setAnalysis] = useState<ImageAnalysisResult | null>(null);
+
+  // Musical parameters
+  const [key, setKey] = useState<KeyType>('C');
+  const [scale, setScale] = useState<ScaleType>('C_MAJOR');
+  const [mappingMode, setMappingMode] = useState<MappingMode>('LINEAR_LANDSCAPE');
+  const [presetId, setPresetId] = useState('sine-soft');
+  const [tempo, setTempo] = useState(90);
+
+  // TopoPreset state
+  const [selectedTopoPreset, setSelectedTopoPreset] = useState<TopoPreset | null>(null);
+
+  // ScenePack state
+  const [selectedScenePack, setSelectedScenePack] = useState<ScenePack | null>(null);
+
+  // Generated composition
+  const [noteEvents, setNoteEvents] = useState<NoteEvent[]>([]);
+
+  // Tone.js engine
+  const preset = getPresetById(presetId) || getDefaultPreset();
+  const { play, stop, isPlaying, isLoading: audioLoading, currentTime } = useToneEngine({
+    noteEvents,
+    tempo,
+    preset,
+  });
+
+  const compositionDurationBeats = useMemo(() => {
+    if (!noteEvents.length) return 0;
+    return noteEvents.reduce((max, event) => Math.max(max, event.start + event.duration), 0);
+  }, [noteEvents]);
+
+  const compositionDurationSeconds = useMemo(
+    () => compositionDurationBeats * (60 / Math.max(1, tempo)),
+    [compositionDurationBeats, tempo]
+  );
+
+  const scanlineProgress = useMemo(() => {
+    if (!compositionDurationSeconds) return 0;
+    return Math.min(currentTime / compositionDurationSeconds, 1);
+  }, [compositionDurationSeconds, currentTime]);
+
+  // Handle URL params for deep linking
+  useEffect(() => {
+    const sceneParam = searchParams.get('scene');
+    if (sceneParam) {
+      const allScenePacks = getAllScenePacks();
+      const targetScenePack = allScenePacks.find((pack) => pack.id === sceneParam);
+      if (targetScenePack) {
+        handleScenePackSelect(targetScenePack);
+      }
+    }
+    // Deep links should apply once per URL param change; preset helpers mutate local state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+    setImagePreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [selectedFile]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setAnalysis(null);
+      setIsAnalyzing(false);
+      return;
+    }
+
+    // A demo was just loaded (which changed mappingMode). Keep its notes instead of
+    // re-running analysis and clearing them; consume the flag so the next real change
+    // analyses normally.
+    if (demoLoadedRef.current) {
+      demoLoadedRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+
+    const runAnalysis = async () => {
+      stop();
+      setNoteEvents([]);
+      setIsAnalyzing(true);
+      setAnalysis(null);
+
+      try {
+        const result = (() => {
+          switch (mappingMode) {
+            case 'DEPTH_RIDGE':
+              return analyzeImageFileDepthRidge(selectedFile);
+            case 'MULTI_VOICE':
+              return analyzeImageFileMultiVoice(selectedFile);
+            case 'LINEAR_LANDSCAPE':
+            default:
+              return analyzeImageFile(selectedFile);
+          }
+        })();
+
+        const analysisResult = await result;
+        if (!cancelled) {
+          setAnalysis(analysisResult.analysis);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          logError(error as Error, { context: 'Image Analysis', mappingMode });
+          alert('Failed to analyze image');
+          setAnalysis(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAnalyzing(false);
+        }
+      }
+    };
+
+    runAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mappingMode, selectedFile, stop]);
+
+  // Handle image selection
+  const handleImageSelected = (file: File) => {
+    // Selecting an image is always a genuine analysis trigger; clear any pending
+    // demo-skip so this file is analysed normally.
+    demoLoadedRef.current = false;
+    setSelectedFile(file);
+  };
+
+  const applyPresetSettings = (preset: TopoPreset) => {
+    setSelectedTopoPreset(preset);
+    setKey(preset.defaultKey);
+    setScale(preset.defaultScale);
+    setTempo(preset.defaultTempoBpm);
+    setMappingMode(preset.mappingMode);
+  };
+
+  const applyScenePackSettings = (scenePack: ScenePack) => {
+    const allPresets = getAllTopoPresets();
+    const associatedPreset = getScenePreset(scenePack, allPresets);
+
+    if (associatedPreset) {
+      applyPresetSettings(associatedPreset);
+    }
+  };
+
+  // Handle scene pack selection
+  const handleScenePackSelect = (scenePack: ScenePack | null) => {
+    setSelectedScenePack(scenePack);
+
+    if (scenePack) {
+      applyScenePackSettings(scenePack);
+    } else {
+      // Clear preset when scene pack is cleared
+      setSelectedTopoPreset(null);
+    }
+  };
+
+  // Handle preset selection (manual override)
+  const handlePresetSelect = (preset: TopoPreset | null) => {
+    // Clear scene pack if manually selecting preset
+    setSelectedScenePack(null);
+
+    if (preset) {
+      applyPresetSettings(preset);
+    } else {
+      setSelectedTopoPreset(null);
+    }
+  };
+
+  // Handle demo loading
+  const handleLoadDemo = (demoNotes: NoteEvent[], scenePack: ScenePack) => {
+    // Load the demo composition
+    stop();
+    setNoteEvents(demoNotes);
+
+    // Preserve the demo notes if applying the scene pack changes mappingMode (which
+    // would otherwise re-trigger analysis and wipe them).
+    demoLoadedRef.current = true;
+
+    // Apply scene pack preset settings
+    applyScenePackSettings(scenePack);
+  };
+
+  // Generate composition
+  const handleGenerate = () => {
+    if (!analysis) {
+      alert('Please upload an image first');
+      return;
+    }
+
+    let events: NoteEvent[];
+
+    switch (mappingMode) {
+      case 'DEPTH_RIDGE':
+        events = mapDepthRidge(analysis, {
+          key,
+          scale,
+          maxNotes: 64,
+          noteDurationBeats: 0.5,
+          ridgeThreshold: 0.35,
+          depthToReverb: true,
+        });
+        break;
+      case 'MULTI_VOICE':
+        events = mapImageToMultiVoiceComposition(
+          analysis,
+          {
+            key,
+            scale,
+            tempoBpm: tempo,
+            enableBass: true,
+            enableMelody: true,
+            enablePad: true,
+          },
+          selectedTopoPreset || undefined
+        );
+        break;
+      case 'LINEAR_LANDSCAPE':
+      default:
+        events = mapLinearLandscape(analysis, {
+          key,
+          scale,
+          maxNotes: 64,
+          noteDurationBeats: 0.5,
+          enablePanning: true,
+          enableVelocityVariation: true,
+        });
+        break;
+    }
+
+    setNoteEvents(events);
+    logAnalyticsEvent('composition_generated', { mappingMode });
+  };
+
+  // Export composition as MIDI
+  const handleExportMidi = () => {
+    if (!noteEvents.length) {
+      alert('Generate a composition first');
+      return;
+    }
+
+    try {
+      exportCompositionToMidi({
+        noteEvents,
+        tempoBpm: tempo,
+        title: 'TopoSonics Composition',
+        description: '',
+        mappingMode,
+        key,
+        scale,
+        presetId,
+        userId: user?.id,
+        metadata: {
+          duration: compositionDurationSeconds,
+        },
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'MIDI Export' });
+      alert('Unable to export MIDI');
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-2">Studio</h1>
+        <p className="text-gray-400">Upload an image and generate a soundscape</p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Left Column: Image & Controls */}
+        <div className="space-y-6">
+          <Card title="1. Choose Scene Pack" padding="lg">
+            <ScenePackSelector
+              selectedScenePack={selectedScenePack}
+              onScenePackChange={handleScenePackSelect}
+              onLoadDemo={handleLoadDemo}
+            />
+          </Card>
+
+          <Card title="2. Upload Image" padding="lg">
+            <ImageUploader
+              onImageSelected={handleImageSelected}
+              preview={imagePreview}
+              showScanline={isPlaying && noteEvents.length > 0}
+              scanlineProgress={isPlaying ? scanlineProgress : 0}
+            />
+            {isAnalyzing && (
+              <div className="mt-4 text-center text-sm text-gray-400">
+                Analyzing image...
+              </div>
+            )}
+          </Card>
+
+          <Card title="3. Configure Mapping" padding="lg">
+            <MappingControls
+              musicalKey={key}
+              scale={scale}
+              mappingMode={mappingMode}
+              presetId={presetId}
+              selectedTopoPreset={selectedTopoPreset}
+              onKeyChange={setKey}
+              onScaleChange={setScale}
+              onMappingModeChange={setMappingMode}
+              onPresetChange={setPresetId}
+              onTopoPresetChange={handlePresetSelect}
+            />
+          </Card>
+
+          <Card title="4. Generate" padding="lg">
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={handleGenerate}
+              disabled={!analysis || isAnalyzing}
+            >
+              Generate Composition
+            </Button>
+          </Card>
+        </div>
+
+        {/* Right Column: Playback & Visualization */}
+        <div className="space-y-6">
+          <Card title="Playback" padding="lg">
+            <PlaybackControls
+              isPlaying={isPlaying}
+              isLoading={audioLoading}
+              tempo={tempo}
+              onPlay={play}
+              onStop={stop}
+              onTempoChange={setTempo}
+              disabled={noteEvents.length === 0}
+            />
+          </Card>
+
+          <TimelineVisualizer noteEvents={noteEvents} currentTime={currentTime} tempo={tempo} />
+
+          {noteEvents.length > 0 && (
+            <>
+              <SaveCompositionCard
+                noteEvents={noteEvents}
+                mappingMode={mappingMode}
+                keyType={key}
+                scale={scale}
+                presetId={presetId}
+                tempo={tempo}
+                imageFile={selectedFile}
+                durationSeconds={compositionDurationSeconds}
+              />
+              <Card title="Export" padding="lg">
+                <Button variant="outline" size="lg" fullWidth onClick={handleExportMidi}>
+                  Export as MIDI
+                </Button>
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading studio...</div>}>
+      <StudioPageContent />
+    </Suspense>
+  );
+}

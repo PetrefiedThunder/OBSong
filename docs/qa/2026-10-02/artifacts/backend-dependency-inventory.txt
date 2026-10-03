@@ -1,0 +1,6 @@
+UTC start: 2026-10-03T01:26:32Z
+Command: corepack pnpm -r list --depth 0 --json > docs/qa/2026-10-02/artifacts/dependency-inventory.json; node -p "JSON.stringify({node:process.version,playwright:require(\"/private/tmp/obsong-qa-tools/node_modules/@playwright/test/package.json\").version,axe:require(\"/private/tmp/obsong-qa-tools/node_modules/@axe-core/playwright/package.json\").version,coverage:require(\"/private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/package.json\").version})"
+
+{"node":"v26.7.0","playwright":"1.63.0","axe":"4.13.0","coverage":"4.1.11"}
+
+Exit: 0

@@ -1,0 +1,30 @@
+UTC start: 2026-10-03T01:24:11Z
+Command: corepack pnpm --filter @toposonics/mobile add -D -E react-test-renderer@19.2.3 @types/react-test-renderer@18.3.1 --ignore-scripts --store-dir /private/tmp/obsong-qa-pnpm-store
+Exit: 0
+
+(node:49675) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Progress: resolved 0, reused 1, downloaded 0, added 0
+apps/mobile                              |  WARN  deprecated eslint@8.57.1
+Progress: resolved 1183, reused 1117, downloaded 3, added 0
+ WARN  15 deprecated subdependencies found: @babel/plugin-proposal-async-generator-functions@7.20.7, @babel/plugin-proposal-class-properties@7.18.6, @babel/plugin-proposal-nullish-coalescing-operator@7.18.6, @babel/plugin-proposal-numeric-separator@7.18.6, @babel/plugin-proposal-object-rest-spread@7.20.7, @babel/plugin-proposal-optional-catch-binding@7.18.6, @babel/plugin-proposal-optional-chaining@7.21.0, @humanwhocodes/config-array@0.13.0, @humanwhocodes/object-schema@2.0.3, @xmldom/xmldom@0.8.11, glob@7.2.3, inflight@1.0.6, rimraf@2.6.3, rimraf@3.0.2, uuid@7.0.3
+.                                        |   +3 +
+Progress: resolved 1233, reused 1120, downloaded 9, added 3, done
+ WARN  Issues with peer dependencies found
+apps/mobile
+└─┬ react-native 0.86.2
+  ├── ✕ unmet peer @types/react@^19.1.1: found 18.2.48
+  └─┬ @react-native/virtualized-lists 0.86.2
+    └── ✕ unmet peer @types/react@^19.2.0: found 18.2.48
+
+packages/native-image-processing
+└─┬ expo-modules-core 57.0.17
+  ├── ✕ missing peer react-native@"*"
+  ├── ✕ missing peer react@"*"
+  └─┬ expo-modules-jsi 57.1.0
+    └── ✕ missing peer react-native@"*"
+Peer dependencies that should be installed:
+  react-native@"*"
+  react@"*"
+
+Done in 1.8s

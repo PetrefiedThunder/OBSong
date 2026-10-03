@@ -1,0 +1,11 @@
+UTC start: 2026-10-03T01:22:20Z
+Command: corepack pnpm -r --if-present lint
+Exit: 0
+
+Scope: 9 of 10 workspace projects
+apps/api lint$ eslint src --ext .ts
+apps/api lint: Done
+apps/mobile lint$ eslint src --ext .ts,.tsx
+apps/web lint$ eslint src next.config.mjs --ext .js,.jsx,.ts,.tsx
+apps/mobile lint: Done
+apps/web lint: Done

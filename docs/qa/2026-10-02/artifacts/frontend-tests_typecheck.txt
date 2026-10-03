@@ -1,0 +1,10 @@
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm --filter @toposonics/mobile --filter @toposonics/web typecheck
+
+Scope: 2 of 10 workspace projects
+apps/mobile typecheck$ tsc --noEmit
+apps/web typecheck$ tsc --noEmit
+apps/mobile typecheck: Done
+apps/web typecheck: Done
+
+Exit: 0

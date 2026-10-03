@@ -1,0 +1,10 @@
+UTC start: 2026-10-03T01:24:43Z
+Command: rg -n "jsx:|jsx\?|jsx.*preserve|oxc:" node_modules/.pnpm/vitest@4.1.11*/node_modules/vitest/dist/chunks/coverage.* /private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js apps/web/node_modules/vite/dist/node/index.d.ts /private/tmp/obsong-qa-tools/node_modules/vite/dist/node/index.d.ts | head -50 && git diff --stat -- apps/mobile/package.json pnpm-lock.yaml apps/web/vitest.config.ts
+Exit: 0
+
+rg: apps/web/node_modules/vite/dist/node/index.d.ts: No such file or directory (os error 2)
+/private/tmp/obsong-qa-tools/node_modules/vite/dist/node/index.d.ts:3805:  oxc: OxcOptions | false;
+ apps/mobile/package.json  |  2 ++
+ apps/web/vitest.config.ts |  2 ++
+ pnpm-lock.yaml            | 26 ++++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+)

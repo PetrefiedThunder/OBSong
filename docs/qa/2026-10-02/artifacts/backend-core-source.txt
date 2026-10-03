@@ -1,0 +1,425 @@
+UTC start: 2026-10-03T01:23:53Z
+Command: rg --files packages/core-image/src packages/core-audio/src packages/types/src && cat packages/core-image/src/analyzer.ts packages/core-image/src/analysis.ts packages/core-audio/src/index.ts packages/core-image/src/index.ts && cat packages/core-audio/src/__tests__/mappers.test.ts packages/core-image/src/__tests__/analyzer.test.ts
+Exit: 1
+
+packages/types/src/user.ts
+packages/types/src/index.ts
+packages/core-audio/src/scenePacks.ts
+packages/core-audio/src/index.ts
+packages/core-audio/src/presets.ts
+packages/core-audio/src/midi.ts
+packages/core-audio/src/scales.ts
+packages/types/src/__tests__/index.test.ts
+packages/types/src/api.ts
+packages/types/src/composition.ts
+packages/types/src/audio.ts
+packages/types/src/mapping.ts
+packages/types/src/image.ts
+packages/core-audio/src/mappers.ts
+packages/core-audio/src/topoPresets.ts
+packages/core-image/src/texture.ts
+packages/core-image/src/depth.ts
+packages/core-image/src/brightness.ts
+packages/core-image/src/arrayStats.ts
+packages/core-image/src/horizon.ts
+packages/core-image/src/index.ts
+packages/core-image/src/analyzer.ts
+packages/core-audio/src/__tests__/mappers.test.ts
+packages/core-audio/src/__tests__/sanity.test.ts
+packages/core-image/src/__tests__/sanity.test.ts
+packages/core-image/src/__tests__/analyzer.test.ts
+packages/core-image/src/__tests__/analysis.test.ts
+/**
+ * Main image analysis functions
+ * Combines brightness and depth utilities into complete analysis results
+ */
+
+import type { ImageAnalysisResult } from '@toposonics/types';
+import {
+  computeBrightnessProfileFromRow,
+  computeAveragedBrightnessProfile,
+  downsampleProfile,
+} from './brightness';
+import {
+  computeSimpleDepthProfile,
+  detectRidges,
+  smoothProfile,
+  applySobelEdgeDetection,
+  extractEdgeProfile,
+} from './depth';
+import { extractHorizonContour } from './horizon';
+import { computeTextureProfile } from './texture';
+
+/**
+ * Analyze an image for LINEAR_LANDSCAPE mapping mode
+ * Extracts a horizontal brightness profile from the center of the image
+ *
+ * @param pixels - Flattened RGBA pixel array from canvas or image buffer
+ * @param width - Image width in pixels
+ * @param height - Image height in pixels
+ * @param options - Analysis options
+ * @returns ImageAnalysisResult with brightness and depth profiles
+ */
+export function analyzeImageForLinearLandscape(
+  pixels: Uint8ClampedArray | number[],
+  width: number,
+  height: number,
+  options: {
+    /** Which row to sample (default: middle) */
+    rowIndex?: number;
+    /** Whether to average multiple rows (default: false) */
+    averageRows?: boolean;
+    /** Number of rows to average if enabled */
+    rowsToAverage?: number;
+    /** Maximum samples in output profile (downsamples if needed) */
+    maxSamples?: number;
+    /** Whether to compute depth profile */
+    includeDepth?: boolean;
+    /** Whether to detect ridges */
+    includeRidges?: boolean;
+  } = {}
+): ImageAnalysisResult {
+  const {
+    rowIndex = Math.floor(height / 2),
+    averageRows = false,
+    rowsToAverage = 5,
+    maxSamples = 128,
+    includeDepth = true,
+    includeRidges = false,
+  } = options;
+
+  // Extract brightness profile
+  let brightnessProfile: number[];
+
+  if (averageRows) {
+    // Average multiple rows around the center
+    const startRow = Math.max(0, rowIndex - Math.floor(rowsToAverage / 2));
+    const endRow = Math.min(height, rowIndex + Math.ceil(rowsToAverage / 2));
+    brightnessProfile = computeAveragedBrightnessProfile(pixels, width, height, startRow, endRow);
+  } else {
+    // Single row
+    brightnessProfile = computeBrightnessProfileFromRow(pixels, width, height, rowIndex);
+  }
+
+  // Downsample if needed
+  if (brightnessProfile.length > maxSamples) {
+    brightnessProfile = downsampleProfile(brightnessProfile, maxSamples);
+  }
+
+  // Build result
+  const result: ImageAnalysisResult = {
+    width,
+    height,
+    brightnessProfile,
+    metadata: {
+      samplingMethod: averageRows ? 'averaged' : 'single-row',
+      rowIndex,
+      timestamp: Date.now(),
+    },
+  };
+
+  // Optional: Compute depth profile
+  if (includeDepth) {
+    result.depthProfile = computeSimpleDepthProfile(brightnessProfile);
+  }
+
+  // Optional: Detect ridges
+  if (includeRidges) {
+    result.ridgeStrength = detectRidges(brightnessProfile);
+  }
+
+  return result;
+}
+
+/**
+ * Analyze an image for DEPTH_RIDGE mapping mode
+ * Uses Sobel edge detection to identify prominent ridges and depth features
+ *
+ * @param pixels - Flattened RGBA pixel array
+ * @param width - Image width
+ * @param height - Image height
+ * @param options - Analysis options
+ * @returns ImageAnalysisResult with enhanced depth and ridge data
+ */
+export function analyzeImageForDepthRidge(
+  pixels: Uint8ClampedArray | number[],
+  width: number,
+  height: number,
+  options: {
+    smoothingWindow?: number;
+    maxSamples?: number;
+    /**
+     * Optional precomputed per-pixel edge magnitudes (e.g. from a native Sobel
+     * implementation), length = width * height. Values may be normalized floats (0-1)
+     * or bytes (0-255); byte-scaled input (any value > 1) is normalized to 0-1.
+     * When provided, the JS Sobel pass is skipped.
+     */
+    precomputedEdgeMagnitudes?: number[] | Uint8ClampedArray;
+  } = {}
+): ImageAnalysisResult {
+  const {
+    smoothingWindow = 3,
+    maxSamples = 128,
+    precomputedEdgeMagnitudes,
+  } = options;
+
+  // 1. Apply Sobel edge detection to the full image (or reuse precomputed magnitudes)
+  let edgeMagnitudes: number[];
+  if (precomputedEdgeMagnitudes && precomputedEdgeMagnitudes.length === width * height) {
+    let isByteScaled = false;
+    for (let i = 0; i < precomputedEdgeMagnitudes.length; i++) {
+      if (precomputedEdgeMagnitudes[i] > 1) {
+        isByteScaled = true;
+        break;
+      }
+    }
+    edgeMagnitudes = Array.from(precomputedEdgeMagnitudes, (value) =>
+      isByteScaled ? value / 255 : value
+    );
+  } else {
+    // A precomputed buffer whose length != width*height would index out of bounds in
+    // extractEdgeProfile and produce NaNs; ignore it and recompute in JS so the analysis
+    // stays correct rather than silently corrupt. (Silent fallback keeps this package free
+    // of any host `console` dependency.)
+    edgeMagnitudes = applySobelEdgeDetection(pixels, width, height);
+  }
+
+  // 2. Extract edge profile along center horizontal line(s)
+  const centerRow = Math.floor(height / 2);
+  let ridgeStrength = extractEdgeProfile(edgeMagnitudes, width, height, {
+    rowIndex: centerRow,
+    averageRows: true,
+    rowsToAverage: 5,
+  });
+
+  // 3. Extract brightness profile for pitch mapping (clamp the row window like
+  //    analyzeImageForLinearLandscape does, so short images don't read OOB rows -> NaN)
+  let brightnessProfile = computeAveragedBrightnessProfile(
+    pixels,
+    width,
+    height,
+    Math.max(0, centerRow - 2),
+    Math.min(height, centerRow + 3)
+  );
+
+  // 4. Apply smoothing to ridge strength for stability
+  if (smoothingWindow > 1) {
+    ridgeStrength = smoothProfile(ridgeStrength, smoothingWindow);
+  }
+
+  // 5. Downsample if needed
+  if (brightnessProfile.length > maxSamples) {
+    brightnessProfile = downsampleProfile(brightnessProfile, maxSamples);
+    ridgeStrength = downsampleProfile(ridgeStrength, maxSamples);
+  }
+
+  // 6. Compute depth profile from local contrast
+  const depthProfile = computeSimpleDepthProfile(brightnessProfile);
+
+  return {
+    width,
+    height,
+    brightnessProfile,
+    ridgeStrength,
+    depthProfile,
+    metadata: {
+      samplingMethod: 'sobel-depth-ridge',
+      rowIndex: centerRow,
+      timestamp: Date.now(),
+    },
+  };
+}
+
+/**
+ * Analyze an image for MULTI_VOICE mapping mode
+ * Extracts all features needed for multi-layered soundscape generation
+ *
+ * @param pixels - Flattened RGBA pixel array
+ * @param width - Image width
+ * @param height - Image height
+ * @param options - Analysis options
+ * @returns Complete ImageAnalysisResult with all voice-specific features
+ */
+export function analyzeImageForMultiVoice(
+  pixels: Uint8ClampedArray | number[],
+  width: number,
+  height: number,
+  options: {
+    /** Maximum samples for brightness/ridge profiles */
+    maxSamples?: number;
+    /** Smoothing window for horizon */
+    horizonSmoothing?: number;
+  } = {}
+): ImageAnalysisResult {
+  const {
+    maxSamples = 128,
+    horizonSmoothing = 7,
+  } = options;
+
+  // 1. Extract brightness profile (for melody); clamp the row window so short images
+  //    don't read out-of-bounds rows and produce an all-NaN profile.
+  const centerRow = Math.floor(height / 2);
+  let brightnessProfile = computeAveragedBrightnessProfile(
+    pixels,
+    width,
+    height,
+    Math.max(0, centerRow - 2),
+    Math.min(height, centerRow + 3)
+  );
+
+  // Downsample brightness if needed
+  if (brightnessProfile.length > maxSamples) {
+    brightnessProfile = downsampleProfile(brightnessProfile, maxSamples);
+  }
+
+  // 2. Detect ridges (for melody emphasis)
+  const ridgeStrength = detectRidges(brightnessProfile);
+
+  // 3. Compute depth profile (for spatial FX)
+  const depthProfile = computeSimpleDepthProfile(brightnessProfile);
+
+  // 4. Extract horizon contour (for bass voice)
+  const rawHorizon = extractHorizonContour(pixels, width, height, horizonSmoothing);
+  const horizonProfile =
+    rawHorizon.length > maxSamples
+      ? downsampleProfile(rawHorizon, maxSamples)
+      : rawHorizon;
+
+  // 5. Compute texture profile (for pad voice)
+  const rawTexture = computeTextureProfile(pixels, width, height, {
+    windowSize: 8,
+    rowSamples: 5,
+  });
+  const textureProfile =
+    rawTexture.length > maxSamples
+      ? downsampleProfile(rawTexture, maxSamples)
+      : rawTexture;
+
+  return {
+    width,
+    height,
+    brightnessProfile,
+    ridgeStrength,
+    depthProfile,
+    horizonProfile,
+    textureProfile,
+    metadata: {
+      samplingMethod: 'multi-voice',
+      rowIndex: centerRow,
+      timestamp: Date.now(),
+    },
+  };
+}
+cat: packages/core-image/src/analysis.ts: No such file or directory
+/**
+ * @toposonics/core-audio
+ * Audio mapping utilities for converting image features to musical events
+ *
+ * This package provides the core logic for mapping ImageAnalysisResult
+ * objects to arrays of NoteEvent objects, which can then be rendered
+ * by any audio engine (Tone.js, expo-av, etc.)
+ */
+
+// Export scale utilities
+export {
+  getScaleNotes,
+  valueToScaleIndex,
+  brightnessToScaleIndex,
+  getKeyOffset,
+  midiToNoteName,
+  noteNameToMidi,
+  noteToFrequency,
+} from './scales';
+
+// Export mapping functions
+export {
+  mapLinearLandscape,
+  mapDepthRidge,
+  transposeNotes,
+  // Multi-voice mapping functions
+  mapHorizonToBass,
+  mapRidgesToMelody,
+  mapTextureToPad,
+  mapImageToMultiVoiceComposition,
+} from './mappers';
+
+// Export MIDI helpers
+export { compositionToMidiBlob, noteEventsToMidiBlob } from './midi';
+
+// Export preset utilities
+export {
+  SOUND_PRESETS,
+  getPresetById,
+  getDefaultPreset,
+  getAllPresets,
+} from './presets';
+
+// Export TopoSonics musical presets
+export { TOPO_PRESETS, getAllTopoPresets } from './topoPresets';
+
+// Export Scene Packs
+export { SCENE_PACKS, getScenePreset, getAllScenePacks } from './scenePacks';
+
+// Re-export types for convenience
+export type {
+  NoteEvent,
+  SoundPreset,
+  LinearLandscapeOptions,
+  DepthRidgeOptions,
+  MultiVoiceOptions,
+  ScaleType,
+  KeyType,
+  MappingMode,
+  VoiceType,
+  TopoPreset,
+  VoiceConfig,
+  MappingBias,
+  ScenePack,
+} from '@toposonics/types';
+/**
+ * @toposonics/core-image
+ * Environment-agnostic image analysis utilities for TopoSonics
+ *
+ * This package provides functions for analyzing images and extracting
+ * features that can be mapped to musical parameters.
+ *
+ * All functions are pure and environment-agnostic (no DOM/Canvas dependencies).
+ * The consuming application is responsible for extracting pixel data.
+ */
+
+// Export brightness utilities
+export {
+  computePixelBrightness,
+  computeBrightnessProfileFromRow,
+  downsampleProfile,
+  computeAveragedBrightnessProfile,
+} from './brightness';
+
+// Export depth utilities
+export {
+  computeSimpleDepthProfile,
+  detectRidges,
+  smoothProfile,
+  applySobelEdgeDetection,
+  extractEdgeProfile,
+} from './depth';
+
+// Export main analyzers
+export {
+  analyzeImageForLinearLandscape,
+  analyzeImageForDepthRidge,
+  analyzeImageForMultiVoice,
+} from './analyzer';
+
+// Export horizon utilities
+export {
+  computeHorizonProfile,
+  smoothHorizonProfile,
+  extractHorizonContour,
+} from './horizon';
+
+// Export texture utilities
+export { computeTextureFromBrightness, computeTextureProfile } from './texture';
+
+// Re-export types for convenience
+export type { ImageAnalysisResult } from '@toposonics/types';

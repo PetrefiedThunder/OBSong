@@ -1,0 +1,14 @@
+UTC start: 2026-10-03T01:26:13Z
+Command: QA_BASE_URL=http://127.0.0.1:3138 node /private/tmp/obsong-qa-tools/node_modules/@playwright/test/cli.js test --config docs/qa/2026-10-02/tools/ux-playwright.config.cjs
+
+
+Running 4 tests using 1 worker
+
+  ✓  1 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:7:1 › empty studio cannot generate notes before an image is analyzed (706ms)
+  ✓  2 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:12:1 › scene demo loads locally and enables MIDI export (568ms)
+  ✘  3 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:22:1 › UX-001 sign-in dialog keeps keyboard focus inside (465ms)
+  ✘  4 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:31:1 › UX-002 selected musical key exposes pressed state (5.5s)
+
+  4 passed (7.6s)
+
+Exit: 0

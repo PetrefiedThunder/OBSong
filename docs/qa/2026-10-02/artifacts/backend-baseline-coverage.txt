@@ -1,0 +1,35 @@
+UTC start: 2026-10-03T01:22:34Z
+Command: corepack pnpm --filter @toposonics/api exec vitest run --exclude "**/qa.*.test.ts" --coverage --coverage.include "src/**/*.ts" --coverage.exclude "src/__tests__/**" --coverage.reporter text --coverage.reporter json-summary --coverage.reporter json --coverage.reportsDirectory ../../docs/qa/2026-10-02/artifacts/backend-coverage-before
+Exit: 0
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api
+      Coverage enabled with v8
+
+ ✓ src/__tests__/compositions.service.test.ts (20 tests) 8ms
+ ✓ src/__tests__/compositions.routes.test.ts (23 tests) 234ms
+
+ Test Files  2 passed (2)
+      Tests  43 passed (43)
+   Start at  18:22:35
+   Duration  413ms (transform 58ms, setup 0ms, import 102ms, tests 242ms, environment 0ms)
+
+ % Coverage report from v8
+------------------|---------|----------|---------|---------|--------------------
+File              | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s  
+------------------|---------|----------|---------|---------|--------------------
+All files         |   37.89 |    33.33 |   36.58 |   38.43 |                    
+ src              |       0 |        0 |       0 |       0 |                    
+  auth.ts         |       0 |        0 |       0 |       0 | 13-93              
+  config.ts       |       0 |        0 |       0 |       0 | 12-60              
+  server.ts       |       0 |        0 |       0 |       0 | 21-270             
+  supabase.ts     |       0 |        0 |     100 |       0 | 4-11               
+ src/routes       |   69.84 |    82.14 |   66.66 |   69.84 |                    
+  compositions.ts |      80 |    88.46 |     100 |      80 | ...289,333,348-349 
+  health.ts       |       0 |        0 |       0 |       0 | 15-37              
+ src/services     |   81.01 |    71.42 |      90 |   83.09 |                    
+  compositions.ts |   81.01 |    71.42 |      90 |   83.09 | ...280-281,295-296 
+------------------|---------|----------|---------|---------|--------------------

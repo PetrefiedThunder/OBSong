@@ -1,0 +1,19 @@
+UTC start: 2026-10-03T01:33:51Z
+Command: python3 - <<'PY'
+from pathlib import Path
+from collections import Counter
+import json
+qa=Path("docs/qa/2026-10-02")
+rows=[l for l in (qa/"FINDINGS.md").read_text().splitlines() if l.startswith(("| BE-","| FE-","| UX-"))]
+counts=Counter(l.split("|")[2].strip() for l in rows)
+assert counts=={"High":3,"Medium":9,"Low":1},counts
+for name in ["PLAN.md","SESSION-LOG.md","FINDINGS.md","COVERAGE.md","SUMMARY.md"]:assert (qa/name).stat().st_size>0
+assert "Counts: Critical=0 High=3 Medium=9 Low=1" in (qa/"SUMMARY.md").read_text()
+with (qa/"SESSION-LOG.md").open("a") as f:f.write("\n- 2026-10-03T01:34Z: Final consolidation verified 13 findings (3 High/9 Medium/1 Low), five mandatory docs, 18 screenshots, no broken local report links, all expected browser failures at intended assertions, and final build/static/unit success. Final scope command exit1 came only from lsof finding no listeners on the three QA ports; local servers are stopped. Final offline scan covered 408 files with no findings. Root added loopback-only guards to browser helpers and syntax-checked them; no application behavior changed. No commit, push, PR or deployment action occurred.\n")
+print(json.dumps({"findings":len(rows),"severity":dict(counts),"required_docs":5,"screenshots":len(list((qa/"artifacts").glob("*.png")))}))
+PY
+ git diff --check
+
+{"findings": 13, "severity": {"Medium": 9, "High": 3, "Low": 1}, "required_docs": 5, "screenshots": 18}
+
+Exit: 0

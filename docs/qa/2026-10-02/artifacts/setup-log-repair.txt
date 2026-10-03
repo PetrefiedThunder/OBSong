@@ -1,0 +1,12 @@
+UTC start: 2026-10-03T01:26:32Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path("docs/qa/2026-10-02")
+for file in (p / "passes").glob("*-LOG.md"):
+    file.write_text(file.read_text().replace("(artifacts/", "(../artifacts/"))
+with (p / "SESSION-LOG.md").open("a") as f:
+    f.write("\n- 2026-10-03T01:25Z: `write_stdin Ctrl-C` stopped failed local server attempts :3000 and :3137 (exit 130); initial harness did not flush their completion records. :3137 stream artifact retains EMFILE watcher evidence. A direct TERM of PID46597 was denied by sandbox; no forced retry. Polling server :3138 returned HTTP200. Updated runner to stream output, record interruptions, and repair relative artifact links in group logs.\n")
+PY
+
+
+Exit: 0

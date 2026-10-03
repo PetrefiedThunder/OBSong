@@ -1,0 +1,67 @@
+UTC start: 2026-10-03T01:28:02Z
+Command: QA_BASE_URL=http://127.0.0.1:3138 node docs/qa/2026-10-02/tools/ux-perf.cjs
+
+[
+  {
+    "route": "/",
+    "utc": "2026-10-03T01:28:04.824Z",
+    "observer": {
+      "lcp": 52,
+      "cls": 0,
+      "longTasks": [
+        99
+      ]
+    },
+    "navigation": [
+      {
+        "ttfb": 23.9000000001397,
+        "domContentLoaded": 47.0999999998603,
+        "load": 247.19999999995343
+      }
+    ],
+    "paints": [
+      {
+        "name": "first-paint",
+        "ms": 52
+      },
+      {
+        "name": "first-contentful-paint",
+        "ms": 52
+      }
+    ],
+    "resourceCount": 6,
+    "totalTransfer": 2641387
+  },
+  {
+    "route": "/studio",
+    "utc": "2026-10-03T01:28:06.519Z",
+    "observer": {
+      "lcp": 296,
+      "cls": 0.09583333333333334,
+      "longTasks": [
+        99
+      ]
+    },
+    "navigation": [
+      {
+        "ttfb": 25.5,
+        "domContentLoaded": 40.10000000009313,
+        "load": 253.30000000004657
+      }
+    ],
+    "paints": [
+      {
+        "name": "first-paint",
+        "ms": 44
+      },
+      {
+        "name": "first-contentful-paint",
+        "ms": 44
+      }
+    ],
+    "resourceCount": 6,
+    "totalTransfer": 3096058
+  }
+]
+
+Exit: 0

@@ -1,0 +1,9 @@
+UTC start: 2026-10-03T01:23:05Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path('docs/qa/2026-10-02/tools/ux-browser.cjs')
+s=p.read_text().replace("'/private/tmp/obsong-qa-browser-tools'", "'/private/tmp/obsong-qa-tools'").replace("await page.addScriptTag({path:axePath});", "await page.evaluate(fs.readFileSync(axePath, 'utf8'));")
+p.write_text(s)
+PY
+Exit: 0
+

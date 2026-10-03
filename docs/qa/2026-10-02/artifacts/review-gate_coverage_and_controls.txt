@@ -1,0 +1,262 @@
+UTC start: 2026-10-03T01:27:18Z
+Command: cat docs/qa/2026-10-02/artifacts/backend-negative-control.txt docs/qa/2026-10-02/artifacts/backend-core-pad-negative-control.txt && cat docs/qa/2026-10-02/artifacts/frontend-coverage_totals.txt && cat docs/qa/2026-10-02/artifacts/frontend-tests_typecheck.txt docs/qa/2026-10-02/artifacts/frontend-added_tests_lint.txt && cat docs/qa/2026-10-02/artifacts/ux-browser-regressions.txt
+
+UTC start: 2026-10-03T01:24:18Z
+Command: corepack pnpm --filter @toposonics/api exec vitest run --config /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api/vitest.config.ts --root /private/tmp/obsong-backend-negative-i41y_okm --testNamePattern "BE-00"
+Exit: 1
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (../../../Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api/vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /private/tmp/obsong-backend-negative-i41y_okm
+
+ ❯ qa.persistence.test.ts (10 tests | 1 failed | 9 skipped) 6ms
+     ↓ creates with server ownership and drops forged system/unknown fields
+     ↓ preserves protected fields and untouched content on an ordinary partial update
+     ↓ maps a raced-away update (PGRST116) to null
+     ↓ maps a raced-away update (22P02) to null
+     ↓ does not turn a delete provider failure into reported success
+     ↓ rejects malformed cursor timestamp  without querying
+     ↓ rejects malformed cursor timestamp not a date without querying
+     ↓ rejects malformed cursor timestamp 2026-99-99 without querying
+     ↓ rejects malformed cursor timestamp 2026-01-01|unexpected without querying
+     × BE-002 preserves both disjoint edits from concurrent partial updates 5ms
+ ❯ qa.proxy.test.ts (2 tests | 1 failed | 1 skipped) 34ms
+   ↓ does not trust forwarding headers with the default proxy configuration
+   × BE-003 trusts only one proxy hop when TRUST_PROXY=1 34ms
+ ❯ qa.boundaries.test.ts (31 tests | 5 failed | 26 skipped) 80ms
+     ↓ rejects out-of-range payload 0
+     ↓ rejects out-of-range payload 1
+     ↓ rejects out-of-range payload 2
+     ↓ rejects out-of-range payload 3
+     ↓ rejects out-of-range payload 4
+     ↓ rejects out-of-range payload 5
+     ↓ rejects out-of-range payload 6
+     ↓ rejects out-of-range payload 7
+     ↓ rejects out-of-range payload 8
+     ↓ rejects out-of-range payload 9
+     ↓ rejects out-of-range payload 10
+     ↓ accepts exact inclusive boundary 0
+     ↓ accepts exact inclusive boundary 1
+     ↓ accepts exact inclusive boundary 2
+     ↓ accepts exact inclusive boundary 3
+     ↓ rejects invalid pagination limit=0
+     ↓ rejects invalid pagination limit=101
+     ↓ rejects invalid pagination limit=1.1
+     ↓ rejects invalid pagination offset=-1
+     ↓ rejects invalid pagination offset=1.1
+     ↓ rejects invalid pagination cursor=
+     ↓ returns a safe error after provider failure on 'GET' '/compositions'
+     ↓ returns a safe error after provider failure on 'GET' '/compositions/11111111-1111-4111-8111…'
+     ↓ returns a safe error after provider failure on 'POST' '/compositions'
+     ↓ returns a safe error after provider failure on 'PUT' '/compositions/11111111-1111-4111-8111…'
+     ↓ returns a safe error after provider failure on 'DELETE' '/compositions/11111111-1111-4111-8111…'
+     × BE-001 rejects non-musical or wrong-typed musical values 0 50ms
+     × BE-001 rejects non-musical or wrong-typed musical values 1 9ms
+     × BE-001 rejects non-musical or wrong-typed musical values 2 7ms
+     × BE-001 rejects non-musical or wrong-typed musical values 3 7ms
+     × BE-001 rejects non-musical or wrong-typed musical values 4 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  qa.boundaries.test.ts > QA composition boundary values and error handling > BE-001 rejects non-musical or wrong-typed musical values 0
+ FAIL  qa.boundaries.test.ts > QA composition boundary values and error handling > BE-001 rejects non-musical or wrong-typed musical values 1
+ FAIL  qa.boundaries.test.ts > QA composition boundary values and error handling > BE-001 rejects non-musical or wrong-typed musical values 2
+ FAIL  qa.boundaries.test.ts > QA composition boundary values and error handling > BE-001 rejects non-musical or wrong-typed musical values 3
+ FAIL  qa.boundaries.test.ts > QA composition boundary values and error handling > BE-001 rejects non-musical or wrong-typed musical values 4
+AssertionError: expected 201 to be 400 // Object.is equality
+
+- Expected
++ Received
+
+- 400
++ 201
+
+ ❯ qa.boundaries.test.ts:87:33
+     85|   ])('BE-001 rejects non-musical or wrong-typed musical values %#', as…
+     86|     const response = await app.inject({ method: 'POST', url: '/composi…
+     87|     expect(response.statusCode).toBe(400);
+       |                                 ^
+     88|     expect(mocked.createComposition).not.toHaveBeenCalled();
+     89|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  qa.persistence.test.ts > QA persistence boundaries > BE-002 preserves both disjoint edits from concurrent partial updates
+AssertionError: expected { title: 'Original title', …(9) } to match object { title: 'New title', …(1) }
+(8 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "description": "New description",
+-   "title": "New title",
++   "title": "Original title",
+  }
+
+ ❯ qa.persistence.test.ts:110:28
+    108|     ]);
+    109|     expect(results.every(Boolean)).toBe(true);
+    110|     expect(persisted.data).toMatchObject({ title: 'New title', descrip…
+       |                            ^
+    111|   });
+    112| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  qa.proxy.test.ts > BE-003 trusts only one proxy hop when TRUST_PROXY=1
+AssertionError: expected '198.51.100.1' to be '203.0.113.10' // Object.is equality
+
+Expected: "203.0.113.10"
+Received: "198.51.100.1"
+
+ ❯ qa.proxy.test.ts:33:32
+     31|       headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.10' },
+     32|     });
+     33|     expect(response.json().ip).toBe('203.0.113.10');
+       |                                ^
+     34|   } finally { await app.close(); }
+     35| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  7 failed | 36 skipped (43)
+   Start at  18:24:19
+   Duration  222ms (transform 74ms, setup 0ms, import 149ms, tests 120ms, environment 0ms)
+
+undefined
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --config /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api/vitest.config.ts --root /private/tmp/obsong-backend-negative-i41y_okm --testNamePattern BE-00
+UTC start: 2026-10-03T01:25:19Z
+Command: python3 - <<'PY'
+from pathlib import Path
+import subprocess
+p=Path("packages/core-audio/src/__tests__/qa-invariants.test.ts")
+source=p.read_text()
+try:
+    p.write_text(source.replace("it.fails('BE-101:", "it('BE-101:"))
+    result=subprocess.run(["pnpm", "exec", "vitest", "run", "src/__tests__/qa-invariants.test.ts", "-t", "BE-101"], cwd="packages/core-audio")
+    print("Negative control expected one failure; exit =", result.returncode, flush=True)
+    if result.returncode != 1:
+        raise SystemExit("Negative control did not reproduce the expected failure")
+finally:
+    p.write_text(source)
+PY
+Exit: 0
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio
+
+ ❯ src/__tests__/qa-invariants.test.ts (31 tests | 1 failed | 30 skipped) 6ms
+     ↓ C_MAJOR remains playable for all 12 keys and all three modes
+     ↓ C_MINOR remains playable for all 12 keys and all three modes
+     ↓ D_MAJOR remains playable for all 12 keys and all three modes
+     ↓ E_MINOR remains playable for all 12 keys and all three modes
+     ↓ A_MINOR remains playable for all 12 keys and all three modes
+     ↓ A_SHARP_MINOR remains playable for all 12 keys and all three modes
+     ↓ G_MAJOR remains playable for all 12 keys and all three modes
+     ↓ C_PENTATONIC remains playable for all 12 keys and all three modes
+     ↓ A_MINOR_PENTATONIC remains playable for all 12 keys and all three modes
+     ↓ C_BLUES remains playable for all 12 keys and all three modes
+     ↓ D_DORIAN remains playable for all 12 keys and all three modes
+     ↓ A_DORIAN remains playable for all 12 keys and all three modes
+     ↓ C_MIXOLYDIAN remains playable for all 12 keys and all three modes
+     ↓ E_PHRYGIAN remains playable for all 12 keys and all three modes
+     ↓ A_HARMONIC_MINOR remains playable for all 12 keys and all three modes
+     ↓ C_LYDIAN remains playable for all 12 keys and all three modes
+     ↓ C_WHOLE_TONE remains playable for all 12 keys and all three modes
+     ↓ 'majestic-mountains' emits playable notes within each enabled voice pitch range
+     ↓ 'night-city' emits playable notes within each enabled voice pitch range
+     ↓ 'foggy-forest' emits playable notes within each enabled voice pitch range
+     ↓ 'desert-drones' emits playable notes within each enabled voice pitch range
+     ↓ 'ocean-horizon' emits playable notes within each enabled voice pitch range
+     ↓ 'industrial-grid' emits playable notes within each enabled voice pitch range
+     ↓ explicitly disabling every voice returns an empty composition
+     × BE-101: pad segmentation includes a final partial texture segment 5ms
+     ↓ retains tempo=40 BPM, beats, track names and pitches without mutating input
+     ↓ retains tempo=90 BPM, beats, track names and pitches without mutating input
+     ↓ retains tempo=120 BPM, beats, track names and pitches without mutating input
+     ↓ retains tempo=240 BPM, beats, track names and pitches without mutating input
+     ↓ uses composition tempo and accepts an explicit export tempo override
+     ↓ rejects an empty export with an actionable error
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/qa-invariants.test.ts > QA seeded mapping contracts > BE-101: pad segmentation includes a final partial texture segment
+AssertionError: expected [ …(12) ] to not deeply equal [ …(12) ]
+
+Compared values have no visual difference.
+
+ ❯ src/__tests__/qa-invariants.test.ts:98:27
+     96|     const flat = mapTextureToPad([0, 0, 0, 0, 0, 0, 0], 'C', 'C_MAJOR'…
+     97|     const rightEdge = mapTextureToPad([0, 0, 0, 0, 0, 0, 1], 'C', 'C_M…
+     98|     expect(rightEdge).not.toEqual(flat);
+       |                           ^
+     99|   });
+    100| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 30 skipped (31)
+   Start at  18:25:20
+   Duration  121ms (transform 31ms, setup 0ms, import 43ms, tests 6ms, environment 0ms)
+
+Negative control expected one failure; exit = 1
+UTC start: 2026-10-03T01:26:22Z
+Command: python3 - <<'PY'
+import json
+from pathlib import Path
+base=Path("docs/qa/2026-10-02/artifacts")
+for name in ["coverage-web-before-oxc", "coverage-web-after", "coverage-mobile-before", "coverage-mobile-after"]:
+ data=json.loads((base/name/"coverage-summary.json").read_text())
+ print(name, "files",len(data)-1, json.dumps(data["total"]))
+PY
+
+coverage-web-before-oxc files 26 {"lines": {"total": 1058, "covered": 4, "skipped": 0, "pct": 0.37}, "statements": {"total": 1105, "covered": 4, "skipped": 0, "pct": 0.36}, "functions": {"total": 207, "covered": 3, "skipped": 0, "pct": 1.44}, "branches": {"total": 515, "covered": 5, "skipped": 0, "pct": 0.97}, "branchesTrue": {"total": 0, "covered": 0, "skipped": 0, "pct": 100}}
+coverage-web-after files 26 {"lines": {"total": 1058, "covered": 50, "skipped": 0, "pct": 4.72}, "statements": {"total": 1105, "covered": 52, "skipped": 0, "pct": 4.7}, "functions": {"total": 207, "covered": 11, "skipped": 0, "pct": 5.31}, "branches": {"total": 515, "covered": 17, "skipped": 0, "pct": 3.3}, "branchesTrue": {"total": 0, "covered": 0, "skipped": 0, "pct": 100}}
+coverage-mobile-before files 16 {"lines": {"total": 648, "covered": 14, "skipped": 0, "pct": 2.16}, "statements": {"total": 683, "covered": 16, "skipped": 0, "pct": 2.34}, "functions": {"total": 120, "covered": 4, "skipped": 0, "pct": 3.33}, "branches": {"total": 308, "covered": 13, "skipped": 0, "pct": 4.22}, "branchesTrue": {"total": 0, "covered": 0, "skipped": 0, "pct": 100}}
+coverage-mobile-after files 16 {"lines": {"total": 648, "covered": 147, "skipped": 0, "pct": 22.68}, "statements": {"total": 683, "covered": 156, "skipped": 0, "pct": 22.84}, "functions": {"total": 120, "covered": 25, "skipped": 0, "pct": 20.83}, "branches": {"total": 308, "covered": 40, "skipped": 0, "pct": 12.98}, "branchesTrue": {"total": 0, "covered": 0, "skipped": 0, "pct": 100}}
+
+Exit: 0
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm --filter @toposonics/mobile --filter @toposonics/web typecheck
+
+Scope: 2 of 10 workspace projects
+apps/mobile typecheck$ tsc --noEmit
+apps/web typecheck$ tsc --noEmit
+apps/mobile typecheck: Done
+apps/web typecheck: Done
+
+Exit: 0
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm exec eslint apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts apps/mobile/src/auth/__tests__/secureStorage.qa.test.ts apps/web/src/lib/__tests__/imageProcessing.qa.test.ts apps/web/vitest.config.ts
+
+Pages directory cannot be found at /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/pages or /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/src/pages. If using a custom path, please configure with the `no-html-link-for-pages` rule in your eslint config file.
+
+Exit: 0
+UTC start: 2026-10-03T01:26:13Z
+Command: QA_BASE_URL=http://127.0.0.1:3138 node /private/tmp/obsong-qa-tools/node_modules/@playwright/test/cli.js test --config docs/qa/2026-10-02/tools/ux-playwright.config.cjs
+
+
+Running 4 tests using 1 worker
+
+  ✓  1 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:7:1 › empty studio cannot generate notes before an image is analyzed (706ms)
+  ✓  2 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:12:1 › scene demo loads locally and enables MIDI export (568ms)
+  ✘  3 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:22:1 › UX-001 sign-in dialog keeps keyboard focus inside (465ms)
+  ✘  4 [chromium] › docs/qa/2026-10-02/tools/ux-regression.spec.cjs:31:1 › UX-002 selected musical key exposes pressed state (5.5s)
+
+  4 passed (7.6s)
+
+Exit: 0
+
+Exit: 0

@@ -1,0 +1,22 @@
+UTC start: 2026-10-03T01:25:11Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path('docs/qa/2026-10-02/tools/ux-browser.cjs');s=p.read_text()
+a="const actual=b.browserType().name();report.browsers.push({requested:name,actual,version:b.version()});await b.close();\n    return {requested:name,actual,note:actual===name?'connected':'Server is a different browser; not a '+name+' smoke'};"
+b="""const actual=b.browserType().name();report.browsers.push({requested:name,actual,version:b.version()});
+    const c=await b.newContext({viewport:{width:1280,height:900}});
+    await c.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin?r.continue():r.abort('blockedbyclient'));
+    const p=await c.newPage();p.setDefaultTimeout(12000);
+    await p.goto(base+'/studio',{waitUntil:'networkidle',timeout:30000});
+    await p.getByRole('heading',{name:'Studio',exact:true}).waitFor();
+    await p.getByRole('button',{name:/Ocean Horizon/}).click();
+    await p.getByRole('button',{name:'Play Demo',exact:true}).click();
+    await p.getByRole('button',{name:'Save to Library'}).waitFor();
+    const screenshot=await screenshotEngine(p,name);
+    await c.close();await b.close();
+    return {requested:name,actual,note:'Studio scene selection and demo note loading passed',screenshot};"""
+s=s.replace(a,b).replace("async function scan(page,name) {", "async function screenshotEngine(page,name) {return screenshot(page,'studio-'+name);}\nasync function scan(page,name) {")
+p.write_text(s)
+PY
+Exit: 0
+

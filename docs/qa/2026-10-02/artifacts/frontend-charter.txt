@@ -1,0 +1,54 @@
+UTC start: 2026-10-03T01:21:43Z
+Command: date -u && cat docs/qa/2026-10-02/tools/run.py && cat packages/core-image/src/utils.ts && cat apps/mobile/src/screens/CompositionDetailScreen.tsx
+Exit: 1
+
+Sat Oct  3 01:21:43 UTC 2026
+#!/usr/bin/env python3
+"""Run a local QA command with UTC logging and a credential-free environment."""
+import datetime
+import fcntl
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+QA = ROOT / 'docs/qa/2026-10-02'
+group, label, command = sys.argv[1:4]
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+artifact = QA / 'artifacts' / f'{group}-{label}.txt'
+env = {k: v for k, v in os.environ.items() if k in {
+    'PATH', 'HOME', 'TMPDIR', 'LANG', 'TERM', 'PW_TEST_CONNECT_WS_ENDPOINT',
+}}
+env.update({
+    'CI': '1', 'NEXT_TELEMETRY_DISABLED': '1',
+    'COREPACK_HOME': '/private/tmp/obsong-qa-corepack',
+    'XDG_CACHE_HOME': '/private/tmp/obsong-qa-cache',
+    'npm_config_userconfig': '/dev/null',
+})
+def clean(text):
+    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+    text = re.sub(r'(?i)(Bearer\s+)[A-Za-z0-9._-]+', r'\1[REDACTED]', text)
+    text = re.sub(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[REDACTED]', text)
+    return text
+
+def log(message):
+    for path in (QA / 'SESSION-LOG.md', QA / 'passes' / f'{group.upper()}-LOG.md'):
+        with path.open('a') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            stream.write(message)
+
+log(f'\n- {stamp} **{group}/{label} started**: `{command.replace(chr(10), " ")}`\n')
+started = time.monotonic()
+result = subprocess.run(command, shell=True, executable='/bin/zsh', cwd=ROOT,
+                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+output = clean(result.stdout)
+artifact.write_text(f'UTC start: {stamp}\nCommand: {command}\nExit: {result.returncode}\n\n{output}')
+end = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+log(f'- {end} **{group}/{label} ended**: exit {result.returncode}; {time.monotonic()-started:.1f}s. '
+    f'[Output](artifacts/{artifact.name}).\n')
+print(output, end='')
+sys.exit(result.returncode)
+cat: packages/core-image/src/utils.ts: No such file or directory

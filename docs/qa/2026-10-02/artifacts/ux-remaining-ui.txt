@@ -1,0 +1,667 @@
+UTC start: 2026-10-03T01:21:42Z
+Command: sed -n "250,540p" apps/web/src/app/studio/page.tsx && sed -n "1,260p" apps/web/src/components/ScenePackSelector.tsx && sed -n "1,180p" apps/web/src/components/LandingDemoPlayer.tsx && sed -n "1,150p" apps/web/src/lib/api.ts && sed -n "1,120p" apps/web/src/middleware.ts && cat docs/qa/2026-10-02/tools/run.py
+Exit: 0
+
+    if (!analysis) {
+      alert('Please upload an image first');
+      return;
+    }
+
+    let events: NoteEvent[];
+
+    switch (mappingMode) {
+      case 'DEPTH_RIDGE':
+        events = mapDepthRidge(analysis, {
+          key,
+          scale,
+          maxNotes: 64,
+          noteDurationBeats: 0.5,
+          ridgeThreshold: 0.35,
+          depthToReverb: true,
+        });
+        break;
+      case 'MULTI_VOICE':
+        events = mapImageToMultiVoiceComposition(
+          analysis,
+          {
+            key,
+            scale,
+            tempoBpm: tempo,
+            enableBass: true,
+            enableMelody: true,
+            enablePad: true,
+          },
+          selectedTopoPreset || undefined
+        );
+        break;
+      case 'LINEAR_LANDSCAPE':
+      default:
+        events = mapLinearLandscape(analysis, {
+          key,
+          scale,
+          maxNotes: 64,
+          noteDurationBeats: 0.5,
+          enablePanning: true,
+          enableVelocityVariation: true,
+        });
+        break;
+    }
+
+    setNoteEvents(events);
+    logAnalyticsEvent('composition_generated', { mappingMode });
+  };
+
+  // Export composition as MIDI
+  const handleExportMidi = () => {
+    if (!noteEvents.length) {
+      alert('Generate a composition first');
+      return;
+    }
+
+    try {
+      exportCompositionToMidi({
+        noteEvents,
+        tempoBpm: tempo,
+        title: 'TopoSonics Composition',
+        description: '',
+        mappingMode,
+        key,
+        scale,
+        presetId,
+        userId: user?.id,
+        metadata: {
+          duration: compositionDurationSeconds,
+        },
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'MIDI Export' });
+      alert('Unable to export MIDI');
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold mb-2">Studio</h1>
+        <p className="text-gray-400">Upload an image and generate a soundscape</p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Left Column: Image & Controls */}
+        <div className="space-y-6">
+          <Card title="1. Choose Scene Pack" padding="lg">
+            <ScenePackSelector
+              selectedScenePack={selectedScenePack}
+              onScenePackChange={handleScenePackSelect}
+              onLoadDemo={handleLoadDemo}
+            />
+          </Card>
+
+          <Card title="2. Upload Image" padding="lg">
+            <ImageUploader
+              onImageSelected={handleImageSelected}
+              preview={imagePreview}
+              showScanline={isPlaying && noteEvents.length > 0}
+              scanlineProgress={isPlaying ? scanlineProgress : 0}
+            />
+            {isAnalyzing && (
+              <div className="mt-4 text-center text-sm text-gray-400">
+                Analyzing image...
+              </div>
+            )}
+          </Card>
+
+          <Card title="3. Configure Mapping" padding="lg">
+            <MappingControls
+              musicalKey={key}
+              scale={scale}
+              mappingMode={mappingMode}
+              presetId={presetId}
+              selectedTopoPreset={selectedTopoPreset}
+              onKeyChange={setKey}
+              onScaleChange={setScale}
+              onMappingModeChange={setMappingMode}
+              onPresetChange={setPresetId}
+              onTopoPresetChange={handlePresetSelect}
+            />
+          </Card>
+
+          <Card title="4. Generate" padding="lg">
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              onClick={handleGenerate}
+              disabled={!analysis || isAnalyzing}
+            >
+              Generate Composition
+            </Button>
+          </Card>
+        </div>
+
+        {/* Right Column: Playback & Visualization */}
+        <div className="space-y-6">
+          <Card title="Playback" padding="lg">
+            <PlaybackControls
+              isPlaying={isPlaying}
+              isLoading={audioLoading}
+              tempo={tempo}
+              onPlay={play}
+              onStop={stop}
+              onTempoChange={setTempo}
+              disabled={noteEvents.length === 0}
+            />
+          </Card>
+
+          <TimelineVisualizer noteEvents={noteEvents} currentTime={currentTime} tempo={tempo} />
+
+          {noteEvents.length > 0 && (
+            <>
+              <SaveCompositionCard
+                noteEvents={noteEvents}
+                mappingMode={mappingMode}
+                keyType={key}
+                scale={scale}
+                presetId={presetId}
+                tempo={tempo}
+                imageFile={selectedFile}
+                durationSeconds={compositionDurationSeconds}
+              />
+              <Card title="Export" padding="lg">
+                <Button variant="outline" size="lg" fullWidth onClick={handleExportMidi}>
+                  Export as MIDI
+                </Button>
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading studio...</div>}>
+      <StudioPageContent />
+    </Suspense>
+  );
+}
+'use client';
+
+import { useState } from 'react';
+import type { ScenePack, NoteEvent } from '@toposonics/types';
+import { getAllScenePacks } from '@toposonics/core-audio';
+
+interface ScenePackSelectorProps {
+  selectedScenePack: ScenePack | null;
+  onScenePackChange: (pack: ScenePack | null) => void;
+  onLoadDemo?: (noteEvents: NoteEvent[], scenePack: ScenePack) => void;
+}
+
+export function ScenePackSelector({
+  selectedScenePack,
+  onScenePackChange,
+  onLoadDemo,
+}: ScenePackSelectorProps) {
+  const scenePacks = getAllScenePacks();
+  const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+
+  const handleLoadDemo = async (scenePack: ScenePack) => {
+    if (!onLoadDemo) return;
+
+    setLoadingDemo(scenePack.id);
+    try {
+      const response = await fetch(`/demo/compositions/${scenePack.id}.json`);
+      if (!response.ok) {
+        throw new Error('Demo not found');
+      }
+      const data = await response.json();
+      onLoadDemo(data.noteEvents, scenePack);
+    } catch (error) {
+      console.error('Failed to load demo:', error);
+      alert('Demo composition not available for this scene pack');
+    } finally {
+      setLoadingDemo(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-3">Scene Pack</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Custom / No Pack Option */}
+          <button
+            onClick={() => onScenePackChange(null)}
+            className={`p-4 rounded-lg text-left transition-all border-2 ${
+              selectedScenePack === null
+                ? 'bg-primary-600/20 border-primary-500'
+                : 'bg-surface-secondary border-gray-700 hover:border-gray-600'
+            }`}
+          >
+            <div className="font-medium">Custom</div>
+            <div className="text-xs text-gray-400 mt-1">Manual configuration</div>
+          </button>
+
+          {/* Scene Pack Cards */}
+          {scenePacks.map((pack) => (
+            <button
+              key={pack.id}
+              onClick={() => onScenePackChange(pack)}
+              className={`p-4 rounded-lg text-left transition-all border-2 ${
+                selectedScenePack?.id === pack.id
+                  ? 'border-2'
+                  : 'bg-surface-secondary border-gray-700 hover:border-gray-600'
+              }`}
+              style={{
+                borderColor:
+                  selectedScenePack?.id === pack.id
+                    ? pack.uiThemeHints?.accentColor || '#A855F7'
+                    : undefined,
+                backgroundColor:
+                  selectedScenePack?.id === pack.id
+                    ? `${pack.uiThemeHints?.accentColor || '#A855F7'}20`
+                    : undefined,
+              }}
+            >
+              <div className="font-medium">{pack.name}</div>
+              <div className="text-xs text-gray-400 mt-1 line-clamp-2">{pack.tagline}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected Scene Pack Details */}
+      {selectedScenePack && (
+        <div className="bg-surface-secondary rounded-lg p-4 space-y-3 border border-gray-700">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="font-medium text-sm mb-1">Description</h3>
+              <p className="text-sm text-gray-400">{selectedScenePack.description}</p>
+            </div>
+            {onLoadDemo && (
+              <button
+                onClick={() => handleLoadDemo(selectedScenePack)}
+                disabled={loadingDemo === selectedScenePack.id}
+                className="ml-4 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: selectedScenePack.uiThemeHints?.accentColor || '#A855F7',
+                }}
+              >
+                {loadingDemo === selectedScenePack.id ? 'Loading...' : 'Play Demo'}
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <h3 className="font-medium text-sm mb-1">Best For</h3>
+              <div className="flex flex-wrap gap-1">
+                {selectedScenePack.recommendedSubjects.map((subject, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs bg-surface-elevated px-2 py-1 rounded"
+                    style={{
+                      color: selectedScenePack.uiThemeHints?.accentColor || '#A855F7',
+                    }}
+                  >
+                    {subject}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-medium text-sm mb-1">Lighting</h3>
+              <p className="text-sm text-gray-400">{selectedScenePack.recommendedLighting}</p>
+            </div>
+          </div>
+
+          {selectedScenePack.recommendedUsageNotes && (
+            <div>
+              <h3 className="font-medium text-sm mb-1">Tips</h3>
+              <p className="text-sm text-gray-400">{selectedScenePack.recommendedUsageNotes}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+'use client';
+
+import { useEffect, useId, useRef, useState } from 'react';
+import type { NoteEvent, ScenePack } from '@toposonics/types';
+
+type ToneTransport = {
+  stop: () => void;
+  start: () => void;
+};
+type ToneModule = {
+  PolySynth: new (...args: unknown[]) => ToneSynth;
+  Synth: new (...args: unknown[]) => unknown;
+  Part: new <T>(callback: (time: number, value: T) => void, events: T[]) => TonePart;
+  Transport: ToneTransport;
+  start: () => Promise<void>;
+};
+type ToneSynth = {
+  dispose: () => void;
+  toDestination: () => ToneSynth;
+  triggerAttackRelease: (
+    note: string,
+    duration: number,
+    time?: number,
+    velocity?: number
+  ) => void;
+};
+type TonePart = {
+  dispose: () => void;
+  start: (time: number) => void;
+  stop: () => void;
+};
+
+let tonePromise: Promise<ToneModule> | null = null;
+
+function loadTone() {
+  tonePromise ??= Promise.all([
+    import('tone/build/esm/instrument/PolySynth.js'),
+    import('tone/build/esm/instrument/Synth.js'),
+    import('tone/build/esm/event/Part.js'),
+    import('tone/build/esm/core/Global.js'),
+  ]).then(([polySynth, synth, part, global]) => {
+    const context = global.getContext();
+
+    return {
+      PolySynth: polySynth.PolySynth as ToneModule['PolySynth'],
+      Synth: synth.Synth as ToneModule['Synth'],
+      Part: part.Part as ToneModule['Part'],
+      Transport: context.transport as ToneTransport,
+      start: global.start,
+    };
+  });
+  return tonePromise;
+}
+
+interface LandingDemoPlayerProps {
+  demoNotes: NoteEvent[];
+  scenePack: ScenePack;
+  /** Tempo in BPM. NoteEvent start/duration are in beats and must be converted to the
+   *  seconds that Tone.js expects for numeric Part times. */
+  tempoBpm?: number;
+  onClose: () => void;
+}
+
+export function LandingDemoPlayer({
+  demoNotes,
+  scenePack,
+  tempoBpm = 120,
+  onClose,
+}: LandingDemoPlayerProps) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const titleId = useId();
+  const toneRef = useRef<ToneModule | null>(null);
+  const synthRef = useRef<ToneSynth | null>(null);
+  const partRef = useRef<TonePart | null>(null);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStopTimer = () => {
+    if (stopTimerRef.current !== null) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    let disposed = false;
+
+    void loadTone().then((tone) => {
+      if (disposed) return;
+
+      toneRef.current = tone;
+      synthRef.current = new tone.PolySynth(tone.Synth, {
+        envelope: {
+          attack: 0.02,
+          decay: 0.1,
+          sustain: 0.5,
+          release: 1.0,
+        },
+      }).toDestination() as ToneSynth;
+    });
+
+    return () => {
+      disposed = true;
+      clearStopTimer();
+      // The Tone Transport is a module-level singleton shared with the studio engine;
+      // stop it on unmount so a still-pending demo timer can't silence studio playback.
+      if (partRef.current) {
+        partRef.current.stop();
+        partRef.current.dispose();
+      }
+      toneRef.current?.Transport.stop();
+      synthRef.current?.dispose();
+    };
+  }, []);
+
+  const handlePlay = async () => {
+    if (!synthRef.current || demoNotes.length === 0) return;
+
+    const tone = toneRef.current ?? (await loadTone());
+    toneRef.current = tone;
+
+    await tone.start();
+
+    // Stop any existing playback (and cancel a pending auto-stop from a prior play)
+    clearStopTimer();
+    if (partRef.current) {
+      partRef.current.stop();
+      partRef.current.dispose();
+    }
+
+    // NoteEvent start/duration are in beats; Tone.js reads numeric Part times as seconds,
+    // so convert with the demo's tempo (otherwise a 40 BPM demo plays as if 60 BPM).
+    const secondsPerBeat = 60 / tempoBpm;
+
+    // Create part from note events
+    const events = demoNotes.map((note) => ({
+      time: note.start * secondsPerBeat,
+      note: note.note,
+      duration: note.duration * secondsPerBeat,
+      velocity: note.velocity || 0.7,
+    }));
+
+    const part = new tone.Part((time, event) => {
+      synthRef.current?.triggerAttackRelease(
+        event.note,
+        event.duration,
+        time,
+        event.velocity
+      );
+    }, events);
+
+    part.start(0);
+    partRef.current = part;
+
+    setIsPlaying(true);
+    tone.Transport.start();
+
+    // Calculate total duration (seconds) and stop after it elapses (+1s tail).
+    const maxTimeSeconds =
+      Math.max(...demoNotes.map((n) => n.start + n.duration)) * secondsPerBeat + 1;
+    stopTimerRef.current = setTimeout(() => {
+      stopTimerRef.current = null;
+      tone.Transport.stop();
+      setIsPlaying(false);
+    }, maxTimeSeconds * 1000);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  const handleStop = () => {
+    clearStopTimer();
+    if (partRef.current) {
+      partRef.current.stop();
+    }
+    toneRef.current?.Transport.stop();
+/**
+ * API client utilities for web application
+ * Uses the shared API client with web-specific configuration
+ */
+
+import { createApiClient, API_URL } from '@toposonics/shared';
+
+/**
+ * Web application API client instance
+ */
+const apiClient = createApiClient({ baseUrl: API_URL });
+
+export const {
+  fetchCompositions,
+  fetchAllCompositions,
+  fetchComposition,
+  createComposition,
+  updateComposition,
+  deleteComposition,
+} = apiClient;
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+/**
+ * Per-request Content-Security-Policy with a nonce.
+ *
+ * Why middleware (not next.config headers): a strict `script-src` that drops
+ * `'unsafe-inline'` needs a fresh nonce per response, and the Next.js App Router only
+ * applies that nonce to its own hydration/streaming scripts when it reads the CSP from the
+ * *request* headers. `'strict-dynamic'` then lets those trusted scripts load the rest
+ * (chunks, Tone.js dynamic imports) without a host allowlist.
+ *
+ * `style-src` still allows `'unsafe-inline'` because the app uses inline `style={{}}`
+ * attributes (dynamic colors, the scanline position); that's a style vector, not the
+ * script-execution vector that matters for token exfiltration.
+ */
+// The API base URL is a cross-origin host (the Fastify API), so it must be listed in
+// connect-src explicitly — 'self' only covers the web origin. In production it's HTTPS
+// (covered by the `https:` token below), but in dev it's http://localhost:3001, which
+// needs both the explicit origin and http: to be allowed.
+function apiOrigin(): string | null {
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+export function middleware(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  const scriptSrc = isDev
+    ? // Next dev/HMR + React Refresh need eval; never in production.
+      `'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+    : `'self' 'nonce-${nonce}' 'strict-dynamic'`;
+
+  // Allow the app to reach the API (and Supabase over https/wss). In dev also allow http:
+  // so a plain-HTTP API (default http://localhost:3001) isn't blocked or force-upgraded.
+  const connectSrc = ["'self'", 'https:', 'wss:', apiOrigin(), isDev ? 'http:' : null]
+    .filter(Boolean)
+    .join(' ');
+
+  const csp = [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    `connect-src ${connectSrc}`,
+    "media-src 'self' blob: data:",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    // Only force http->https in production; in dev it would break the http API.
+    ...(isDev ? [] : ['upgrade-insecure-requests']),
+  ].join('; ');
+
+  // Propagate the nonce + CSP on the request so Next tags its scripts with the nonce.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('content-security-policy', csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  // Enforce it in the browser.
+  response.headers.set('content-security-policy', csp);
+  return response;
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except static assets, image optimization, and the favicon.
+     * Also skip prefetch requests (they don't render HTML that needs a nonce).
+     */
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+  ],
+};
+#!/usr/bin/env python3
+"""Run a local QA command with UTC logging and a credential-free environment."""
+import datetime
+import fcntl
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+QA = ROOT / 'docs/qa/2026-10-02'
+group, label, command = sys.argv[1:4]
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+artifact = QA / 'artifacts' / f'{group}-{label}.txt'
+env = {k: v for k, v in os.environ.items() if k in {
+    'PATH', 'HOME', 'TMPDIR', 'LANG', 'TERM', 'PW_TEST_CONNECT_WS_ENDPOINT',
+}}
+env.update({
+    'CI': '1', 'NEXT_TELEMETRY_DISABLED': '1',
+    'COREPACK_HOME': '/private/tmp/obsong-qa-corepack',
+    'XDG_CACHE_HOME': '/private/tmp/obsong-qa-cache',
+    'npm_config_userconfig': '/dev/null',
+})
+def clean(text):
+    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+    text = re.sub(r'(?i)(Bearer\s+)[A-Za-z0-9._-]+', r'\1[REDACTED]', text)
+    text = re.sub(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[REDACTED]', text)
+    return text
+
+def log(message):
+    for path in (QA / 'SESSION-LOG.md', QA / 'passes' / f'{group.upper()}-LOG.md'):
+        with path.open('a') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            stream.write(message)
+
+log(f'\n- {stamp} **{group}/{label} started**: `{command.replace(chr(10), " ")}`\n')
+started = time.monotonic()
+result = subprocess.run(command, shell=True, executable='/bin/zsh', cwd=ROOT,
+                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+output = clean(result.stdout)
+artifact.write_text(f'UTC start: {stamp}\nCommand: {command}\nExit: {result.returncode}\n\n{output}')
+end = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+log(f'- {end} **{group}/{label} ended**: exit {result.returncode}; {time.monotonic()-started:.1f}s. '
+    f'[Output](artifacts/{artifact.name}).\n')
+print(output, end='')
+sys.exit(result.returncode)

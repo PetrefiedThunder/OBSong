@@ -1,0 +1,281 @@
+UTC start: 2026-10-03T01:25:17Z
+Command: sed -n "1,220p" apps/web/src/components/tour/TourPopup.tsx && sed -n "1,160p" apps/mobile/src/components/SignInModal.tsx && rg -n "accessibility|onPress|TextInput" apps/mobile/App.tsx | head -60 && nl -ba apps/web/src/app/layout.tsx | sed -n "53,87p" && nl -ba apps/web/src/app/page.tsx | sed -n "135,160p"
+Exit: 0
+
+import React from 'react';
+import { useTour } from './TourProvider';
+import { unlockAudio } from '@/lib/demoPlayback';
+
+export function TourPopup() {
+  const { tourStep, nextStep, stopTour } = useTour();
+
+  const handleNext = () => {
+    // Unlock/resume the audio context inside the click gesture so the PLAY_MUSIC step
+    // (triggered from an effect, outside any gesture) can play under browser autoplay
+    // policies.
+    unlockAudio();
+    nextStep();
+  };
+
+  if (!tourStep) {
+    return null;
+  }
+
+  const popupStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    backgroundColor: '#2d3748',
+    color: 'white',
+    padding: '2rem',
+    borderRadius: '0.5rem',
+    zIndex: 1000,
+    maxWidth: '400px',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    backgroundColor: '#4299e1',
+    color: 'white',
+    padding: '0.5rem 1rem',
+    borderRadius: '0.25rem',
+    border: 'none',
+    cursor: 'pointer',
+    marginTop: '1rem',
+  };
+
+  return (
+    <div style={popupStyle}>
+      <h3>{tourStep.title}</h3>
+      <p>{tourStep.content}</p>
+      <button style={buttonStyle} onClick={handleNext}>
+        Next
+      </button>
+      <button style={{ ...buttonStyle, backgroundColor: '#a0aec0', marginLeft: '1rem' }} onClick={stopTour}>
+        Skip Tour
+      </button>
+    </div>
+  );
+}
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+interface SignInModalProps {
+  visible: boolean;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (email: string, password: string) => Promise<void>;
+  onAppleSignIn?: () => Promise<void>;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+}
+
+export function SignInModal({
+  visible,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  onAppleSignIn,
+  title = 'Sign In',
+  description = 'Enter your email and password to continue.',
+  submitLabel = 'Sign In',
+}: SignInModalProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (!visible) {
+      setEmail('');
+      setPassword('');
+    }
+  }, [visible]);
+
+  const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.description}>{description}</Text>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              placeholder="you@example.com"
+              placeholderTextColor="#6b7280"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              placeholder="Password"
+              placeholderTextColor="#6b7280"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={onClose}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton, !canSubmit && styles.buttonDisabled]}
+              onPress={() => void onSubmit(email.trim(), password)}
+              disabled={!canSubmit}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>{submitLabel}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {Platform.OS === 'ios' && onAppleSignIn && (
+            <>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={[styles.appleButton, isSubmitting && styles.buttonDisabled]}
+                onPress={() => void onAppleSignIn()}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.buttonText}>Continue with Apple</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  card: {
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#f9fafb',
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginBottom: 20,
+  },
+  fieldGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#e5e7eb',
+    marginBottom: 8,
+  },
+  input: {
+    53	          <div className="min-h-screen flex flex-col">
+    54	            <header className="border-b border-gray-800 bg-surface-primary">
+    55	              <nav className="container mx-auto px-4 py-4">
+    56	                <div className="flex items-center justify-between">
+    57	                  <Link href="/" className="text-2xl font-bold text-primary-400">
+    58	                    🎵 TopoSonics
+    59	                  </Link>
+    60	                  <div className="flex gap-6">
+    61	                    <Link
+    62	                      href="/studio"
+    63	                      className="text-gray-300 hover:text-white transition-colors"
+    64	                    >
+    65	                      Studio
+    66	                    </Link>
+    67	                    <Link
+    68	                      href="/compositions"
+    69	                      className="text-gray-300 hover:text-white transition-colors"
+    70	                    >
+    71	                      Compositions
+    72	                    </Link>
+    73	                  </div>
+    74	                </div>
+    75	              </nav>
+    76	            </header>
+    77	            <main className="flex-1">{children}</main>
+    78	            <footer className="border-t border-gray-800 bg-surface-primary py-6">
+    79	              <div className="container mx-auto px-4 text-center text-gray-400 text-sm">
+    80	                TopoSonics &copy; 2024 - Turn images into soundscapes
+    81	              </div>
+    82	            </footer>
+    83	          </div>
+    84	        </AuthProvider>
+    85	      </body>
+    86	    </html>
+    87	  );
+   135	                      ? 'bg-primary-600 text-white'
+   136	                      : 'bg-surface-elevated text-gray-300 hover:bg-surface-elevated'
+   137	                  }`}
+   138	                >
+   139	                  {category}
+   140	                </button>
+   141	              ))}
+   142	            </div>
+   143	          </div>
+   144	
+   145	          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+   146	            {scenePacks.map((pack) => (
+   147	              <div
+   148	                key={pack.id}
+   149	                className="group relative rounded-xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:scale-105"
+   150	                style={{
+   151	                  background: `linear-gradient(135deg, ${pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT}15, transparent)`,
+   152	                }}
+   153	              >
+   154	                <div className="p-6 space-y-4">
+   155	                  {/* Header */}
+   156	                  <div>
+   157	                    <div className="flex items-center gap-2 mb-2">
+   158	                      <h3 className="text-xl font-bold">{pack.name}</h3>
+   159	                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-elevated text-gray-400 border border-gray-700">
+   160	                        {pack.category}

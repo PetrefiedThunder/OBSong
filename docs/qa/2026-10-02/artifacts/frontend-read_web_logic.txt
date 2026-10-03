@@ -1,0 +1,1080 @@
+UTC start: 2026-10-03T01:21:18Z
+Command: cat apps/web/src/lib/imageProcessing.ts apps/web/src/lib/imageThumbnail.ts apps/web/src/lib/midiExport.ts apps/web/src/lib/demoPlayback.ts apps/web/src/lib/api.ts apps/web/src/components/ImageUploader.tsx apps/web/src/components/SaveCompositionCard.tsx apps/web/src/contexts/AuthContext.tsx apps/web/src/app/compositions/page.tsx
+Exit: 0
+
+/**
+ * Browser-side image processing utilities
+ * Extracts pixel data from images for analysis
+ */
+
+import {
+  analyzeImageForLinearLandscape,
+  analyzeImageForDepthRidge,
+  analyzeImageForMultiVoice,
+} from '@toposonics/core-image';
+import type { ImageAnalysisResult } from '@toposonics/types';
+
+/**
+ * Load an image file and extract pixel data
+ */
+export async function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image'));
+    };
+
+    img.src = url;
+  });
+}
+
+/**
+ * Extract pixel data from an image element
+ */
+export function extractPixelData(img: HTMLImageElement): {
+  pixels: Uint8ClampedArray;
+  width: number;
+  height: number;
+} {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Failed to get canvas context');
+  }
+
+  // Resize for performance if image is very large
+  const maxDimension = 1200;
+  let width = img.width;
+  let height = img.height;
+
+  if (width > maxDimension || height > maxDimension) {
+    if (width > height) {
+      height = (height / width) * maxDimension;
+      width = maxDimension;
+    } else {
+      width = (width / height) * maxDimension;
+      height = maxDimension;
+    }
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const imageData = ctx.getImageData(0, 0, width, height);
+
+  return {
+    pixels: imageData.data,
+    width,
+    height,
+  };
+}
+
+/**
+ * Full pipeline: file -> analysis result
+ */
+export async function analyzeImageFile(file: File): Promise<{
+  analysis: ImageAnalysisResult;
+  imageDataUrl: string;
+  width: number;
+  height: number;
+}> {
+  const img = await loadImageFromFile(file);
+  const { pixels, width, height } = extractPixelData(img);
+
+  const analysis = analyzeImageForLinearLandscape(pixels, width, height, {
+    maxSamples: 64,
+    includeDepth: true,
+    averageRows: true,
+    rowsToAverage: 5,
+  });
+
+  // Also get data URL for thumbnail
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+  }
+
+  return {
+    analysis,
+    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+    width,
+    height,
+  };
+}
+
+/**
+ * Full pipeline for depth/ridge: file -> depth/ridge analysis result
+ */
+export async function analyzeImageFileDepthRidge(file: File): Promise<{
+  analysis: ImageAnalysisResult;
+  imageDataUrl: string;
+  width: number;
+  height: number;
+}> {
+  const img = await loadImageFromFile(file);
+  const { pixels, width, height } = extractPixelData(img);
+
+  const analysis = analyzeImageForDepthRidge(pixels, width, height, {
+    maxSamples: 64,
+    smoothingWindow: 5,
+  });
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+  }
+
+  return {
+    analysis,
+    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+    width,
+    height,
+  };
+}
+
+/**
+ * Full pipeline for multi-voice: file -> multi-voice analysis result
+ */
+export async function analyzeImageFileMultiVoice(file: File): Promise<{
+  analysis: ImageAnalysisResult;
+  imageDataUrl: string;
+  width: number;
+  height: number;
+}> {
+  const img = await loadImageFromFile(file);
+  const { pixels, width, height } = extractPixelData(img);
+
+  const analysis = analyzeImageForMultiVoice(pixels, width, height, {
+    maxSamples: 64,
+    horizonSmoothing: 9,
+  });
+
+  // Also get data URL for thumbnail
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+  }
+
+  return {
+    analysis,
+    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+    width,
+    height,
+  };
+}
+/**
+ * Client-side thumbnail generation for composition saves.
+ *
+ * Downscales the user's uploaded image to a small JPEG data URL so the
+ * composition detail page can show the source image without shipping the
+ * original (the API caps imageThumbnail at 500 KB; a 256px JPEG is ~10-40 KB).
+ */
+export async function generateImageThumbnail(
+  file: File,
+  maxDim = 256,
+  quality = 0.7
+): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Failed to load image for thumbnail'));
+      image.src = url;
+    });
+
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const width = Math.max(1, Math.round(img.width * scale));
+    const height = Math.max(1, Math.round(img.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+import { compositionToMidiBlob } from '@toposonics/core-audio';
+import type { Composition, KeyType, MappingMode, NoteEvent, ScaleType } from '@toposonics/types';
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function sanitizeFilename(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'composition';
+}
+
+interface ExportCompositionInput {
+  noteEvents: NoteEvent[];
+  tempoBpm: number;
+  title?: string;
+  description?: string;
+  mappingMode: MappingMode;
+  key: KeyType;
+  scale: ScaleType;
+  presetId?: string;
+  userId?: string;
+  metadata?: Composition['metadata'];
+}
+
+function buildComposition(input: ExportCompositionInput): Composition {
+  const now = new Date();
+
+  return {
+    id: `local-export-${now.getTime()}`,
+    userId: input.userId || 'local-user',
+    title: input.title?.trim() || 'TopoSonics Composition',
+    description: input.description,
+    noteEvents: input.noteEvents,
+    mappingMode: input.mappingMode,
+    key: input.key,
+    scale: input.scale,
+    presetId: input.presetId,
+    tempo: input.tempoBpm,
+    createdAt: now,
+    updatedAt: now,
+    metadata: {
+      noteCount: input.noteEvents.length,
+      ...input.metadata,
+    },
+  };
+}
+
+export function exportCompositionToMidi(input: ExportCompositionInput) {
+  if (!input.noteEvents.length) {
+    throw new Error('No notes to export');
+  }
+
+  const composition = buildComposition(input);
+  const blob = compositionToMidiBlob(composition, input.tempoBpm);
+  const filename = `${sanitizeFilename(composition.title)}.mid`;
+
+  downloadBlob(blob, filename);
+}
+/**
+ * Minimal one-shot demo playback for the landing-page tour.
+ *
+ * Mirrors LandingDemoPlayer's lazy-import pattern (no static tone import, no full
+ * engine). Uses the module-level Tone Transport, so callers MUST call stop() when
+ * the demo ends or the component unmounts.
+ */
+import type { NoteEvent } from '@toposonics/types';
+
+type ToneTransport = {
+  stop: () => void;
+  start: () => void;
+};
+type ToneSynth = {
+  dispose: () => void;
+  toDestination: () => ToneSynth;
+  triggerAttackRelease: (note: string, duration: number, time?: number, velocity?: number) => void;
+};
+type TonePart = {
+  dispose: () => void;
+  start: (time: number) => void;
+  stop: () => void;
+};
+type ToneModule = {
+  PolySynth: new (...args: unknown[]) => ToneSynth;
+  Synth: new (...args: unknown[]) => unknown;
+  Part: new <T>(callback: (time: number, value: T) => void, events: T[]) => TonePart;
+  Transport: ToneTransport;
+  start: () => Promise<void>;
+};
+
+let tonePromise: Promise<ToneModule> | null = null;
+
+function loadTone() {
+  tonePromise ??= Promise.all([
+    import('tone/build/esm/instrument/PolySynth.js'),
+    import('tone/build/esm/instrument/Synth.js'),
+    import('tone/build/esm/event/Part.js'),
+    import('tone/build/esm/core/Global.js'),
+  ]).then(([polySynth, synth, part, global]) => {
+    const context = global.getContext();
+
+    return {
+      PolySynth: polySynth.PolySynth as ToneModule['PolySynth'],
+      Synth: synth.Synth as ToneModule['Synth'],
+      Part: part.Part as ToneModule['Part'],
+      Transport: context.transport as ToneTransport,
+      start: global.start,
+    };
+  });
+  return tonePromise;
+}
+
+export interface DemoPlaybackController {
+  stop(): void;
+}
+
+/**
+ * Resume the Web Audio context. Call this from inside a real user-gesture handler
+ * (button onClick) so browsers with strict autoplay policies unlock audio before a
+ * later, non-gesture code path (e.g. a tour step effect) tries to play.
+ */
+export function unlockAudio(): void {
+  void loadTone()
+    .then((tone) => tone.start())
+    .catch(() => {
+      // Best-effort: playback will retry the unlock itself.
+    });
+}
+
+// Monotonic token identifying the playback that currently owns the shared Transport.
+// A stale load or auto-stop timer must not stop a newer playback's Transport.
+let activePlayback = 0;
+
+/**
+ * Play a NoteEvent phrase once and auto-stop after it ends (+1s tail).
+ * NoteEvent start/duration are in beats and are converted with tempoBpm.
+ *
+ * Returns its controller SYNCHRONOUSLY: Tone loads in the background, and stop()
+ * cancels cleanly whether or not setup has finished — a stop during async setup
+ * prevents the pending playback from ever starting (and from stopping the shared
+ * Transport out from under a newer playback).
+ */
+export function playDemoNotes(notes: NoteEvent[], tempoBpm: number): DemoPlaybackController {
+  if (notes.length === 0) return { stop: () => {} };
+
+  const token = ++activePlayback;
+  let stopped = false;
+  let cleanup: (() => void) | null = null;
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    cleanup?.();
+    cleanup = null;
+  };
+
+  void (async () => {
+    const tone = await loadTone();
+    await tone.start();
+
+    // Superseded (newer playback started) or stopped while Tone was loading: never start.
+    if (stopped || token !== activePlayback) return;
+
+    const synth = new tone.PolySynth(tone.Synth, {
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.5, release: 1.0 },
+    }).toDestination();
+
+    const secondsPerBeat = 60 / Math.max(1, tempoBpm);
+    const events = notes.map((note) => ({
+      time: note.start * secondsPerBeat,
+      note: note.note,
+      duration: note.duration * secondsPerBeat,
+      velocity: note.velocity ?? 0.7,
+    }));
+
+    const part = new tone.Part((time, event) => {
+      synth.triggerAttackRelease(event.note, event.duration, time, event.velocity);
+    }, events);
+
+    part.start(0);
+    tone.Transport.start();
+
+    const totalSeconds =
+      notes.reduce((max, n) => Math.max(max, n.start + n.duration), 0) * secondsPerBeat + 1;
+    const autoStopTimer = setTimeout(stop, totalSeconds * 1000);
+
+    cleanup = () => {
+      clearTimeout(autoStopTimer);
+      part.stop();
+      part.dispose();
+      // Only the current owner may stop the shared Transport.
+      if (token === activePlayback) {
+        tone.Transport.stop();
+      }
+      synth.dispose();
+    };
+
+    // stop() may have raced in between the ownership check and cleanup assignment.
+    if (stopped) {
+      cleanup();
+      cleanup = null;
+    }
+  })().catch((error) => {
+    console.error('Demo playback failed:', error);
+  });
+
+  return { stop };
+}
+/**
+ * API client utilities for web application
+ * Uses the shared API client with web-specific configuration
+ */
+
+import { createApiClient, API_URL } from '@toposonics/shared';
+
+/**
+ * Web application API client instance
+ */
+const apiClient = createApiClient({ baseUrl: API_URL });
+
+export const {
+  fetchCompositions,
+  fetchAllCompositions,
+  fetchComposition,
+  createComposition,
+  updateComposition,
+  deleteComposition,
+} = apiClient;
+'use client';
+
+import { useState, useRef, useMemo } from 'react';
+import { Button } from '@toposonics/ui';
+
+interface ImageUploaderProps {
+  onImageSelected: (file: File) => void;
+  preview: string | null;
+  /**
+   * Percentage (0-1) representing the current playback position for the scanline overlay
+   */
+  scanlineProgress?: number;
+  /**
+   * When true, shows the scanline overlay to mirror the current playback position
+   */
+  showScanline?: boolean;
+}
+
+/**
+ * Validates that the URL is safe for use in an img src attribute.
+ * Only allows blob: and data:image URLs to prevent XSS attacks.
+ */
+function isSafeImageUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    if (urlObj.protocol === 'blob:') return true;
+
+    if (urlObj.protocol === 'data:') {
+      return /^data:image\/[a-zA-Z0-9.+-]+;/.test(url);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function ImageUploader({
+  onImageSelected,
+  preview,
+  scanlineProgress = 0,
+  showScanline = false,
+}: ImageUploaderProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validate the preview URL to prevent XSS
+  const safePreview = useMemo(() => {
+    if (!preview) return null;
+    return isSafeImageUrl(preview) ? preview : null;
+  }, [preview]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      onImageSelected(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      onImageSelected(file);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {safePreview ? (
+        <div className="relative overflow-hidden rounded-xl">
+          <img
+            src={safePreview}
+            alt="Selected image"
+            className="w-full h-64 object-cover rounded-xl"
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            aria-hidden
+          >
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-primary-400 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-[left,opacity] duration-75"
+              style={{
+                // Use container-relative `left` (not translateX): a translateX percentage is
+                // relative to the 2px line's own width, so it never sweeps across the image.
+                left: `${Math.min(Math.max(scanlineProgress, 0), 1) * 100}%`,
+                opacity: showScanline ? 1 : 0,
+              }}
+            />
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Change Image
+          </Button>
+        </div>
+      ) : (
+        <div
+          className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+            isDragging
+              ? 'border-primary-500 bg-primary-500/10'
+              : 'border-gray-700 hover:border-gray-600'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="space-y-4">
+            <div className="text-6xl">📸</div>
+            <div>
+              <p className="text-lg font-medium mb-2">Drop an image here</p>
+              <p className="text-sm text-gray-400 mb-4">or click to browse</p>
+            </div>
+            <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
+              Select Image
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </div>
+  );
+}
+'use client';
+
+import { useId, useState } from 'react';
+import { Button, Card } from '@toposonics/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { createComposition } from '@/lib/api';
+import { generateImageThumbnail } from '@/lib/imageThumbnail';
+import { logAnalyticsEvent } from '@/lib/analytics';
+import { LoginModal } from './LoginModal';
+import type { NoteEvent, MappingMode, KeyType, ScaleType } from '@toposonics/types';
+
+interface SaveCompositionCardProps {
+  noteEvents: NoteEvent[];
+  mappingMode: MappingMode;
+  keyType: KeyType;
+  scale: ScaleType;
+  presetId: string;
+  tempo: number;
+  /** Source image; downscaled into imageThumbnail at save time so the detail page can show it. */
+  imageFile?: File | null;
+  /** Composition length in seconds, persisted as metadata.duration for the detail page. */
+  durationSeconds?: number;
+}
+
+export function SaveCompositionCard({
+  noteEvents,
+  mappingMode,
+  keyType,
+  scale,
+  presetId,
+  tempo,
+  imageFile,
+  durationSeconds,
+}: SaveCompositionCardProps) {
+  const { token, login } = useAuth();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const titleFieldId = useId();
+  const descriptionFieldId = useId();
+
+  const handleLoginForSave = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      const { token: newToken } = await login(email, password);
+      setIsLoginModalOpen(false);
+      await handleSave(newToken);
+    } catch (error) {
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleSave = async (overrideToken?: string) => {
+    const effectiveToken = overrideToken || token;
+
+    if (!effectiveToken) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    const compositionTitle = title || `Composition ${new Date().toLocaleDateString()}`;
+
+    setIsSaving(true);
+    try {
+      // Thumbnail generation is best-effort: a decode/canvas failure shouldn't block saving.
+      const imageThumbnail = imageFile
+        ? await generateImageThumbnail(imageFile).catch(() => undefined)
+        : undefined;
+
+      const savedComposition = await createComposition(
+        {
+          title: compositionTitle,
+          description: description || 'Generated from uploaded image',
+          noteEvents,
+          mappingMode,
+          key: keyType,
+          scale,
+          presetId,
+          tempo,
+          imageThumbnail,
+          metadata: {
+            noteCount: noteEvents.length,
+            ...(durationSeconds && durationSeconds > 0 ? { duration: durationSeconds } : {}),
+          },
+        },
+        effectiveToken
+      );
+
+      alert('Composition saved!');
+      logAnalyticsEvent('composition_saved', { compositionId: savedComposition.id, noteCount: noteEvents.length });
+    } catch (error) {
+      console.error('Failed to save composition:', error);
+      alert('Failed to save composition');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Card title="Save Composition" padding="lg">
+        <div className="space-y-4">
+          <div>
+            <label htmlFor={titleFieldId} className="block text-sm font-medium mb-2">
+              Title
+            </label>
+            <input
+              id={titleFieldId}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="My Composition"
+              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label htmlFor={descriptionFieldId} className="block text-sm font-medium mb-2">
+              Description
+            </label>
+            <textarea
+              id={descriptionFieldId}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description..."
+              rows={3}
+              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => handleSave()}
+            disabled={isSaving}
+            loading={isSaving}
+          >
+            Save to Library
+          </Button>
+        </div>
+      </Card>
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={handleLoginForSave}
+        isLoggingIn={isLoggingIn}
+        title="Sign In to Save"
+        description="Enter your credentials to save this composition to your private library."
+      />
+    </>
+  );
+}
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { User } from '@toposonics/types';
+import { supabaseClient } from '@/lib/supabaseClient';
+
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  login: (email: string, password?: string) => Promise<{ token: string; user: User }>;
+  logout: () => void;
+  isLoading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load auth from Supabase session on mount
+  useEffect(() => {
+    if (!supabaseClient) {
+      setIsLoading(false);
+      return;
+    }
+
+    const syncSession = async () => {
+      const { data } = await supabaseClient!.auth.getSession();
+      const session = data.session;
+
+      if (session) {
+        const mappedUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: (session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+          createdAt: new Date(session.user.created_at),
+          lastLoginAt: session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : undefined,
+        };
+
+        setToken(session.access_token);
+        setUser(mappedUser);
+      }
+
+      setIsLoading(false);
+    };
+
+    syncSession();
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        const mappedUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: (session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+          createdAt: new Date(session.user.created_at),
+          lastLoginAt: session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : undefined,
+        };
+        setToken(session.access_token);
+        setUser(mappedUser);
+      } else {
+        setToken(null);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email: string, password?: string) => {
+    if (!supabaseClient) {
+      throw new Error('Supabase client is not configured');
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password: password || '',
+    });
+
+    if (error || !data.session) {
+      throw error || new Error('Login failed');
+    }
+
+    const mappedUser: User = {
+      id: data.session.user.id,
+      email: data.session.user.email || '',
+      displayName: (data.session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+      createdAt: new Date(data.session.user.created_at),
+      lastLoginAt: data.session.user.last_sign_in_at ? new Date(data.session.user.last_sign_in_at) : undefined,
+    };
+
+    setToken(data.session.access_token);
+    setUser(mappedUser);
+
+    return { token: data.session.access_token, user: mappedUser };
+  };
+
+  const logout = async () => {
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
+    setToken(null);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, Button } from '@toposonics/ui';
+import type { CompositionSummary } from '@toposonics/types';
+import { fetchAllCompositions } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { LoginModal } from '@/components/LoginModal';
+
+export default function CompositionsPage() {
+  const { token, login, isLoading: authLoading } = useAuth();
+  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const loadCompositions = useCallback(async () => {
+    if (!token) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions(token);
+      setCompositions(data);
+    } catch (err) {
+      console.error('Failed to load compositions:', err);
+      setError('Failed to load compositions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!token) {
+      setCompositions([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    void loadCompositions();
+  }, [authLoading, loadCompositions, token]);
+
+  const handleLogin = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      await login(email, password);
+      setIsLoginModalOpen(false);
+    } catch (error) {
+      console.error('Failed to sign in for compositions library:', error);
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Checking your session...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <>
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Compositions</h1>
+              <p className="text-gray-400">Your library is private in this v1 release.</p>
+            </div>
+            <Link href="/studio">
+              <Button variant="primary">Open Studio</Button>
+            </Link>
+          </div>
+
+          <Card title="Sign In Required" padding="lg">
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                Sign in to browse, replay, and manage your saved compositions.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button variant="primary" onClick={() => setIsLoginModalOpen(true)}>
+                  Sign In
+                </Button>
+                <Link href="/studio">
+                  <Button variant="outline">Go to Studio</Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLogin={handleLogin}
+          isLoggingIn={isLoggingIn}
+          title="Sign In to View Your Library"
+          description="Your saved compositions are private. Sign in to browse and replay them."
+        />
+      </>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Loading compositions...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="text-red-400 mb-4">{error}</div>
+          <Button onClick={loadCompositions}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Compositions</h1>
+          <p className="text-gray-400">Browse and replay your soundscapes</p>
+        </div>
+        <Link href="/studio">
+          <Button variant="primary">Create New</Button>
+        </Link>
+      </div>
+
+      {compositions.length === 0 ? (
+        <div className="text-center py-20">
+          <div className="text-6xl mb-4">🎵</div>
+          <h2 className="text-2xl font-semibold mb-2">No compositions yet</h2>
+          <p className="text-gray-400 mb-6">
+            Create your first soundscape in the studio
+          </p>
+          <Link href="/studio">
+            <Button variant="primary" size="lg">
+              Open Studio
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {compositions.map((composition) => (
+            <Link key={composition.id} href={`/compositions/${composition.id}`}>
+              <Card
+                title={composition.title}
+                subtitle={composition.description}
+                variant="elevated"
+                padding="lg"
+              >
+                <div className="mt-4 space-y-2 text-sm text-gray-400">
+                  <div className="flex justify-between">
+                    <span>Key:</span>
+                    <span className="text-gray-300">
+                      {composition.key} {composition.scale.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Notes:</span>
+                    {/* Old rows predate noteCount; show a dash rather than a false zero. */}
+                    <span className="text-gray-300">{composition.noteCount ?? '—'}</span>
+                  </div>
+                  {composition.tempo && (
+                    <div className="flex justify-between">
+                      <span>Tempo:</span>
+                      <span className="text-gray-300">{composition.tempo} BPM</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Created:</span>
+                    <span className="text-gray-300">
+                      {new Date(composition.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

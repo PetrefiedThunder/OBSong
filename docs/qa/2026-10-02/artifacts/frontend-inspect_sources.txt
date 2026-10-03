@@ -1,0 +1,336 @@
+UTC start: 2026-10-03T01:21:11Z
+Command: rg --files apps/web apps/mobile packages/shared -g "!node_modules" -g "!*.env*" -g "!package-lock.json" && cat apps/web/package.json apps/web/vitest.config.ts apps/mobile/package.json apps/mobile/vitest.config.ts packages/shared/package.json && cat /Users/sellers/.codex/skills/review-pr/SKILL.md
+Exit: 0
+
+packages/shared/src/logging.ts
+packages/shared/src/config.ts
+packages/shared/src/index.ts
+packages/shared/src/apiClient.ts
+apps/web/src/lib/imageThumbnail.ts
+apps/web/src/lib/demoPlayback.ts
+apps/web/src/lib/midiExport.ts
+apps/web/src/lib/api.ts
+apps/web/src/lib/analytics.ts
+apps/web/src/lib/supabaseClient.ts
+apps/web/src/lib/imageProcessing.ts
+packages/shared/src/__tests__/apiClient.test.ts
+packages/shared/src/demo-data.ts
+packages/shared/vitest.config.ts
+packages/shared/tsconfig.json
+packages/shared/package.json
+packages/shared/README.md
+apps/web/package.json
+apps/web/public/robots.txt
+apps/web/public/manifest.json
+apps/web/public/favicon.png
+apps/web/public/favicon.ico
+apps/web/src/hooks/__tests__/useToneEngine.utils.test.ts
+apps/web/src/hooks/useToneEngine.utils.ts
+apps/web/src/hooks/useToneEngine.ts
+apps/web/src/components/PlaybackControls.tsx
+apps/web/public/demo/compositions/scene-foggy-forest.json
+apps/web/public/demo/compositions/scene-industrial-grid.json
+apps/web/public/demo/compositions/scene-night-city.json
+apps/web/public/demo/compositions/scene-desert-drones.json
+apps/web/public/demo/compositions/scene-majestic-mountains.json
+apps/web/public/demo/compositions/scene-ocean-horizon.json
+apps/web/tailwind.config.ts
+apps/web/README.md
+apps/web/next.config.mjs
+apps/web/postcss.config.mjs
+apps/web/src/components/LoginModal.tsx
+apps/web/src/components/tour/TourProvider.tsx
+apps/web/src/components/tour/TourPopup.tsx
+apps/web/src/components/SaveCompositionCard.tsx
+apps/web/src/components/MappingControls.tsx
+apps/web/src/components/TimelineVisualizer.tsx
+apps/web/src/components/LandingDemoPlayer.tsx
+apps/web/src/components/ScenePackSelector.tsx
+apps/web/src/components/ImageUploader.tsx
+apps/web/vitest.config.ts
+apps/web/tsconfig.json
+apps/web/src/middleware.ts
+apps/web/src/app/globals.css
+apps/web/src/app/page.tsx
+apps/web/src/app/layout.tsx
+apps/web/src/contexts/AuthContext.tsx
+apps/web/src/app/compositions/page.tsx
+apps/web/src/app/studio/page.tsx
+apps/mobile/App.tsx
+apps/web/src/app/compositions/[id]/page.tsx
+apps/mobile/types/env.d.ts
+apps/mobile/metro.config.js
+apps/mobile/README.md
+apps/mobile/index.js
+apps/mobile/eas.json
+apps/mobile/vitest.config.ts
+apps/mobile/tsconfig.json
+apps/mobile/babel.config.js
+apps/mobile/app.config.ts
+apps/mobile/package.json
+apps/mobile/ios/Podfile.properties.json
+apps/mobile/src/services/apiClient.ts
+apps/mobile/ios/Podfile
+apps/mobile/src/services/imageProcessing.ts
+apps/mobile/app.json
+apps/mobile/src/config.ts
+apps/mobile/src/services/playbackRate.ts
+apps/mobile/src/services/audioPlayer.ts
+apps/mobile/plugins/withReleaseSigning.js
+apps/mobile/src/components/SignInModal.tsx
+apps/mobile/ios/TopoSonics/Info.plist
+apps/mobile/src/services/__tests__/playbackRate.test.ts
+apps/mobile/ios/TopoSonics/TopoSonics.entitlements
+apps/mobile/ios/TopoSonics/SplashScreen.storyboard
+apps/mobile/ios/TopoSonics/TopoSonics-Bridging-Header.h
+apps/mobile/ios/TopoSonics/Supporting/Expo.plist
+apps/mobile/ios/TopoSonics/AppDelegate.swift
+apps/mobile/src/state/CompositionsProvider.tsx
+apps/mobile/src/auth/AuthProvider.tsx
+apps/mobile/src/auth/secureStorage.ts
+apps/mobile/src/auth/supabaseClient.ts
+apps/mobile/assets/icon.png
+apps/mobile/src/state/compositionCache.ts
+apps/mobile/assets/adaptive-icon.png
+apps/mobile/ios/TopoSonics/Images.xcassets/Contents.json
+apps/mobile/src/screens/CompositionsScreen.tsx
+apps/mobile/android/settings.gradle
+apps/mobile/android/gradlew.bat
+apps/mobile/android/gradle.properties
+apps/mobile/android/build.gradle
+apps/mobile/android/gradlew
+apps/mobile/ios/TopoSonics.xcodeproj/project.pbxproj
+apps/mobile/src/state/__tests__/compositionCache.test.ts
+apps/mobile/src/screens/CompositionDetailScreen.tsx
+apps/mobile/src/screens/EditorScreen.tsx
+apps/mobile/src/screens/WelcomeScreen.tsx
+apps/mobile/src/screens/HomeScreen.tsx
+apps/mobile/ios/TopoSonics/Images.xcassets/SplashScreenBackground.colorset/Contents.json
+apps/mobile/assets/favicon.png
+apps/mobile/assets/splash.png
+apps/mobile/android/app/debug.keystore
+apps/mobile/android/app/proguard-rules.pro
+apps/mobile/android/app/build.gradle
+apps/mobile/assets/audio/README.md
+apps/mobile/assets/audio/beep.wav
+apps/mobile/ios/TopoSonics/Images.xcassets/AppIcon.appiconset/Contents.json
+apps/mobile/ios/TopoSonics/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png
+apps/mobile/ios/TopoSonics.xcodeproj/xcshareddata/xcschemes/TopoSonics.xcscheme
+apps/mobile/android/gradle/wrapper/gradle-wrapper.jar
+apps/mobile/ios/TopoSonics/Images.xcassets/SplashScreenLogo.imageset/image@2x.png
+apps/mobile/ios/TopoSonics/Images.xcassets/SplashScreenLogo.imageset/image@3x.png
+apps/mobile/ios/TopoSonics/Images.xcassets/SplashScreenLogo.imageset/Contents.json
+apps/mobile/ios/TopoSonics/Images.xcassets/SplashScreenLogo.imageset/image.png
+apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
+apps/mobile/android/app/src/debugOptimized/AndroidManifest.xml
+apps/mobile/android/app/src/debug/AndroidManifest.xml
+apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+apps/mobile/android/app/src/main/res/drawable-xxxhdpi/splashscreen_logo.png
+apps/mobile/android/app/src/main/java/com/toposonics/app/MainApplication.kt
+apps/mobile/android/app/src/main/java/com/toposonics/app/MainActivity.kt
+apps/mobile/android/app/src/main/AndroidManifest.xml
+apps/mobile/android/app/src/main/res/values-night/colors.xml
+apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.webp
+apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp
+apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.webp
+apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.webp
+apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp
+apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.webp
+apps/mobile/android/app/src/main/res/drawable-mdpi/splashscreen_logo.png
+apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp
+apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp
+apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp
+apps/mobile/android/app/src/main/res/drawable-hdpi/splashscreen_logo.png
+apps/mobile/android/app/src/main/res/drawable/ic_launcher_background.xml
+apps/mobile/android/app/src/main/res/drawable/rn_edit_text_material.xml
+apps/mobile/android/app/src/main/res/drawable-xxhdpi/splashscreen_logo.png
+apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.webp
+apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.webp
+apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.webp
+apps/mobile/android/app/src/main/res/drawable-xhdpi/splashscreen_logo.png
+apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.webp
+apps/mobile/android/app/src/main/res/values/strings.xml
+apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.webp
+apps/mobile/android/app/src/main/res/values/styles.xml
+apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.webp
+apps/mobile/android/app/src/main/res/values/colors.xml
+{
+  "name": "@toposonics/web",
+  "version": "0.1.0",
+  "description": "TopoSonics web application - Next.js 15",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src next.config.mjs --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@toposonics/core-audio": "workspace:*",
+    "@toposonics/core-image": "workspace:*",
+    "@toposonics/shared": "workspace:*",
+    "@toposonics/types": "workspace:*",
+    "@toposonics/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.45.0",
+    "next": "15.5.24",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tone": "^14.7.77"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "15.5.18",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "postcss": "^8.5.23",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  }
+}
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    exclude: ['.next/**', 'node_modules/**'],
+  },
+});
+{
+  "name": "@toposonics/mobile",
+  "version": "0.1.0",
+  "description": "TopoSonics mobile app - Expo React Native",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "dev": "expo start",
+    "build": "echo 'Mobile builds require EAS Build'",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.28.4",
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@sentry/react-native": "^7.11.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "@toposonics/core-audio": "workspace:*",
+    "@toposonics/core-image": "workspace:*",
+    "@toposonics/native-image-processing": "workspace:*",
+    "@toposonics/shared": "workspace:*",
+    "@toposonics/types": "workspace:*",
+    "@toposonics/ui": "workspace:*",
+    "expo": "^57.0.0",
+    "expo-apple-authentication": "~57.0.1",
+    "expo-application": "~57.0.2",
+    "expo-asset": "~57.0.9",
+    "expo-audio": "^57.0.3",
+    "expo-file-system": "~57.0.2",
+    "expo-font": "~57.0.1",
+    "expo-image-picker": "~57.0.8",
+    "expo-secure-store": "~57.0.1",
+    "expo-splash-screen": "~57.0.5",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "~4.26.2",
+    "react-native-url-polyfill": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.6",
+    "@types/react": "~18.2.48",
+    "babel-preset-expo": "~10.0.2",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "private": true
+}
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    exclude: ['.expo/**', 'node_modules/**'],
+  },
+});
+{
+  "name": "@toposonics/shared",
+  "version": "0.1.0",
+  "description": "Shared utilities for TopoSonics applications",
+  "private": true,
+  "main": "dist/index.js",
+  "react-native": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@toposonics/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.11"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+---
+name: review-pr
+description: Use when reviewing a pull request or local diff in any repository. Prioritize behavioral regressions, security flaws, data-integrity risks, missing tests, deployment risk, and product-scope creep.
+---
+
+# Review PR
+
+## Review Stance
+
+Findings come first. Prioritize concrete bugs, regressions, missing tests, and
+security or data-integrity risks over style commentary.
+
+## Process
+
+1. Read applicable `AGENTS.md` files.
+2. Inspect the diff and surrounding files it depends on.
+3. Separate docs claims from executable code and tests.
+4. Check auth, authorization, tenant isolation, billing, secrets, deployment,
+   migrations, tool execution, and data-integrity paths carefully.
+5. Verify changed behavior against tests.
+6. Call out missing tests when they create meaningful risk.
+7. Flag product-scope creep and unnecessary abstractions.
+
+## Findings Format
+
+Lead with findings ordered by severity:
+
+- `P0` exploitable data loss, fund loss, secret exposure, or production outage.
+- `P1` auth bypass, cross-tenant access, billing/data corruption, migration
+  breakage, or serious regression.
+- `P2` meaningful correctness, reliability, or missing-test risk.
+- `P3` maintainability issues worth fixing but not release-blocking.
+
+For each finding, cite exact files and line numbers when possible, explain the
+impact, and describe the smallest likely fix. If no issues are found, say so
+and state residual risk.

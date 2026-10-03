@@ -1,0 +1,64 @@
+UTC start: 2026-10-03T01:24:47Z
+Command: rg -n "interface OxcOptions|type OxcOptions|jsx\?:|jsx:" /private/tmp/obsong-qa-tools/node_modules/vite/dist/node/index.d.ts /private/tmp/obsong-qa-tools/node_modules/oxc-transform/index.d.ts node_modules/.pnpm/vitest@4.1.11*/node_modules/vitest/dist/chunks/cli-api.* | head -45 && sed -n "96,146p" /private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js
+Exit: 0
+
+rg: /private/tmp/obsong-qa-tools/node_modules/oxc-transform/index.d.ts: No such file or directory (os error 2)
+/private/tmp/obsong-qa-tools/node_modules/vite/dist/node/index.d.ts:3269:interface OxcOptions extends Omit<rolldown_utils_TransformOptions, "cwd" | "sourceType" | "lang" | "sourcemap" | "helpers" | "inject" | "tsconfig" | "inputMap"> {
+/private/tmp/obsong-qa-tools/node_modules/vite/dist/node/index.d.ts:4063:export { type Alias, type AliasOptions, type AnymatchFn, type AnymatchPattern, type AppType, type BindCLIShortcutsOptions, type BuildAppHook, type BuildEnvironmentOptions, type BuildOptions, type BuilderOptions, type CLIShortcut, type CSSModulesOptions, type CSSOptions, type ChunkMetadata, type CommonServerOptions, type ConfigEnv, type ConfigPluginContext, type Connect, type ConnectedPayload, type CorsOptions, type CorsOrigin, type CustomEventMap, type CustomPayload, type CustomPluginOptionsVite, type DepOptimizationConfig, type DepOptimizationMetadata, type DepOptimizationOptions, type DevEnvironmentContext, type DevEnvironmentOptions, type ESBuildOptions, type ESTree, type Environment, type EnvironmentModuleGraph, type EnvironmentModuleNode, type EnvironmentOptions, type ErrorPayload, type EsbuildTransformOptions, type ExperimentalOptions, type ExportsData, type FSWatcher, type FetchFunction, type FetchModuleOptions, type FetchResult, type FetchableDevEnvironment, type FetchableDevEnvironmentContext, type FileSystemServeOptions, type FilterPattern, type FullReloadPayload, type GeneralImportGlobOptions, type HMRPayload, type HTMLOptions, type HmrContext, type HmrOptions, type HookHandler, type HotChannel, type HotChannelClient, type HotChannelListener, type HotPayload, type HotUpdateOptions, type HtmlAssetSource, type HtmlTagDescriptor, type index_d_exports as HttpProxy, type HttpServer, type ImportGlobFunction, type ImportGlobOptions, type IndexHtmlTransform, type IndexHtmlTransformContext, type IndexHtmlTransformHook, type IndexHtmlTransformResult, type InferCustomEventPayload, type InlineConfig, type InternalResolveOptions, type InvalidatePayload, type JsonOptions, type KnownAsTypeMap, type KnownQueryTypeMap, type LegacyOptions, type LessPreprocessorOptions, type LibraryFormats, type LibraryOptions, type LightningCSSOptions, type LogErrorOptions, type LogLevel, type LogOptions, type LogType, type Logger, type LoggerOptions, type Manifest, type ManifestChunk, type MapToFunction, type AnymatchMatcher as Matcher, type MinifyOptions, type MinifyResult, type MinimalPluginContextWithoutEnvironment, type ModuleGraph, type ModuleNode, type ModulePreloadOptions, type ModuleRunnerTransformOptions, type NormalizedHotChannel, type NormalizedHotChannelClient, type NormalizedServerHotChannel, type OptimizedDepInfo, type OxcOptions, type ParseResult, type ParserOptions, type Plugin, type PluginContainer, type PluginHookUtils, type PluginOption, type Config as PostcssUserConfig, type PreprocessCSSResult, type PreviewOptions, type PreviewServer, type PreviewServerHook, type ProxyOptions, type PrunePayload, type RenderBuiltAssetUrl, type ResolveFn, type ResolveModulePreloadDependenciesFn, type ResolveOptions, type ResolvedBuildEnvironmentOptions, type ResolvedBuildOptions, type ResolvedCSSOptions, type ResolvedConfig, type ResolvedDevEnvironmentOptions, type ResolvedDevToolsConfig, type ResolvedModulePreloadOptions, type ResolvedPreviewOptions, type ResolvedSSROptions, type ResolvedServerOptions, type ResolvedServerUrls, type ResolvedUrl, type ResolvedWorkerOptions, type ResolverFunction, type ResolverObject, type Rolldown, type Rollup, type RollupCommonJSOptions, type RollupDynamicImportVarsOptions, type RunnableDevEnvironment, type RunnableDevEnvironmentContext, type SSROptions, type SSRTarget, type SassPreprocessorOptions, type SendOptions, type ServerHook, type ServerHotChannel, type ServerModuleRunnerOptions, type ServerOptions$1 as ServerOptions, type ServerWatchOptions, type SkipInformation, type SsrDepOptimizationConfig, type StylusPreprocessorOptions, type Terser, type TerserOptions, type TransformOptions, type TransformResult, type Update, type UpdatePayload, type UserConfig, type UserConfigExport, type UserConfigFn, type UserConfigFnObject, type UserConfigFnPromise, Visitor, type VisitorObject, type ViteBuilder, type ViteDevServer, type WatchOptions, type WebSocket, type WebSocketAlias, type WebSocketClient, type WebSocketCustomListener, type WebSocketServer, type WsOptions, DEFAULT_CLIENT_CONDITIONS as defaultClientConditions, DEFAULT_CLIENT_MAIN_FIELDS as defaultClientMainFields, DEFAULT_EXTERNAL_CONDITIONS as defaultExternalConditions, DEFAULT_SERVER_CONDITIONS as defaultServerConditions, DEFAULT_SERVER_MAIN_FIELDS as defaultServerMainFields, esmExternalRequirePlugin, minify, minifySync, ssrTransform as moduleRunnerTransform, parse, parseSync, rolldownVersion, VERSION as version, withFilter };
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.30/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:1825:function highlight(code, options = { jsx: false, colors: {} }) {
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.30/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:1841:		jsx: ext.endsWith("x"),
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.30/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:9841:  for (const token of jsTokens(code, { jsx: false })) {
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:1825:function highlight(code, options = { jsx: false, colors: {} }) {
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:1841:		jsx: ext.endsWith("x"),
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:9841:  for (const token of jsTokens(code, { jsx: false })) {
+		const contents = await promises.readFile(configFilePath, "utf8");
+		return parseModule(`${contents}${this.autoUpdateMarker}`);
+	}
+	async getCoverageMapForUncoveredFiles(testedFiles) {
+		const transform = this.createUncoveredFileTransformer(this.ctx);
+		const uncoveredFiles = await this.getUntestedFiles(testedFiles);
+		let index = 0;
+		const coverageMap = this.createCoverageMap();
+		for (const chunk of this.toSlices(uncoveredFiles, this.options.processingConcurrency)) {
+			if (debug.enabled) {
+				index += chunk.length;
+				debug("Uncovered files %d/%d", index, uncoveredFiles.length);
+			}
+			await Promise.all(chunk.map(async (filename) => {
+				let timeout;
+				let start;
+				if (debug.enabled) {
+					start = performance.now();
+					timeout = setTimeout(() => debug(c.bgRed(`File "${filename}" is taking longer than 3s`)), 3e3);
+				}
+				// Do not use pathToFileURL to avoid encoding filename parts
+				const url = `file://${filename[0] === "/" ? "" : "/"}${filename}`;
+				const sources = await this.getSources(url, transform);
+				coverageMap.merge(await this.remapCoverage(url, 0, sources, []));
+				if (debug.enabled) {
+					clearTimeout(timeout);
+					const diff = performance.now() - start;
+					const color = diff > 500 ? c.bgRed : c.bgGreen;
+					debug(`${color(` ${diff.toFixed()} ms `)} ${filename}`);
+				}
+			}));
+		}
+		return coverageMap;
+	}
+	async remapCoverage(filename, wrapperLength, result, functions) {
+		let ast;
+		try {
+			ast = await parseAstAsync(result.code);
+		} catch (error) {
+			this.ctx.logger.error(`Failed to parse ${filename}. Excluding it from coverage.\n`, error);
+			return {};
+		}
+		return await astV8ToIstanbul({
+			code: result.code,
+			sourceMap: result.map,
+			ast,
+			coverage: {
+				functions,
+				url: filename
+			},
+			ignoreClassMethods: this.options.ignoreClassMethods,

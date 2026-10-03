@@ -1,0 +1,189 @@
+UTC start: 2026-10-03T01:21:21Z
+Command: rg -n "NoteEvent|MappingMode|ScaleType|Key|midi|noteToMidi|Frequency" packages/types/src packages/core/src apps/web/src -g "*.ts" -g "*.tsx" | head -n 150 && cat package.json && ls node_modules/.bin/vitest apps/api/node_modules/.bin/vitest 2>/dev/null
+Exit: 1
+
+rg: packages/core/src: No such file or directory (os error 2)
+apps/web/src/lib/demoPlayback.ts:8:import type { NoteEvent } from '@toposonics/types';
+apps/web/src/lib/demoPlayback.ts:76: * Play a NoteEvent phrase once and auto-stop after it ends (+1s tail).
+apps/web/src/lib/demoPlayback.ts:77: * NoteEvent start/duration are in beats and are converted with tempoBpm.
+apps/web/src/lib/demoPlayback.ts:84:export function playDemoNotes(notes: NoteEvent[], tempoBpm: number): DemoPlaybackController {
+apps/web/src/lib/midiExport.ts:2:import type { Composition, KeyType, MappingMode, NoteEvent, ScaleType } from '@toposonics/types';
+apps/web/src/lib/midiExport.ts:18:  noteEvents: NoteEvent[];
+apps/web/src/lib/midiExport.ts:22:  mappingMode: MappingMode;
+apps/web/src/lib/midiExport.ts:23:  key: KeyType;
+apps/web/src/lib/midiExport.ts:24:  scale: ScaleType;
+apps/web/src/lib/supabaseClient.ts:4:const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+apps/web/src/lib/supabaseClient.ts:6:if (!supabaseUrl || !supabaseAnonKey) {
+apps/web/src/lib/supabaseClient.ts:10:export const supabaseClient = supabaseUrl && supabaseAnonKey
+apps/web/src/lib/supabaseClient.ts:11:  ? createClient(supabaseUrl, supabaseAnonKey)
+packages/types/src/__tests__/index.test.ts:5:  NoteEvent,
+packages/types/src/__tests__/index.test.ts:11:  MappingMode,
+packages/types/src/__tests__/index.test.ts:13:  ScaleType,
+packages/types/src/__tests__/index.test.ts:14:  KeyType,
+packages/types/src/__tests__/index.test.ts:44:  it('keeps MappingMode limited to the three shipped modes', () => {
+packages/types/src/__tests__/index.test.ts:45:    const modes: MappingMode[] = ['LINEAR_LANDSCAPE', 'DEPTH_RIDGE', 'MULTI_VOICE'];
+packages/types/src/__tests__/index.test.ts:48:    const invalid: MappingMode = 'RANDOM_WALK';
+packages/types/src/__tests__/index.test.ts:60:  it('keeps the 12-tone KeyType union intact', () => {
+packages/types/src/__tests__/index.test.ts:61:    const keys: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+packages/types/src/__tests__/index.test.ts:65:  it('accepts all documented ScaleType values', () => {
+packages/types/src/__tests__/index.test.ts:66:    const scales: ScaleType[] = [
+packages/types/src/__tests__/index.test.ts:95:  it('types a well-formed NoteEvent and Composition', () => {
+packages/types/src/__tests__/index.test.ts:96:    const note: NoteEvent = { note: 'C4', start: 0, duration: 0.5, velocity: 0.8 };
+packages/types/src/__tests__/index.test.ts:109:    expectTypeOf(composition.mappingMode).toEqualTypeOf<MappingMode>();
+packages/types/src/composition.ts:1:import { MappingMode, KeyType, ScaleType } from './mapping';
+packages/types/src/composition.ts:2:import { NoteEvent } from './audio';
+packages/types/src/composition.ts:17:  noteEvents: NoteEvent[];
+packages/types/src/composition.ts:19:  mappingMode: MappingMode;
+packages/types/src/composition.ts:21:  key: KeyType;
+packages/types/src/composition.ts:23:  scale: ScaleType;
+packages/types/src/composition.ts:65:  mappingMode: MappingMode;
+packages/types/src/composition.ts:67:  key: KeyType;
+packages/types/src/composition.ts:69:  scale: ScaleType;
+apps/web/src/hooks/__tests__/useToneEngine.utils.test.ts:2:import type { NoteEvent, SoundPreset } from '@toposonics/types';
+apps/web/src/hooks/__tests__/useToneEngine.utils.test.ts:28:const singleVoiceEvents: NoteEvent[] = [
+apps/web/src/hooks/__tests__/useToneEngine.utils.test.ts:32:const multiVoiceEvents: NoteEvent[] = [
+packages/types/src/audio.ts:4:export interface NoteEvent {
+apps/web/src/hooks/useToneEngine.utils.ts:1:import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
+apps/web/src/hooks/useToneEngine.utils.ts:7:export function getAudioTopology(noteEvents: NoteEvent[]): AudioTopology {
+apps/web/src/hooks/useToneEngine.utils.ts:16:  noteEvents: NoteEvent[],
+apps/web/src/app/page.tsx:7:import type { ScenePack, NoteEvent } from '@toposonics/types';
+apps/web/src/app/page.tsx:11:import { mockNoteEvents, tourDemoTempoBpm } from '@toposonics/shared';
+apps/web/src/app/page.tsx:30:    const controller = playDemoNotes(mockNoteEvents, tourDemoTempoBpm);
+apps/web/src/app/page.tsx:52:    noteEvents: NoteEvent[];
+apps/web/src/hooks/useToneEngine.ts:4:import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
+apps/web/src/hooks/useToneEngine.ts:91:  noteEvents: NoteEvent[];
+apps/web/src/hooks/useToneEngine.ts:110:// NoteEvent.effects.filterCutoff is normalized 0-1 (brightness-driven). Map it onto an
+apps/web/src/hooks/useToneEngine.ts:113:function filterCutoffToFrequency(cutoff: number): number {
+apps/web/src/hooks/useToneEngine.ts:392:    // NoteEvent.start/duration are in BEATS, but Tone.js interprets numeric time and
+apps/web/src/hooks/useToneEngine.ts:424:            filterCutoffToFrequency(value.filterCutoff),
+apps/web/src/hooks/useToneEngine.ts:442:          filterCutoffToFrequency(value.filterCutoff),
+packages/types/src/mapping.ts:8:export type MappingMode = 'LINEAR_LANDSCAPE' | 'DEPTH_RIDGE' | 'MULTI_VOICE';
+packages/types/src/mapping.ts:18:export type ScaleType =
+packages/types/src/mapping.ts:40:export type KeyType = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
+packages/types/src/mapping.ts:93:  defaultKey: KeyType;
+packages/types/src/mapping.ts:95:  defaultScale: ScaleType;
+packages/types/src/mapping.ts:99:  mappingMode: MappingMode;
+packages/types/src/mapping.ts:165:  key: KeyType;
+packages/types/src/mapping.ts:167:  scale: ScaleType;
+packages/types/src/mapping.ts:193:  key: KeyType;
+packages/types/src/mapping.ts:195:  scale: ScaleType;
+apps/web/src/app/studio/page.tsx:7:  KeyType,
+apps/web/src/app/studio/page.tsx:8:  ScaleType,
+apps/web/src/app/studio/page.tsx:9:  MappingMode,
+apps/web/src/app/studio/page.tsx:10:  NoteEvent,
+apps/web/src/app/studio/page.tsx:37:import { exportCompositionToMidi } from '@/lib/midiExport';
+apps/web/src/app/studio/page.tsx:59:  const [key, setKey] = useState<KeyType>('C');
+apps/web/src/app/studio/page.tsx:60:  const [scale, setScale] = useState<ScaleType>('C_MAJOR');
+apps/web/src/app/studio/page.tsx:61:  const [mappingMode, setMappingMode] = useState<MappingMode>('LINEAR_LANDSCAPE');
+apps/web/src/app/studio/page.tsx:72:  const [noteEvents, setNoteEvents] = useState<NoteEvent[]>([]);
+apps/web/src/app/studio/page.tsx:144:      setNoteEvents([]);
+apps/web/src/app/studio/page.tsx:195:    setKey(preset.defaultKey);
+apps/web/src/app/studio/page.tsx:198:    setMappingMode(preset.mappingMode);
+apps/web/src/app/studio/page.tsx:235:  const handleLoadDemo = (demoNotes: NoteEvent[], scenePack: ScenePack) => {
+apps/web/src/app/studio/page.tsx:238:    setNoteEvents(demoNotes);
+apps/web/src/app/studio/page.tsx:255:    let events: NoteEvent[];
+apps/web/src/app/studio/page.tsx:295:    setNoteEvents(events);
+apps/web/src/app/studio/page.tsx:361:              musicalKey={key}
+apps/web/src/app/studio/page.tsx:366:              onKeyChange={setKey}
+apps/web/src/app/studio/page.tsx:368:              onMappingModeChange={setMappingMode}
+apps/web/src/components/MappingControls.tsx:4:import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
+apps/web/src/components/MappingControls.tsx:8:  musicalKey: KeyType;
+apps/web/src/components/MappingControls.tsx:9:  scale: ScaleType;
+apps/web/src/components/MappingControls.tsx:10:  mappingMode: MappingMode;
+apps/web/src/components/MappingControls.tsx:13:  onKeyChange: (key: KeyType) => void;
+apps/web/src/components/MappingControls.tsx:14:  onScaleChange: (scale: ScaleType) => void;
+apps/web/src/components/MappingControls.tsx:15:  onMappingModeChange: (mode: MappingMode) => void;
+apps/web/src/components/MappingControls.tsx:20:const KEYS: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+apps/web/src/components/MappingControls.tsx:23:// so the legacy root-prefixed ScaleType values that share an interval pattern (e.g.
+apps/web/src/components/MappingControls.tsx:25:const SCALES: { value: ScaleType; label: string }[] = [
+apps/web/src/components/MappingControls.tsx:42:const SCALE_ALIASES: Partial<Record<ScaleType, ScaleType>> = {
+apps/web/src/components/MappingControls.tsx:51:const MAPPING_MODES: { value: MappingMode; label: string; description: string }[] = [
+apps/web/src/components/MappingControls.tsx:70:  musicalKey,
+apps/web/src/components/MappingControls.tsx:75:  onKeyChange,
+apps/web/src/components/MappingControls.tsx:77:  onMappingModeChange,
+apps/web/src/components/MappingControls.tsx:128:              onClick={() => onMappingModeChange(mode.value)}
+apps/web/src/components/MappingControls.tsx:142:      {/* Musical Key */}
+apps/web/src/components/MappingControls.tsx:145:          Key
+apps/web/src/components/MappingControls.tsx:151:              onClick={() => onKeyChange(k)}
+apps/web/src/components/MappingControls.tsx:153:                musicalKey === k
+apps/web/src/components/MappingControls.tsx:172:          onChange={(e) => onScaleChange(e.target.value as ScaleType)}
+apps/web/src/components/SaveCompositionCard.tsx:10:import type { NoteEvent, MappingMode, KeyType, ScaleType } from '@toposonics/types';
+apps/web/src/components/SaveCompositionCard.tsx:13:  noteEvents: NoteEvent[];
+apps/web/src/components/SaveCompositionCard.tsx:14:  mappingMode: MappingMode;
+apps/web/src/components/SaveCompositionCard.tsx:15:  keyType: KeyType;
+apps/web/src/components/SaveCompositionCard.tsx:16:  scale: ScaleType;
+apps/web/src/app/compositions/page.tsx:176:                    <span>Key:</span>
+apps/web/src/components/TimelineVisualizer.tsx:4:import type { NoteEvent } from '@toposonics/types';
+apps/web/src/components/TimelineVisualizer.tsx:8:  noteEvents: NoteEvent[];
+apps/web/src/components/TimelineVisualizer.tsx:10:  /** Tempo in BPM. NoteEvent.start/duration are in beats; this converts them to the
+apps/web/src/components/TimelineVisualizer.tsx:88:    // NoteEvent.start/duration are in beats; convert to seconds so the time axis and the
+apps/web/src/components/TimelineVisualizer.tsx:95:    const midiRange = maxMidi - minMidi || 1;
+apps/web/src/components/TimelineVisualizer.tsx:122:      const midi = noteNameToMidi(event.note);
+apps/web/src/components/TimelineVisualizer.tsx:126:      const y = height - padding - ((midi - minMidi) / midiRange) * graphHeight;
+apps/web/src/components/LandingDemoPlayer.tsx:4:import type { NoteEvent, ScenePack } from '@toposonics/types';
+apps/web/src/components/LandingDemoPlayer.tsx:56:  demoNotes: NoteEvent[];
+apps/web/src/components/LandingDemoPlayer.tsx:58:  /** Tempo in BPM. NoteEvent start/duration are in beats and must be converted to the
+apps/web/src/components/LandingDemoPlayer.tsx:130:    // NoteEvent start/duration are in beats; Tone.js reads numeric Part times as seconds,
+apps/web/src/components/LandingDemoPlayer.tsx:168:    const onKeyDown = (e: KeyboardEvent) => {
+apps/web/src/components/LandingDemoPlayer.tsx:171:    document.addEventListener('keydown', onKeyDown);
+apps/web/src/components/LandingDemoPlayer.tsx:172:    return () => document.removeEventListener('keydown', onKeyDown);
+apps/web/src/components/LoginModal.tsx:35:    const onKeyDown = (e: KeyboardEvent) => {
+apps/web/src/components/LoginModal.tsx:38:    document.addEventListener('keydown', onKeyDown);
+apps/web/src/components/LoginModal.tsx:41:    return () => document.removeEventListener('keydown', onKeyDown);
+apps/web/src/components/ScenePackSelector.tsx:4:import type { ScenePack, NoteEvent } from '@toposonics/types';
+apps/web/src/components/ScenePackSelector.tsx:10:  onLoadDemo?: (noteEvents: NoteEvent[], scenePack: ScenePack) => void;
+apps/web/src/app/compositions/[id]/page.tsx:8:import { exportCompositionToMidi } from '@/lib/midiExport';
+apps/web/src/app/compositions/[id]/page.tsx:320:              <div className="text-gray-400">Musical Key</div>
+{
+  "name": "toposonics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn static photos or live camera input into rich musical landscapes",
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "preinstall": "node -e \"if (process.env.npm_config_user_agent && !process.env.npm_config_user_agent.includes('pnpm')) { console.error('\\n\\x1b[31m╔════════════════════════════════════════════════════════════════╗\\n║  ❌ ERROR: This project requires pnpm                         ║\\n╚════════════════════════════════════════════════════════════════╝\\x1b[0m\\n\\n\\x1b[33mPlease install pnpm:\\x1b[0m\\n  npm install -g pnpm@8.15.0\\n\\n\\x1b[33mThen run:\\x1b[0m\\n  pnpm install\\n\\n\\x1b[90mFor more info: https://pnpm.io/installation\\x1b[0m\\n'); process.exit(1); }\"",
+    "dev:web": "corepack pnpm --filter @toposonics/web dev",
+    "dev:mobile": "corepack pnpm --filter @toposonics/mobile dev",
+    "dev:api": "corepack pnpm --filter @toposonics/api dev",
+    "dev:all": "corepack pnpm -r --parallel --if-present dev",
+    "build": "corepack pnpm -r --sort --if-present build",
+    "build:web": "corepack pnpm --filter @toposonics/web build",
+    "build:mobile": "corepack pnpm --filter @toposonics/mobile build",
+    "build:mobile:android:release": "node scripts/run-android-release-build.js",
+    "build:mobile:ios:release": "node scripts/run-ios-release-build.js",
+    "build:api": "corepack pnpm --filter @toposonics/api build",
+    "lint": "corepack pnpm -r --if-present lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "corepack pnpm -r --if-present clean && rm -rf node_modules",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
+    "test:watch": "corepack pnpm --filter @toposonics/web test -- --watch",
+    "release:check": "corepack pnpm release:check:env && corepack pnpm release:check:mobile",
+    "release:check:env": "node scripts/check-release-env.js",
+    "release:check:mobile": "node scripts/check-mobile-release.js"
+  },
+  "pnpm": {
+    "overrides": {
+      "node-forge": "1.3.1",
+      "send": "^0.19.0",
+      "semver": "7.7.3"
+    },
+    "patchedDependencies": {
+      "node-forge@1.3.1": "patches/node-forge@1.3.1.patch"
+    }
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >=25.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

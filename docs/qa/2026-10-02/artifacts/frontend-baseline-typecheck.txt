@@ -1,0 +1,21 @@
+UTC start: 2026-10-03T01:22:21Z
+Command: corepack pnpm -r typecheck
+Exit: 1
+
+Scope: 9 of 10 workspace projects
+packages/types typecheck$ tsc --noEmit
+packages/native-image-processing typecheck$ tsc --noEmit
+packages/ui typecheck$ tsc --noEmit
+packages/types typecheck: Done
+packages/native-image-processing typecheck: Done
+packages/ui typecheck: Done
+apps/api typecheck$ tsc --noEmit
+packages/core-audio typecheck$ tsc --noEmit
+packages/core-image typecheck$ tsc --noEmit
+packages/shared typecheck$ tsc --noEmit
+packages/core-image typecheck: src/analyzer.ts(6,42): error TS6305: Output file '/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types/dist/index.d.ts' has not been built from source file '/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types/src/index.ts'.
+packages/core-image typecheck: src/index.ts(47,42): error TS6305: Output file '/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types/dist/index.d.ts' has not been built from source file '/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types/src/index.ts'.
+packages/core-image typecheck: Failed
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @toposonics/core-image@0.1.0 typecheck: `tsc --noEmit`
+Exit status 2

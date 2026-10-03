@@ -1,0 +1,143 @@
+UTC start: 2026-10-03T01:25:10Z
+Command: nl -ba packages/core-audio/src/mappers.ts | sed -n "535,565p" && nl -ba packages/core-audio/src/__tests__/qa-invariants.test.ts | sed -n "90,125p" && cat docs/qa/2026-10-02/artifacts/core-image-before/coverage-summary.json docs/qa/2026-10-02/artifacts/core-audio-before/coverage-summary.json && ls docs/qa/2026-10-02/passes && sed -n "1,160p" docs/qa/2026-10-02/tools/run.py
+Exit: 0
+
+   535	
+   536	  // Normalize `segments` to a finite positive integer bounded by the profile length. The
+   537	  // loop already terminates via the start-past-end break below, but a non-finite or
+   538	  // fractional value (e.g. from a malformed preset density) would otherwise produce a
+   539	  // nonsensical loop count; this keeps the segmentation well-defined.
+   540	  const segmentCount = Number.isFinite(segments)
+   541	    ? Math.max(1, Math.min(textureProfile.length, Math.floor(segments)))
+   542	    : 6;
+   543	
+   544	  // Segment texture into larger chunks
+   545	  const segmentSize = Math.max(1, Math.floor(textureProfile.length / segmentCount));
+   546	  const textureSegments: number[] = [];
+   547	
+   548	  for (let i = 0; i < segmentCount; i++) {
+   549	    const start = i * segmentSize;
+   550	    if (start >= textureProfile.length) break;
+   551	    const end = Math.min(start + segmentSize, textureProfile.length);
+   552	    const segment = textureProfile.slice(start, end);
+   553	    const avg = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+   554	    textureSegments.push(avg);
+   555	  }
+   556	
+   557	  // Get scale notes for chords covering the requested pad range (default C3-C5), with a
+   558	  // nearest-note fallback so out-of-range presets never produce a silent pad.
+   559	  const minMidi = noteNameToMidi(minNote);
+   560	  const maxMidi = noteNameToMidi(maxNote);
+   561	  const scaleNotes = filterScaleToRange(
+   562	    getScaleNotesForRange(key, scale, minNote, maxNote),
+   563	    minMidi,
+   564	    maxMidi
+   565	  );
+    90	      key: 'C', scale: 'C_MAJOR', enableBass: false, enableMelody: false, enablePad: false,
+    91	    })).toEqual([]);
+    92	  });
+    93	
+    94	  it.fails('BE-101: pad segmentation includes a final partial texture segment', () => {
+    95	    // Seven valid samples split into six segments must not discard the final sample.
+    96	    const flat = mapTextureToPad([0, 0, 0, 0, 0, 0, 0], 'C', 'C_MAJOR', { segments: 6 });
+    97	    const rightEdge = mapTextureToPad([0, 0, 0, 0, 0, 0, 1], 'C', 'C_MAJOR', { segments: 6 });
+    98	    expect(rightEdge).not.toEqual(flat);
+    99	  });
+   100	});
+   101	
+   102	async function decode(blob: Blob) {
+   103	  expect(blob.type).toBe('audio/midi');
+   104	  return new Midi(new Uint8Array(await blob.arrayBuffer()));
+   105	}
+   106	
+   107	describe('QA MIDI round-trip contracts', () => {
+   108	  it.each([40, 90, 120, 240])('retains tempo=%i BPM, beats, track names and pitches without mutating input', async (tempo) => {
+   109	    const events: NoteEvent[] = [
+   110	      { note: 'G9', start: 2, duration: 0.25, velocity: 1, trackId: 'melody' },
+   111	      { note: 'C-1', start: 0, duration: 1, velocity: 0.5, trackId: 'bass' },
+   112	      { note: 'C4', start: 1 / 7, duration: 2 / 7, velocity: 0.7, trackId: 'melody' },
+   113	    ];
+   114	    const original = structuredClone(events);
+   115	    const midi = await decode(noteEventsToMidiBlob(events, tempo, ' QA round trip '));
+   116	    expect(midi.header.tempos[0].bpm).toBeCloseTo(tempo, 3);
+   117	    expect(midi.name).toBe('QA round trip');
+   118	    expect(midi.tracks.map(track => track.name).sort()).toEqual(['bass', 'melody']);
+   119	    for (const event of events) {
+   120	      const track = midi.tracks.find(candidate => candidate.name === event.trackId)!;
+   121	      const note = track.notes.find(candidate => candidate.midi === noteNameToMidi(event.note))!;
+   122	      expect(note).toBeDefined();
+   123	      const beatSeconds = 60 / tempo;
+   124	      expect(Math.abs(note.time / beatSeconds - event.start)).toBeLessThanOrEqual(1 / midi.header.ppq);
+   125	      expect(Math.abs(note.duration / beatSeconds - event.duration)).toBeLessThanOrEqual(1 / midi.header.ppq);
+{"total": {"lines":{"total":225,"covered":208,"skipped":0,"pct":92.44},"statements":{"total":263,"covered":244,"skipped":0,"pct":92.77},"functions":{"total":32,"covered":31,"skipped":0,"pct":96.87},"branches":{"total":97,"covered":80,"skipped":0,"pct":82.47},"branchesTrue":{"total":0,"covered":0,"skipped":0,"pct":"Unknown"}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/analyzer.ts": {"lines":{"total":46,"covered":40,"skipped":0,"pct":86.95},"functions":{"total":4,"covered":4,"skipped":0,"pct":100},"statements":{"total":47,"covered":41,"skipped":0,"pct":87.23},"branches":{"total":41,"covered":32,"skipped":0,"pct":78.04}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/arrayStats.ts": {"lines":{"total":8,"covered":8,"skipped":0,"pct":100},"functions":{"total":2,"covered":2,"skipped":0,"pct":100},"statements":{"total":12,"covered":12,"skipped":0,"pct":100},"branches":{"total":4,"covered":4,"skipped":0,"pct":100}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/brightness.ts": {"lines":{"total":35,"covered":32,"skipped":0,"pct":91.42},"functions":{"total":5,"covered":5,"skipped":0,"pct":100},"statements":{"total":40,"covered":37,"skipped":0,"pct":92.5},"branches":{"total":8,"covered":5,"skipped":0,"pct":62.5}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/depth.ts": {"lines":{"total":86,"covered":80,"skipped":0,"pct":93.02},"functions":{"total":13,"covered":12,"skipped":0,"pct":92.3},"statements":{"total":105,"covered":97,"skipped":0,"pct":92.38},"branches":{"total":31,"covered":27,"skipped":0,"pct":87.09}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/horizon.ts": {"lines":{"total":26,"covered":24,"skipped":0,"pct":92.3},"functions":{"total":4,"covered":4,"skipped":0,"pct":100},"statements":{"total":30,"covered":28,"skipped":0,"pct":93.33},"branches":{"total":9,"covered":8,"skipped":0,"pct":88.88}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/index.ts": {"lines":{"total":0,"covered":0,"skipped":0,"pct":100},"functions":{"total":0,"covered":0,"skipped":0,"pct":100},"statements":{"total":0,"covered":0,"skipped":0,"pct":100},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image/src/texture.ts": {"lines":{"total":24,"covered":24,"skipped":0,"pct":100},"functions":{"total":4,"covered":4,"skipped":0,"pct":100},"statements":{"total":29,"covered":29,"skipped":0,"pct":100},"branches":{"total":4,"covered":4,"skipped":0,"pct":100}}
+}
+{"total": {"lines":{"total":266,"covered":212,"skipped":0,"pct":79.69},"statements":{"total":290,"covered":227,"skipped":0,"pct":78.27},"functions":{"total":43,"covered":25,"skipped":0,"pct":58.13},"branches":{"total":161,"covered":123,"skipped":0,"pct":76.39},"branchesTrue":{"total":0,"covered":0,"skipped":0,"pct":"Unknown"}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/index.ts": {"lines":{"total":0,"covered":0,"skipped":0,"pct":100},"functions":{"total":0,"covered":0,"skipped":0,"pct":100},"statements":{"total":0,"covered":0,"skipped":0,"pct":100},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/mappers.ts": {"lines":{"total":191,"covered":181,"skipped":0,"pct":94.76},"functions":{"total":19,"covered":19,"skipped":0,"pct":100},"statements":{"total":212,"covered":195,"skipped":0,"pct":91.98},"branches":{"total":136,"covered":118,"skipped":0,"pct":86.76}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/midi.ts": {"lines":{"total":33,"covered":0,"skipped":0,"pct":0},"functions":{"total":9,"covered":0,"skipped":0,"pct":0},"statements":{"total":33,"covered":0,"skipped":0,"pct":0},"branches":{"total":19,"covered":0,"skipped":0,"pct":0}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/presets.ts": {"lines":{"total":4,"covered":0,"skipped":0,"pct":0},"functions":{"total":4,"covered":0,"skipped":0,"pct":0},"statements":{"total":5,"covered":0,"skipped":0,"pct":0},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/scales.ts": {"lines":{"total":33,"covered":30,"skipped":0,"pct":90.9},"functions":{"total":7,"covered":6,"skipped":0,"pct":85.71},"statements":{"total":34,"covered":31,"skipped":0,"pct":91.17},"branches":{"total":6,"covered":5,"skipped":0,"pct":83.33}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/scenePacks.ts": {"lines":{"total":3,"covered":0,"skipped":0,"pct":0},"functions":{"total":3,"covered":0,"skipped":0,"pct":0},"statements":{"total":4,"covered":0,"skipped":0,"pct":0},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
+,"/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio/src/topoPresets.ts": {"lines":{"total":2,"covered":1,"skipped":0,"pct":50},"functions":{"total":1,"covered":0,"skipped":0,"pct":0},"statements":{"total":2,"covered":1,"skipped":0,"pct":50},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
+}
+BACKEND-LOG.md
+BACKEND.md
+FRONTEND-LOG.md
+SETUP-LOG.md
+UX-LOG.md
+UX.md
+#!/usr/bin/env python3
+"""Run a local QA command with UTC logging and a credential-free environment."""
+import datetime
+import fcntl
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+QA = ROOT / 'docs/qa/2026-10-02'
+group, label, command = sys.argv[1:4]
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+artifact = QA / 'artifacts' / f'{group}-{label}.txt'
+env = {k: v for k, v in os.environ.items() if k in {
+    'PATH', 'HOME', 'TMPDIR', 'LANG', 'TERM', 'PW_TEST_CONNECT_WS_ENDPOINT',
+}}
+env.update({
+    'CI': '1', 'NEXT_TELEMETRY_DISABLED': '1',
+    'COREPACK_HOME': '/private/tmp/obsong-qa-corepack',
+    'XDG_CACHE_HOME': '/private/tmp/obsong-qa-cache',
+    'npm_config_userconfig': '/dev/null',
+})
+def clean(text):
+    text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+    text = re.sub(r'(?i)(Bearer\s+)[A-Za-z0-9._-]+', r'\1[REDACTED]', text)
+    text = re.sub(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b', '[REDACTED]', text)
+    return text
+
+def log(message):
+    for path in (QA / 'SESSION-LOG.md', QA / 'passes' / f'{group.upper()}-LOG.md'):
+        with path.open('a') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            stream.write(message)
+
+log(f'\n- {stamp} **{group}/{label} started**: `{command.replace(chr(10), " ")}`\n')
+started = time.monotonic()
+result = subprocess.run(command, shell=True, executable='/bin/zsh', cwd=ROOT,
+                        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+output = clean(result.stdout)
+artifact.write_text(f'UTC start: {stamp}\nCommand: {command}\nExit: {result.returncode}\n\n{output}')
+end = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+log(f'- {end} **{group}/{label} ended**: exit {result.returncode}; {time.monotonic()-started:.1f}s. '
+    f'[Output](artifacts/{artifact.name}).\n')
+print(output, end='')
+sys.exit(result.returncode)

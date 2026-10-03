@@ -1,0 +1,347 @@
+UTC start: 2026-10-03T01:26:49Z
+Command: nl -ba apps/api/src/__tests__/qa.boundaries.test.ts && nl -ba apps/api/src/__tests__/qa.persistence.test.ts && nl -ba apps/api/src/__tests__/qa.proxy.test.ts && nl -ba apps/api/src/__tests__/qa.auth.test.ts
+
+     1	import Fastify, { type FastifyInstance } from 'fastify';
+     2	import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+     3	
+     4	vi.mock('../auth', () => ({ requireAuth: async (req: { userId?: string }) => { req.userId = 'qa-user'; } }));
+     5	vi.mock('../services/compositions', () => ({
+     6	  listCompositions: vi.fn(), getCompositionById: vi.fn(), createComposition: vi.fn(),
+     7	  updateComposition: vi.fn(), deleteComposition: vi.fn(),
+     8	}));
+     9	import { compositionRoutes } from '../routes/compositions';
+    10	import * as service from '../services/compositions';
+    11	
+    12	const mocked = vi.mocked(service);
+    13	const UUID = '11111111-1111-4111-8111-111111111111';
+    14	const validNote = { note: 'C4', start: 0, duration: 0.5, velocity: 0.8 };
+    15	const body = {
+    16	  title: 'QA composition', noteEvents: [validNote], mappingMode: 'LINEAR_LANDSCAPE', key: 'C', scale: 'C_MAJOR',
+    17	};
+    18	const stored = {
+    19	  ...body, mappingMode: 'LINEAR_LANDSCAPE' as const, key: 'C' as const, scale: 'C_MAJOR' as const,
+    20	  id: UUID, userId: 'qa-user', createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
+    21	};
+    22	let app: FastifyInstance;
+    23	
+    24	beforeEach(async () => {
+    25	  vi.resetAllMocks();
+    26	  mocked.createComposition.mockResolvedValue(stored);
+    27	  mocked.getCompositionById.mockResolvedValue(stored);
+    28	  mocked.updateComposition.mockResolvedValue(stored);
+    29	  app = Fastify();
+    30	  await app.register(compositionRoutes);
+    31	  await app.ready();
+    32	});
+    33	afterEach(async () => { await app.close(); });
+    34	
+    35	describe('QA composition boundary values and error handling', () => {
+    36	  it.each([
+    37	    { title: '' }, { title: 'x'.repeat(201) }, { description: 'x'.repeat(2001) },
+    38	    { tempo: 0 }, { tempo: 1001 },
+    39	    { noteEvents: [{ ...validNote, start: -1 }] },
+    40	    { noteEvents: [{ ...validNote, duration: 0 }] },
+    41	    { noteEvents: [{ ...validNote, velocity: -0.001 }] },
+    42	    { noteEvents: [{ ...validNote, velocity: 1.001 }] },
+    43	    { noteEvents: [{ ...validNote, pan: -1.001 }] },
+    44	    { noteEvents: [{ ...validNote, pan: 1.001 }] },
+    45	  ])('rejects out-of-range payload %#', async invalid => {
+    46	    const response = await app.inject({ method: 'POST', url: '/compositions', payload: { ...body, ...invalid } });
+    47	    expect(response.statusCode).toBe(400);
+    48	    expect(mocked.createComposition).not.toHaveBeenCalled();
+    49	  });
+    50	
+    51	  it.each([
+    52	    { title: 'x'.repeat(200), tempo: 1 }, { description: 'x'.repeat(2000), tempo: 1000 },
+    53	    { noteEvents: [{ ...validNote, velocity: 0, pan: -1 }] },
+    54	    { noteEvents: [{ ...validNote, velocity: 1, pan: 1 }] },
+    55	  ])('accepts exact inclusive boundary %#', async valid => {
+    56	    const response = await app.inject({ method: 'POST', url: '/compositions', payload: { ...body, ...valid } });
+    57	    expect(response.statusCode).toBe(201);
+    58	  });
+    59	
+    60	  it.each(['limit=0', 'limit=101', 'limit=1.1', 'offset=-1', 'offset=1.1', 'cursor='])('rejects invalid pagination %s', async query => {
+    61	    const response = await app.inject({ method: 'GET', url: `/compositions?${query}` });
+    62	    expect(response.statusCode).toBe(400);
+    63	    expect(mocked.listCompositions).not.toHaveBeenCalled();
+    64	  });
+    65	
+    66	  it.each([
+    67	    { method: 'GET' as const, url: '/compositions', mock: mocked.listCompositions },
+    68	    { method: 'GET' as const, url: `/compositions/${UUID}`, mock: mocked.getCompositionById },
+    69	    { method: 'POST' as const, url: '/compositions', payload: body, mock: mocked.createComposition },
+    70	    { method: 'PUT' as const, url: `/compositions/${UUID}`, payload: { title: 'Changed' }, mock: mocked.updateComposition },
+    71	    { method: 'DELETE' as const, url: `/compositions/${UUID}`, mock: mocked.deleteComposition },
+    72	  ])('returns a safe error after provider failure on $method $url', async ({ mock, ...route }) => {
+    73	    mock.mockRejectedValue(new Error('QA_PRIVATE_DATABASE_DETAIL'));
+    74	    const response = await app.inject(route);
+    75	    expect(response.statusCode).toBe(500);
+    76	    expect(response.json().error.code).toBe('INTERNAL_ERROR');
+    77	    expect(response.body).not.toContain('QA_PRIVATE_DATABASE_DETAIL');
+    78	  });
+    79	
+    80	  // BE-001: schema checks lengths, not the public musical-value contract.
+    81	  it.fails.each([
+    82	    { noteEvents: [{ ...validNote, note: 'H4' }] },
+    83	    { mappingMode: 'UNKNOWN_MODE' }, { key: 'Z' }, { scale: 'UNKNOWN_SCALE' },
+    84	    { noteEvents: [{ ...validNote, effects: { reverbSend: 'loud' } }] },
+    85	  ])('BE-001 rejects non-musical or wrong-typed musical values %#', async invalid => {
+    86	    const response = await app.inject({ method: 'POST', url: '/compositions', payload: { ...body, ...invalid } });
+    87	    expect(response.statusCode).toBe(400);
+    88	    expect(mocked.createComposition).not.toHaveBeenCalled();
+    89	  });
+    90	});
+     1	import { beforeEach, describe, expect, it, vi } from 'vitest';
+     2	import type { CreateCompositionDTO, UpdateCompositionDTO } from '@toposonics/types';
+     3	
+     4	vi.mock('../supabase', () => ({ supabaseAdmin: { from: vi.fn() } }));
+     5	import { supabaseAdmin } from '../supabase';
+     6	import { createComposition, deleteComposition, listCompositions, updateComposition } from '../services/compositions';
+     7	
+     8	const UUID = '11111111-1111-4111-8111-111111111111';
+     9	const USER = 'qa-owner';
+    10	const body = {
+    11	  title: 'Original title', description: 'Original description', noteEvents: [],
+    12	  mappingMode: 'LINEAR_LANDSCAPE' as const, key: 'C' as const, scale: 'C_MAJOR' as const,
+    13	};
+    14	function row() {
+    15	  return {
+    16	    id: UUID, user_id: USER, name: body.title, data: { ...body },
+    17	    created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
+    18	  };
+    19	}
+    20	const fromMock = vi.mocked(supabaseAdmin.from);
+    21	function builder(result: unknown) {
+    22	  const query = {
+    23	    select: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn(),
+    24	    eq: vi.fn(), single: vi.fn(), order: vi.fn(), range: vi.fn(), or: vi.fn(),
+    25	    then: (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve),
+    26	  };
+    27	  for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'single', 'order', 'range', 'or'] as const) {
+    28	    query[method].mockReturnValue(query);
+    29	  }
+    30	  return query;
+    31	}
+    32	beforeEach(() => { vi.resetAllMocks(); });
+    33	
+    34	describe('QA persistence boundaries', () => {
+    35	  it('creates with server ownership and drops forged system/unknown fields', async () => {
+    36	    const query = builder({ data: row(), error: null });
+    37	    fromMock.mockReturnValue(query as unknown as ReturnType<typeof supabaseAdmin.from>);
+    38	    await createComposition(USER, {
+    39	      ...body, id: 'forged', userId: 'other-owner', createdAt: 'forged', updatedAt: 'forged', extra: true,
+    40	    } as unknown as CreateCompositionDTO);
+    41	    const inserted = query.insert.mock.calls[0][0];
+    42	    expect(inserted.user_id).toBe(USER);
+    43	    expect(inserted.data).toMatchObject({ userId: USER, id: '', title: body.title });
+    44	    expect(inserted.data.createdAt).toBeInstanceOf(Date);
+    45	    expect(inserted.data).not.toHaveProperty('extra');
+    46	  });
+    47	
+    48	  it('preserves protected fields and untouched content on an ordinary partial update', async () => {
+    49	    const read = builder({ data: row(), error: null });
+    50	    const write = builder({ data: row(), error: null });
+    51	    fromMock.mockReturnValueOnce(read as unknown as ReturnType<typeof supabaseAdmin.from>)
+    52	      .mockReturnValueOnce(write as unknown as ReturnType<typeof supabaseAdmin.from>);
+    53	    await updateComposition(UUID, USER, {
+    54	      title: 'Changed', id: 'forged', userId: 'other-owner', createdAt: 'forged', extra: true,
+    55	    } as unknown as UpdateCompositionDTO);
+    56	    const updated = write.update.mock.calls[0][0];
+    57	    expect(updated.data).toMatchObject({ id: UUID, userId: USER, title: 'Changed', description: body.description });
+    58	    expect(updated.data.createdAt).toEqual(new Date('2026-01-01T00:00:00.000Z'));
+    59	    expect(updated.data).not.toHaveProperty('extra');
+    60	    expect(write.eq.mock.calls).toEqual([['id', UUID], ['user_id', USER]]);
+    61	  });
+    62	
+    63	  it.each(['PGRST116', '22P02'])('maps a raced-away update (%s) to null', async code => {
+    64	    const read = builder({ data: row(), error: null });
+    65	    const write = builder({ data: null, error: { code } });
+    66	    fromMock.mockReturnValueOnce(read as unknown as ReturnType<typeof supabaseAdmin.from>)
+    67	      .mockReturnValueOnce(write as unknown as ReturnType<typeof supabaseAdmin.from>);
+    68	    expect(await updateComposition(UUID, USER, { title: 'Changed' })).toBeNull();
+    69	  });
+    70	
+    71	  it('does not turn a delete provider failure into reported success', async () => {
+    72	    const query = builder({ data: null, error: new Error('QA provider unavailable') });
+    73	    fromMock.mockReturnValue(query as unknown as ReturnType<typeof supabaseAdmin.from>);
+    74	    await expect(deleteComposition(UUID, USER)).rejects.toThrow('QA provider unavailable');
+    75	  });
+    76	
+    77	  it.each(['', 'not a date', '2026-99-99', '2026-01-01|unexpected'])('rejects malformed cursor timestamp %s without querying', async timestamp => {
+    78	    const cursor = Buffer.from(`${timestamp}|${UUID}`).toString('base64url');
+    79	    await expect(listCompositions(USER, { cursor })).rejects.toThrow('Invalid cursor');
+    80	    expect(fromMock).not.toHaveBeenCalled();
+    81	  });
+    82	
+    83	  // BE-002: model two calls that read the same committed row before either writes.
+    84	  // Both resolve successfully, but the second full-JSONB write drops the first edit.
+    85	  it.fails('BE-002 preserves both disjoint edits from concurrent partial updates', async () => {
+    86	    let persisted = row();
+    87	    const reads: Array<() => void> = [];
+    88	    fromMock.mockImplementation(() => {
+    89	      const query = builder(null);
+    90	      let update: ReturnType<typeof row> | undefined;
+    91	      query.update.mockImplementation(value => { update = value; return query; });
+    92	      query.single.mockImplementation(() => {
+    93	        if (update) {
+    94	          persisted = { ...persisted, ...update };
+    95	          return Promise.resolve({ data: structuredClone(persisted), error: null });
+    96	        }
+    97	        const snapshot = structuredClone(persisted);
+    98	        return new Promise(resolve => {
+    99	          reads.push(() => resolve({ data: snapshot, error: null }));
+   100	          if (reads.length === 2) reads.forEach(release => release());
+   101	        });
+   102	      });
+   103	      return query as unknown as ReturnType<typeof supabaseAdmin.from>;
+   104	    });
+   105	    const results = await Promise.all([
+   106	      updateComposition(UUID, USER, { title: 'New title' }),
+   107	      updateComposition(UUID, USER, { description: 'New description' }),
+   108	    ]);
+   109	    expect(results.every(Boolean)).toBe(true);
+   110	    expect(persisted.data).toMatchObject({ title: 'New title', description: 'New description' });
+   111	  });
+   112	});
+     1	import Fastify from 'fastify';
+     2	import { afterEach, expect, it, vi } from 'vitest';
+     3	
+     4	afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+     5	
+     6	it('does not trust forwarding headers with the default proxy configuration', async () => {
+     7	  vi.stubEnv('TRUST_PROXY', '');
+     8	  vi.resetModules();
+     9	  const { config } = await import('../config');
+    10	  const app = Fastify({ trustProxy: config.trustProxy });
+    11	  app.get('/qa-ip', request => ({ ip: request.ip }));
+    12	  try {
+    13	    const response = await app.inject({
+    14	      method: 'GET', url: '/qa-ip', remoteAddress: '127.0.0.1',
+    15	      headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.10' },
+    16	    });
+    17	    expect(response.json().ip).toBe('127.0.0.1');
+    18	  } finally { await app.close(); }
+    19	});
+    20	
+    21	// BE-003: the documented numeric hop-count setting is converted to unrestricted true.
+    22	it.fails('BE-003 trusts only one proxy hop when TRUST_PROXY=1', async () => {
+    23	  vi.stubEnv('TRUST_PROXY', '1');
+    24	  vi.resetModules();
+    25	  const { config } = await import('../config');
+    26	  const app = Fastify({ trustProxy: config.trustProxy });
+    27	  app.get('/qa-ip', request => ({ ip: request.ip }));
+    28	  try {
+    29	    const response = await app.inject({
+    30	      method: 'GET', url: '/qa-ip', remoteAddress: '127.0.0.1',
+    31	      headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.10' },
+    32	    });
+    33	    expect(response.json().ip).toBe('203.0.113.10');
+    34	  } finally { await app.close(); }
+    35	});
+     1	import Fastify, { type FastifyInstance } from 'fastify';
+     2	import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+     3	
+     4	// This is the only provider boundary. Real auth and route code run without a network.
+     5	vi.mock('../supabase', () => ({ supabaseAdmin: { auth: { getUser: vi.fn() } } }));
+     6	vi.mock('../services/compositions', () => ({
+     7	  listCompositions: vi.fn().mockResolvedValue({ compositions: [] }),
+     8	  getCompositionById: vi.fn(),
+     9	  createComposition: vi.fn(),
+    10	  updateComposition: vi.fn(),
+    11	  deleteComposition: vi.fn(),
+    12	}));
+    13	
+    14	const UUID = '11111111-1111-4111-8111-111111111111';
+    15	const validBody = {
+    16	  title: 'QA composition', noteEvents: [], mappingMode: 'LINEAR_LANDSCAPE', key: 'C', scale: 'C_MAJOR',
+    17	};
+    18	const protectedRoutes = [
+    19	  { method: 'GET' as const, url: '/compositions' },
+    20	  { method: 'GET' as const, url: `/compositions/${UUID}` },
+    21	  { method: 'POST' as const, url: '/compositions', payload: validBody },
+    22	  { method: 'PUT' as const, url: `/compositions/${UUID}`, payload: { title: 'Changed' } },
+    23	  { method: 'DELETE' as const, url: `/compositions/${UUID}` },
+    24	  { method: 'GET' as const, url: '/health/detailed' },
+    25	];
+    26	const providerUser = {
+    27	  id: 'qa-user', email: 'qa@example.invalid', created_at: '2026-01-01T00:00:00Z',
+    28	  last_sign_in_at: '2026-10-01T00:00:00Z', user_metadata: { full_name: 'QA User' },
+    29	};
+    30	
+    31	let app: FastifyInstance;
+    32	let getUser: ReturnType<typeof vi.fn>;
+    33	let resolveToken: typeof import('../auth').getUserFromToken;
+    34	
+    35	beforeEach(async () => {
+    36	  vi.resetModules();
+    37	  vi.clearAllMocks();
+    38	  const { supabaseAdmin } = await import('../supabase');
+    39	  getUser = vi.mocked(supabaseAdmin.auth.getUser);
+    40	  getUser.mockResolvedValue({ data: { user: providerUser }, error: null });
+    41	  resolveToken = (await import('../auth')).getUserFromToken;
+    42	  app = Fastify();
+    43	  await app.register((await import('../routes/compositions')).compositionRoutes);
+    44	  await app.register((await import('../routes/health')).healthRoutes);
+    45	  await app.ready();
+    46	});
+    47	
+    48	afterEach(async () => {
+    49	  vi.restoreAllMocks();
+    50	  await app.close();
+    51	});
+    52	
+    53	describe('QA real-auth permissions matrix', () => {
+    54	  it.each(protectedRoutes)('rejects anonymous $method $url before provider access', async route => {
+    55	    const response = await app.inject(route);
+    56	    expect(response.statusCode).toBe(401);
+    57	    expect(response.json().error.code).toBe('UNAUTHORIZED');
+    58	    expect(getUser).not.toHaveBeenCalled();
+    59	  });
+    60	
+    61	  it.each(protectedRoutes)('rejects invalid-token $method $url', async route => {
+    62	    getUser.mockResolvedValue({ data: { user: null }, error: { message: 'Invalid fixture' } });
+    63	    const response = await app.inject({ ...route, headers: { authorization: 'Bearer [REDACTED]' } });
+    64	    expect(response.statusCode).toBe(401);
+    65	    expect(response.json().error.code).toBe('INVALID_TOKEN');
+    66	  });
+    67	
+    68	  it.each(['Basic fixture', 'Bearer', 'Bearer [REDACTED] two'])('rejects malformed header %s', async authorization => {
+    69	    const response = await app.inject({ method: 'GET', url: '/compositions', headers: { authorization } });
+    70	    expect(response.statusCode).toBe(401);
+    71	    expect(getUser).not.toHaveBeenCalled();
+    72	  });
+    73	
+    74	  it('exposes only basic health anonymously and detailed health after auth', async () => {
+    75	    const publicHealth = await app.inject({ method: 'GET', url: '/health' });
+    76	    expect(publicHealth.statusCode).toBe(200);
+    77	    expect(publicHealth.json()).not.toHaveProperty('memory');
+    78	    const detailed = await app.inject({
+    79	      method: 'GET', url: '/health/detailed', headers: { authorization: 'Bearer [REDACTED]' },
+    80	    });
+    81	    expect(detailed.statusCode).toBe(200);
+    82	    expect(detailed.json()).toHaveProperty('memory');
+    83	  });
+    84	
+    85	  it('maps provider user fields and reuses a token for no longer than 30 seconds', async () => {
+    86	    const clock = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    87	    const first = await resolveToken('qa-cache');
+    88	    expect(first).toMatchObject({ id: 'qa-user', email: 'qa@example.invalid', displayName: 'QA User' });
+    89	    expect(first?.createdAt).toBeInstanceOf(Date);
+    90	    clock.mockReturnValue(30_999);
+    91	    expect(await resolveToken('qa-cache')).toEqual(first);
+    92	    expect(getUser).toHaveBeenCalledTimes(1);
+    93	    getUser.mockResolvedValue({ data: { user: null }, error: { message: 'Revoked fixture' } });
+    94	    clock.mockReturnValue(31_000);
+    95	    expect(await resolveToken('qa-cache')).toBeNull();
+    96	    expect(getUser).toHaveBeenCalledTimes(2);
+    97	  });
+    98	
+    99	  it('bounds cached token entries rather than keeping all token lookups forever', async () => {
+   100	    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+   101	    for (let i = 0; i <= 5_000; i++) await resolveToken(`qa-eviction-${i}`);
+   102	    await resolveToken('qa-eviction-0');
+   103	    expect(getUser).toHaveBeenCalledTimes(5_002);
+   104	  });
+   105	});
+
+Exit: 0

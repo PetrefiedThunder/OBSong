@@ -1,0 +1,237 @@
+UTC start: 2026-10-03T01:27:21Z
+Command: python3 docs/qa/2026-10-02/tools/frontend-negative-controls.py
+
+Negative control command: corepack pnpm --filter @toposonics/web exec vitest run src/lib/__tests__/imageProcessing.qa.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web
+
+ ❯ src/lib/__tests__/imageProcessing.qa.test.ts (11 tests | 2 failed) 12ms
+     ✓ returns a consistent pixel buffer for 1x1 integer-aspect input 1ms
+     ✓ returns a consistent pixel buffer for 1200x1200 integer-aspect input 1ms
+     ✓ returns a consistent pixel buffer for 2400x1600 integer-aspect input 1ms
+     ✓ returns a consistent pixel buffer for 1600x2400 integer-aspect input 1ms
+     × FE-001: resized portrait dimensions remain integers accepted by the analyzer 5ms
+     × FE-001: a very thin image keeps both resized dimensions at least one pixel 0ms
+     ✓ reports an unavailable canvas context 0ms
+     ✓ releases the upload URL after decode failure=false 1ms
+     ✓ releases the upload URL after decode failure=true 0ms
+     ✓ limits save thumbnails to 256px and releases the object URL 0ms
+     ✓ releases the thumbnail URL if canvas allocation fails 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/imageProcessing.qa.test.ts > QA image input boundaries > FE-001: resized portrait dimensions remain integers accepted by the analyzer
+AssertionError: expected [Function] to not throw an error but 'RangeError: Invalid array length' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"RangeError: Invalid array length"
+
+ ❯ src/lib/__tests__/imageProcessing.qa.test.ts:54:12
+     52|       averageRows: true, rowsToAverage: 5,
+     53|     }))
+     54|       .not.toThrow();
+       |            ^
+     55|     expect(Number.isInteger(result.width)).toBe(true);
+     56|     expect(result.pixels.length).toBe(result.width * result.height * 4…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/__tests__/imageProcessing.qa.test.ts > QA image input boundaries > FE-001: a very thin image keeps both resized dimensions at least one pixel
+AssertionError: expected 0.39999999999999997 to be greater than or equal to 1
+ ❯ src/lib/__tests__/imageProcessing.qa.test.ts:62:26
+     60|     stubCanvas();
+     61|     const result = extractPixelData({ width: 1, height: 3000 } as HTML…
+     62|     expect(result.width).toBeGreaterThanOrEqual(1);
+       |                          ^
+     63|     expect(result.pixels.length).toBeGreaterThan(0);
+     64|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 9 passed (11)
+   Start at  18:27:21
+   Duration  231ms (transform 32ms, setup 0ms, import 44ms, tests 12ms, environment 0ms)
+
+undefined
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/lib/__tests__/imageProcessing.qa.test.ts
+Negative control exit: 1
+Negative control command: corepack pnpm --filter @toposonics/mobile exec vitest run src/state/__tests__/CompositionsProvider.qa.test.ts src/auth/__tests__/secureStorage.qa.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile
+
+ ❯ src/auth/__tests__/secureStorage.qa.test.ts (8 tests | 2 failed) 5ms
+     ✓ round-trips a synthetic 1-character value 1ms
+     ✓ round-trips a synthetic 2048-character value 0ms
+     ✓ round-trips a synthetic 2049-character value 0ms
+     ✓ round-trips a synthetic 5000-character value 0ms
+     ✓ returns null if an encrypted chunk is missing 0ms
+     ✓ removes a short unchunked value 0ms
+     × FE-003: sign-out removes every encrypted chunk of a long session 2ms
+     × FE-003: overwriting a long session with a short one removes its old chunks 1ms
+ ❯ src/state/__tests__/CompositionsProvider.qa.test.ts (8 tests | 3 failed) 16ms
+     ✓ does not fetch or hydrate cache while signed out 6ms
+     ✓ discards a delayed successful list response after account switch 2ms
+     ✓ loads only the active user cache during an ordinary offline refresh 1ms
+     ✓ retains both saves that complete before React commits their state updates 1ms
+     ✓ evicts a deleted composition from state and both cache surfaces 1ms
+     × FE-002: discards delayed cache hydration after switching accounts 4ms
+     × FE-002: a prior-account delete cannot persist the next account library under the old key 1ms
+     × FE-002: detail reads cannot return prior-account data after the account changes 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/auth/__tests__/secureStorage.qa.test.ts > QA encrypted session storage lifecycle > FE-003: sign-out removes every encrypted chunk of a long session
+AssertionError: expected 3 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 3
+
+ ❯ src/auth/__tests__/secureStorage.qa.test.ts:50:32
+     48|     expect(stores.secure.size).toBe(3);
+     49|     await secureStorage.removeItem('qa-fixture');
+     50|     expect(stores.secure.size).toBe(0);
+       |                                ^
+     51|   });
+     52|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/auth/__tests__/secureStorage.qa.test.ts > QA encrypted session storage lifecycle > FE-003: overwriting a long session with a short one removes its old chunks
+AssertionError: expected [ …(4) ] to deeply equal [ 'supabase.auth.qa-fixture' ]
+
+- Expected
++ Received
+
+  [
++   "supabase.auth.qa-fixture.chunk.0",
++   "supabase.auth.qa-fixture.chunk.1",
++   "supabase.auth.qa-fixture.chunk.2",
+    "supabase.auth.qa-fixture",
+  ]
+
+ ❯ src/auth/__tests__/secureStorage.qa.test.ts:57:39
+     55|     await secureStorage.setItem('qa-fixture', 'replacement');
+     56|     expect(await secureStorage.getItem('qa-fixture')).toBe('replacemen…
+     57|     expect([...stores.secure.keys()]).toEqual(['supabase.auth.qa-fixtu…
+       |                                       ^
+     58|   });
+     59| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/state/__tests__/CompositionsProvider.qa.test.ts > QA private mobile library state > FE-002: discards delayed cache hydration after switching accounts
+AssertionError: expected [ { id: 'a-private', …(8) } ] to deeply equal [ { id: 'b-private', …(8) } ]
+
+- Expected
++ Received
+
+  [
+    {
+-     "createdAt": 2026-10-02T00:00:00.000Z,
+-     "id": "b-private",
++     "createdAt": "2026-10-02T00:00:00.000Z",
++     "id": "a-private",
+      "key": "C",
+      "mappingMode": "LINEAR_LANDSCAPE",
+      "noteEvents": [],
+      "scale": "C_MAJOR",
+-     "title": "b-private",
+-     "updatedAt": 2026-10-02T00:00:00.000Z,
+-     "userId": "qa-user-b",
++     "title": "a-private",
++     "updatedAt": "2026-10-02T00:00:00.000Z",
++     "userId": "qa-user-a",
+    },
+  ]
+
+ ❯ src/state/__tests__/CompositionsProvider.qa.test.ts:148:34
+    146|       oldCacheRead.resolve(JSON.stringify({ items: [composition('a-pri…
+    147|     });
+    148|     expect(current.compositions).toEqual([other]);
+       |                                  ^
+    149|   });
+    150|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/state/__tests__/CompositionsProvider.qa.test.ts > QA private mobile library state > FE-002: a prior-account delete cannot persist the next account library under the old key
+AssertionError: expected [ [ …(2) ] ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   [
++     "@toposonics:compositions:list:qa-user-a",
++     "{\"items\":[{\"id\":\"b-private\",\"userId\":\"qa-user-b\",\"title\":\"b-private\",\"mappingMode\":\"LINEAR_LANDSCAPE\",\"key\":\"C\",\"scale\":\"C_MAJOR\",\"createdAt\":\"2026-10-02T00:00:00.000Z\",\"updatedAt\":\"2026-10-02T00:00:00.000Z\",\"noteEvents\":[]}],\"cachedAt\":1790990842424}",
++   ],
++ ]
+
+ ❯ src/state/__tests__/CompositionsProvider.qa.test.ts:164:32
+    162|       ([key]) => key === getCompositionListCacheKey('qa-user-a')
+    163|     );
+    164|     expect(writesToOldAccount).toEqual([]);
+       |                                ^
+    165|   });
+    166|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/state/__tests__/CompositionsProvider.qa.test.ts > QA private mobile library state > FE-002: detail reads cannot return prior-account data after the account changes
+AssertionError: expected { id: 'a-private', …(8) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  "createdAt": 2026-10-02T00:00:00.000Z,
+  "id": "a-private",
+  "key": "C",
+  "mappingMode": "LINEAR_LANDSCAPE",
+  "noteEvents": [],
+  "scale": "C_MAJOR",
+  "title": "a-private",
+  "updatedAt": 2026-10-02T00:00:00.000Z,
+  "userId": "qa-user-a",
+}
+
+ ❯ src/state/__tests__/CompositionsProvider.qa.test.ts:176:22
+    174|     await act(async () => { detail.resolve(composition('a-private')); …
+    175|     // CompositionDetailScreen consumes this returned value directly i…
+    176|     expect(received).toBeNull();
+       |                      ^
+    177|     expect(current.compositionsById).toEqual({});
+    178|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  5 failed | 11 passed (16)
+   Start at  18:27:22
+   Duration  129ms (transform 50ms, setup 0ms, import 76ms, tests 21ms, environment 0ms)
+
+undefined
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/state/__tests__/CompositionsProvider.qa.test.ts src/auth/__tests__/secureStorage.qa.test.ts
+Negative control exit: 1
+Restored original test bytes (it.fails markers retained).
+
+Exit: 0

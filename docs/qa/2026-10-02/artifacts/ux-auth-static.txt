@@ -1,0 +1,314 @@
+UTC start: 2026-10-03T01:23:18Z
+Command: cat packages/shared/src/config.ts && rg -n "logout|signOut|Sign Out|Log Out" apps/web/src && sed -n "260,390p" "apps/web/src/app/compositions/[id]/page.tsx" && nl -ba apps/web/src/components/LoginModal.tsx | head -100 && nl -ba apps/web/src/components/MappingControls.tsx | sed -n "138,195p"
+Exit: 0
+
+const configuredApiUrl =
+  process.env.NEXT_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL || '';
+
+// In production the API URL must be configured explicitly. Silently falling back to
+// http://localhost:3001 shipped builds pointing at localhost (empty library + console
+// errors on web; cleartext-blocked failures on mobile). Warn loudly rather than throw so
+// CI builds without the var set don't hard-fail, but the misconfiguration is visible.
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (!configuredApiUrl && isProduction) {
+  // eslint-disable-next-line no-console
+  console.error(
+    '[toposonics] API URL is not configured for a production build. Set NEXT_PUBLIC_API_URL ' +
+      '(web) or EXPO_PUBLIC_API_URL (mobile); falling back to http://localhost:3001, which ' +
+      'will not work in a deployed app.',
+  );
+}
+
+export const API_URL = configuredApiUrl || 'http://localhost:3001';
+apps/web/src/contexts/AuthContext.tsx:11:  logout: () => void;
+apps/web/src/contexts/AuthContext.tsx:101:  const logout = async () => {
+apps/web/src/contexts/AuthContext.tsx:103:      await supabaseClient.auth.signOut();
+apps/web/src/contexts/AuthContext.tsx:110:    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+                maxLength={2000}
+                rows={3}
+                className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="primary"
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                loading={isSaving}
+              >
+                Save
+              </Button>
+              <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">{composition.title}</h1>
+              {composition.description && (
+                <p className="text-gray-400">{composition.description}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {canDelete && (
+                <Button variant="outline" onClick={startEditing}>
+                  Edit
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={handleExportMidi}
+                disabled={composition.noteEvents.length === 0}
+              >
+                Export MIDI
+              </Button>
+              {canDelete && (
+                <Button
+                  variant="danger"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  loading={isDeleting}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Metadata */}
+        <Card title="Details" padding="lg">
+          <div className="space-y-3 text-sm">
+            <div>
+              <div className="text-gray-400">Musical Key</div>
+              <div className="font-medium">
+                {composition.key} {composition.scale.replace(/_/g, ' ')}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-400">Mapping Mode</div>
+              <div className="font-medium">
+                {composition.mappingMode.replace('_', ' ')}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-400">Sound Preset</div>
+              <div className="font-medium">{preset.name}</div>
+            </div>
+            <div>
+              <div className="text-gray-400">Note Count</div>
+              <div className="font-medium">{composition.noteEvents.length}</div>
+            </div>
+            <div>
+              <div className="text-gray-400">Created</div>
+              <div className="font-medium">
+                {new Date(composition.createdAt).toLocaleString()}
+              </div>
+            </div>
+            {composition.metadata?.duration && (
+              <div>
+                <div className="text-gray-400">Duration</div>
+                <div className="font-medium">
+                  {composition.metadata.duration.toFixed(1)}s
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Playback */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card title="Playback" padding="lg">
+            <PlaybackControls
+              isPlaying={isPlaying}
+              isLoading={audioLoading}
+              tempo={tempo}
+              onPlay={play}
+              onStop={stop}
+              onTempoChange={setTempo}
+            />
+          </Card>
+
+          <TimelineVisualizer
+            noteEvents={composition.noteEvents}
+            currentTime={currentTime}
+            tempo={tempo}
+          />
+
+          {composition.imageThumbnail && (
+            <Card title="Source Image" padding="lg">
+              <img
+                src={composition.imageThumbnail}
+                alt="Source"
+                className="w-full rounded-lg"
+              />
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+     1	'use client';
+     2	
+     3	import { useEffect, useId, useRef, useState } from 'react';
+     4	import { Button } from '@toposonics/ui';
+     5	
+     6	interface LoginModalProps {
+     7	  isOpen: boolean;
+     8	  onClose: () => void;
+     9	  onLogin: (email: string, password?: string) => Promise<void>;
+    10	  isLoggingIn: boolean;
+    11	  title?: string;
+    12	  description?: string;
+    13	  submitLabel?: string;
+    14	}
+    15	
+    16	export function LoginModal({
+    17	  isOpen,
+    18	  onClose,
+    19	  onLogin,
+    20	  isLoggingIn,
+    21	  title = 'Sign In',
+    22	  description = 'Enter your credentials to continue.',
+    23	  submitLabel = 'Sign In',
+    24	}: LoginModalProps) {
+    25	  const [email, setEmail] = useState('');
+    26	  const [password, setPassword] = useState('');
+    27	  const titleId = useId();
+    28	  const descriptionId = useId();
+    29	  const emailId = useId();
+    30	  const passwordId = useId();
+    31	  const dialogRef = useRef<HTMLDivElement>(null);
+    32	
+    33	  useEffect(() => {
+    34	    if (!isOpen) return;
+    35	    const onKeyDown = (e: KeyboardEvent) => {
+    36	      if (e.key === 'Escape') onClose();
+    37	    };
+    38	    document.addEventListener('keydown', onKeyDown);
+    39	    // Move focus into the dialog on open.
+    40	    dialogRef.current?.querySelector<HTMLElement>('input, button')?.focus();
+    41	    return () => document.removeEventListener('keydown', onKeyDown);
+    42	  }, [isOpen, onClose]);
+    43	
+    44	  if (!isOpen) return null;
+    45	
+    46	  const handleSubmit = (e: React.FormEvent) => {
+    47	    e.preventDefault();
+    48	    onLogin(email, password);
+    49	  };
+    50	
+    51	  return (
+    52	    <div
+    53	      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+    54	      onClick={onClose}
+    55	    >
+    56	      <div
+    57	        ref={dialogRef}
+    58	        role="dialog"
+    59	        aria-modal="true"
+    60	        aria-labelledby={titleId}
+    61	        aria-describedby={descriptionId}
+    62	        className="bg-surface-primary p-8 rounded-xl shadow-lg w-full max-w-sm"
+    63	        onClick={(e) => e.stopPropagation()}
+    64	      >
+    65	        <h2 id={titleId} className="text-2xl font-bold mb-4 text-white">
+    66	          {title}
+    67	        </h2>
+    68	        <p id={descriptionId} className="text-gray-400 mb-6">
+    69	          {description}
+    70	        </p>
+    71	        <form onSubmit={handleSubmit} className="space-y-4">
+    72	          <div>
+    73	            <label htmlFor={emailId} className="block text-sm font-medium mb-2">
+    74	              Email
+    75	            </label>
+    76	            <input
+    77	              id={emailId}
+    78	              type="email"
+    79	              value={email}
+    80	              onChange={(e) => setEmail(e.target.value)}
+    81	              required
+    82	              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+    83	            />
+    84	          </div>
+    85	          <div>
+    86	            <label htmlFor={passwordId} className="block text-sm font-medium mb-2">
+    87	              Password
+    88	            </label>
+    89	            <input
+    90	              id={passwordId}
+    91	              type="password"
+    92	              value={password}
+    93	              onChange={(e) => setPassword(e.target.value)}
+    94	              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+    95	            />
+    96	          </div>
+    97	          <div className="flex gap-4 pt-4">
+    98	            <Button type="button" variant="outline" onClick={onClose} fullWidth>
+    99	              Cancel
+   100	            </Button>
+   138	          ))}
+   139	        </div>
+   140	      </div>
+   141	
+   142	      {/* Musical Key */}
+   143	      <div>
+   144	        <span id={keyGroupId} className="block text-sm font-medium mb-2">
+   145	          Key
+   146	        </span>
+   147	        <div className="grid grid-cols-6 gap-2" role="group" aria-labelledby={keyGroupId}>
+   148	          {KEYS.map((k) => (
+   149	            <button
+   150	              key={k}
+   151	              onClick={() => onKeyChange(k)}
+   152	              className={`py-2 px-3 rounded-lg font-medium transition-colors ${
+   153	                musicalKey === k
+   154	                  ? 'bg-primary-600 text-white'
+   155	                  : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
+   156	              }`}
+   157	            >
+   158	              {k}
+   159	            </button>
+   160	          ))}
+   161	        </div>
+   162	      </div>
+   163	
+   164	      {/* Scale */}
+   165	      <div>
+   166	        <label htmlFor={scaleId} className="block text-sm font-medium mb-2">
+   167	          Scale
+   168	        </label>
+   169	        <select
+   170	          id={scaleId}
+   171	          value={SCALE_ALIASES[scale] ?? scale}
+   172	          onChange={(e) => onScaleChange(e.target.value as ScaleType)}
+   173	          className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+   174	        >
+   175	          {SCALES.map((s) => (
+   176	            <option key={s.value} value={s.value}>
+   177	              {s.label}
+   178	            </option>
+   179	          ))}
+   180	        </select>
+   181	      </div>
+   182	
+   183	      {/* Sound Preset */}
+   184	      <div>
+   185	        <label htmlFor={soundPresetId} className="block text-sm font-medium mb-2">
+   186	          Sound Preset
+   187	        </label>
+   188	        <select
+   189	          id={soundPresetId}
+   190	          value={presetId}
+   191	          onChange={(e) => onPresetChange(e.target.value)}
+   192	          className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+   193	        >
+   194	          {presets.map((preset) => (
+   195	            <option key={preset.id} value={preset.id}>

@@ -1,0 +1,65 @@
+UTC start: 2026-10-03T01:22:40Z
+Command: NEXT_FONT_GOOGLE_MOCKED_RESPONSES="$PWD/docs/qa/2026-10-02/tools/font-mock.cjs" NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:3999 NEXT_PUBLIC_SUPABASE_ANON_KEY=qa-placeholder-public-key NEXT_PUBLIC_API_URL=http://127.0.0.1:3998 corepack pnpm -r --sort --if-present build
+Exit: 0
+
+Scope: 9 of 10 workspace projects
+packages/native-image-processing build$ tsc -b
+packages/ui build$ tsc -p .
+packages/types build$ tsc -p .
+packages/types build: Done
+packages/native-image-processing build: Done
+packages/ui build: Done
+apps/api build$ tsc -p .
+packages/core-audio build$ tsc -p .
+packages/core-image build$ tsc -p .
+packages/shared build$ tsc -p .
+packages/core-image build: Done
+packages/shared build: Done
+packages/core-audio build: Done
+apps/api build: Done
+apps/web build$ next build
+apps/mobile build$ echo 'Mobile builds require EAS Build'
+apps/mobile build: Mobile builds require EAS Build
+apps/mobile build: Done
+apps/web build:  ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+apps/web build:  We detected multiple lockfiles and selected the directory of /Users/sellers/package-lock.json as the root directory.
+apps/web build:  To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+apps/web build:    See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+apps/web build:  Detected additional lockfiles: 
+apps/web build:    * /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/pnpm-lock.yaml
+apps/web build: ⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+apps/web build:    ▲ Next.js 15.5.24
+apps/web build:    Creating an optimized production build ...
+apps/web build: <w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/globals.css': No serializer registered for Warning
+apps/web build: <w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> Array { 1 items } -> webpack/lib/ModuleWarning -> Warning
+apps/web build:  ⚠ Compiled with warnings in 3.5s
+apps/web build: ./src/app/globals.css.webpack[javascript/auto]!=!../../node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/app/globals.css
+apps/web build: Warning
+apps/web build: autoprefixer: Autoprefixer target browsers do not need any prefixes.You do not need Autoprefixer anymore.
+apps/web build: Check your Browserslist config to be sure that your targets are set up correctly.
+apps/web build:   Learn more at:
+apps/web build:   https://github.com/postcss/autoprefixer#readme
+apps/web build:   https://github.com/browserslist/browserslist#readme
+apps/web build: Import trace for requested module:
+apps/web build: ./src/app/globals.css.webpack[javascript/auto]!=!../../node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/app/globals.css
+apps/web build: ./src/app/globals.css
+apps/web build:    Linting and checking validity of types ...
+apps/web build:    Collecting page data ...
+apps/web build:    Generating static pages (0/2) ...
+apps/web build:  ✓ Generating static pages (2/2)
+apps/web build:    Finalizing page optimization ...
+apps/web build:    Collecting build traces ...
+apps/web build: Route (app)                                 Size  First Load JS
+apps/web build: ┌ ƒ /                                    5.04 kB         371 kB
+apps/web build: ├ ƒ /_not-found                          1.01 kB         343 kB
+apps/web build: ├ ƒ /compositions                         3.3 kB         405 kB
+apps/web build: ├ ƒ /compositions/[id]                   2.64 kB         422 kB
+apps/web build: └ ƒ /studio                              8.45 kB         428 kB
+apps/web build: + First Load JS shared by all             342 kB
+apps/web build:   ├ chunks/497-46c0103e91f6657d.js         69 kB
+apps/web build:   ├ chunks/6de65426-4176e73ec42d2def.js  54.2 kB
+apps/web build:   ├ chunks/b5a63b5c-cf1a6fab39fd828e.js   217 kB
+apps/web build:   └ other shared chunks (total)          2.21 kB
+apps/web build: ƒ Middleware                             33.9 kB
+apps/web build: ƒ  (Dynamic)  server-rendered on demand
+apps/web build: Done

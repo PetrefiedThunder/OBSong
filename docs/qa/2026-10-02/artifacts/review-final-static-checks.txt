@@ -1,0 +1,31 @@
+UTC start: 2026-10-03T01:28:28Z
+Command: corepack pnpm -r typecheck && corepack pnpm -r --if-present lint && git diff --check
+
+Scope: 9 of 10 workspace projects
+packages/native-image-processing typecheck$ tsc --noEmit
+packages/types typecheck$ tsc --noEmit
+packages/ui typecheck$ tsc --noEmit
+packages/native-image-processing typecheck: Done
+packages/types typecheck: Done
+packages/ui typecheck: Done
+apps/api typecheck$ tsc --noEmit
+packages/core-audio typecheck$ tsc --noEmit
+packages/shared typecheck$ tsc --noEmit
+packages/core-image typecheck$ tsc --noEmit
+packages/core-image typecheck: Done
+packages/core-audio typecheck: Done
+packages/shared typecheck: Done
+apps/api typecheck: Done
+apps/web typecheck$ tsc --noEmit
+apps/mobile typecheck$ tsc --noEmit
+apps/web typecheck: Done
+apps/mobile typecheck: Done
+Scope: 9 of 10 workspace projects
+apps/api lint$ eslint src --ext .ts
+apps/api lint: Done
+apps/mobile lint$ eslint src --ext .ts,.tsx
+apps/web lint$ eslint src next.config.mjs --ext .js,.jsx,.ts,.tsx
+apps/mobile lint: Done
+apps/web lint: Done
+
+Exit: 0

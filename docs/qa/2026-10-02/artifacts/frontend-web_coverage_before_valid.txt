@@ -1,0 +1,406 @@
+UTC start: 2026-10-03T01:24:35Z
+Command: corepack pnpm --filter @toposonics/web exec vitest run --exclude "**/*.qa.test.ts" --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../../docs/qa/2026-10-02/artifacts/coverage-web-before-valid
+Exit: 0
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web
+      Coverage enabled with v8
+
+ ✓ src/hooks/__tests__/useToneEngine.utils.test.ts (5 tests) 2ms
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/layout.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+1: import type { Metadata, Viewport } from 'next';
+               ^
+2: import { Inter } from 'next/font/google';
+3: import Link from 'next/link';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 1)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 12
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/ImageUploader.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+4: import { Button } from '@toposonics/ui';
+5: 
+6: interface ImageUploaderProps {
+            ^
+7:   onImageSelected: (file: File) => void;
+8:   preview: string | null;
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 3)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 117
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/LandingDemoPlayer.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+2: 
+3: import { useEffect, useId, useRef, useState } from 'react';
+4: import type { NoteEvent, ScenePack } from '@toposonics/types';
+               ^
+5: 
+6: type ToneTransport = {
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 4)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 87
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/MappingControls.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+2: 
+3: import { useId } from 'react';
+4: import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
+               ^
+5: import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 6)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 58
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/SaveCompositionCard.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+ 8: import { logAnalyticsEvent } from '@/lib/analytics';
+ 9: import { LoginModal } from './LoginModal';
+10: import type { NoteEvent, MappingMode, KeyType, ScaleType } from '@toposonics/types';
+                ^
+11: 
+12: interface SaveCompositionCardProps {
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 8)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 371
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/LoginModal.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+4: import { Button } from '@toposonics/ui';
+5: 
+6: interface LoginModalProps {
+            ^
+7:   isOpen: boolean;
+8:   onClose: () => void;
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 5)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 126
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/PlaybackControls.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+4: import { Button } from '@toposonics/ui';
+5: 
+6: interface PlaybackControlsProps {
+            ^
+7:   isPlaying: boolean;
+8:   isLoading: boolean;
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 7)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 97
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/ScenePackSelector.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+2: 
+3: import { useState } from 'react';
+4: import type { ScenePack, NoteEvent } from '@toposonics/types';
+               ^
+5: import { getAllScenePacks } from '@toposonics/core-audio';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 9)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 61
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/contexts/AuthContext.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+2: 
+3: import React, { createContext, useContext, useState, useEffect } from 'react';
+4: import type { User } from '@toposonics/types';
+               ^
+5: import { supabaseClient } from '@/lib/supabaseClient';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 11)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 106
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/TimelineVisualizer.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+2: 
+3: import { useCallback, useEffect, useRef } from 'react';
+4: import type { NoteEvent } from '@toposonics/types';
+               ^
+5: import { noteNameToMidi } from '@toposonics/core-audio';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 10)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 83
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/page.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+5: import { Button } from '@toposonics/ui';
+6: import { getAllScenePacks } from '@toposonics/core-audio';
+7: import type { ScenePack, NoteEvent } from '@toposonics/types';
+               ^
+8: import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
+9: import { TourProvider, useTour } from '@/components/tour/TourProvider';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 2)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 202
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/compositions/page.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+4: import Link from 'next/link';
+5: import { Card, Button } from '@toposonics/ui';
+6: import type { CompositionSummary } from '@toposonics/types';
+               ^
+7: import { fetchAllCompositions } from '@/lib/api';
+8: import { useAuth } from '@/contexts/AuthContext';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 6)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 162
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/studio/page.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+4: import { useSearchParams } from 'next/navigation';
+5: import { Button, Card } from '@toposonics/ui';
+6: import type {
+               ^
+7:   KeyType,
+8:   ScaleType,
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 7)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 197
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/tour/TourProvider.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+3: import { logAnalyticsEvent } from '@/lib/analytics';
+4: 
+5: interface TourContextValue {
+            ^
+6:   isTourActive: boolean;
+7:   currentStepIndex: number;
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 9)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 201
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/tour/TourPopup.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 2 errors:
+Missing initializer in const declaration
+18:   }
+19: 
+20:   const popupStyle: React.CSSProperties = {
+            ^
+21:     position: 'fixed',
+22:     top: '50%',Expected a semicolon or an implicit semicolon after a statement, but found none
+18:   }
+19: 
+20:   const popupStyle: React.CSSProperties = {
+                      ^
+21:     position: 'fixed',
+22:     top: '50%',
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 8)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 515
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/compositions/[id]/page.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+4: import { useParams, useRouter } from 'next/navigation';
+5: import { Button, Card } from '@toposonics/ui';
+6: import type { Composition } from '@toposonics/types';
+               ^
+7: import { fetchComposition, updateComposition, deleteComposition } from '@/lib/api';
+8: import { exportCompositionToMidi } from '@/lib/midiExport';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 10)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 188
+}
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:24:36
+   Duration  142ms (transform 12ms, setup 0ms, import 19ms, tests 2ms, environment 0ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |    1.06 |     3.18 |    5.17 |     1.1 |                   
+ src               |       0 |        0 |       0 |       0 |                   
+  middleware.ts    |       0 |        0 |       0 |       0 | 22-74             
+ src/hooks         |    1.92 |     5.05 |      12 |    1.96 |                   
+  useToneEngine.ts |       0 |        0 |       0 |       0 | 1-536             
+  ...gine.utils.ts |     100 |    83.33 |     100 |     100 | 22                
+ src/lib           |       0 |        0 |       0 |       0 |                   
+  analytics.ts     |       0 |        0 |       0 |       0 | 16                
+  api.ts           |       0 |      100 |     100 |       0 | 11-20             
+  demoPlayback.ts  |       0 |        0 |       0 |       0 | 32-148            
+  ...Processing.ts |       0 |        0 |       0 |       0 | 17-174            
+  ...eThumbnail.ts |       0 |        0 |       0 |       0 | 13-35             
+  midiExport.ts    |       0 |        0 |       0 |       0 | 5-62              
+  ...baseClient.ts |       0 |        0 |     100 |       0 | 3-10              
+-------------------|---------|----------|---------|---------|-------------------

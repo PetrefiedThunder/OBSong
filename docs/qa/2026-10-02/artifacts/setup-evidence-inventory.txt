@@ -1,0 +1,272 @@
+UTC start: 2026-10-03T01:27:09Z
+Command: rg --files docs/qa/2026-10-02 | sort; ls -l /opt/homebrew/opt/node@20/bin/node /opt/homebrew/opt/node@22/bin/node 2>/dev/null; git diff -- apps/mobile/package.json apps/web/vitest.config.ts pnpm-lock.yaml
+
+docs/qa/2026-10-02/PLAN.md
+docs/qa/2026-10-02/SESSION-LOG.md
+docs/qa/2026-10-02/artifacts/backend-added-test-first-run.txt
+docs/qa/2026-10-02/artifacts/backend-after-coverage.txt
+docs/qa/2026-10-02/artifacts/backend-audio-contract.txt
+docs/qa/2026-10-02/artifacts/backend-baseline-coverage.txt
+docs/qa/2026-10-02/artifacts/backend-charter-closeout.txt
+docs/qa/2026-10-02/artifacts/backend-contracts-read.txt
+docs/qa/2026-10-02/artifacts/backend-core-add-tests.txt
+docs/qa/2026-10-02/artifacts/backend-core-audio-after.txt
+docs/qa/2026-10-02/artifacts/backend-core-baseline.txt
+docs/qa/2026-10-02/artifacts/backend-core-contracts.txt
+docs/qa/2026-10-02/artifacts/backend-core-evidence.txt
+docs/qa/2026-10-02/artifacts/backend-core-final-check.txt
+docs/qa/2026-10-02/artifacts/backend-core-focused-contracts.txt
+docs/qa/2026-10-02/artifacts/backend-core-identity.txt
+docs/qa/2026-10-02/artifacts/backend-core-image-after.txt
+docs/qa/2026-10-02/artifacts/backend-core-pad-negative-control.txt
+docs/qa/2026-10-02/artifacts/backend-core-report.txt
+docs/qa/2026-10-02/artifacts/backend-core-source.txt
+docs/qa/2026-10-02/artifacts/backend-core-types.txt
+docs/qa/2026-10-02/artifacts/backend-coverage-after/coverage-final.json
+docs/qa/2026-10-02/artifacts/backend-coverage-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/backend-coverage-before/coverage-final.json
+docs/qa/2026-10-02/artifacts/backend-coverage-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/backend-dependency-inventory.txt
+docs/qa/2026-10-02/artifacts/backend-domain-source.txt
+docs/qa/2026-10-02/artifacts/backend-evidence-lines.txt
+docs/qa/2026-10-02/artifacts/backend-final-file-check.txt
+docs/qa/2026-10-02/artifacts/backend-focused-read.txt
+docs/qa/2026-10-02/artifacts/backend-identity.txt
+docs/qa/2026-10-02/artifacts/backend-inventory.txt
+docs/qa/2026-10-02/artifacts/backend-negative-control-location.txt
+docs/qa/2026-10-02/artifacts/backend-negative-control-prep.txt
+docs/qa/2026-10-02/artifacts/backend-negative-control.txt
+docs/qa/2026-10-02/artifacts/backend-offline-secret-scan.txt
+docs/qa/2026-10-02/artifacts/backend-source-read.txt
+docs/qa/2026-10-02/artifacts/code-secret-scan.json
+docs/qa/2026-10-02/artifacts/core-audio-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/core-audio-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/core-image-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/core-image-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-mobile-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-mobile-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-before-oxc/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-before-valid/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/dependency-inventory.json
+docs/qa/2026-10-02/artifacts/frontend-added_tests_lint.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-build.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-lint.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-typecheck.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-workspace-tests.txt
+docs/qa/2026-10-02/artifacts/frontend-charter.txt
+docs/qa/2026-10-02/artifacts/frontend-charter_start.txt
+docs/qa/2026-10-02/artifacts/frontend-coverage_totals.txt
+docs/qa/2026-10-02/artifacts/frontend-dev-server-stream.txt
+docs/qa/2026-10-02/artifacts/frontend-direct-server-log.txt
+docs/qa/2026-10-02/artifacts/frontend-evidence_line_numbers.txt
+docs/qa/2026-10-02/artifacts/frontend-identity.txt
+docs/qa/2026-10-02/artifacts/frontend-image_tests.txt
+docs/qa/2026-10-02/artifacts/frontend-image_tests_source.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_coverage_transform.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_coverage_transformer.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_mobile_audio.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_renderer.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_sources.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_vite_transform.txt
+docs/qa/2026-10-02/artifacts/frontend-install_mobile_renderer.txt
+docs/qa/2026-10-02/artifacts/frontend-install_mobile_renderer_store.txt
+docs/qa/2026-10-02/artifacts/frontend-local-web-polling.txt
+docs/qa/2026-10-02/artifacts/frontend-mobile_coverage_after.txt
+docs/qa/2026-10-02/artifacts/frontend-mobile_coverage_before.txt
+docs/qa/2026-10-02/artifacts/frontend-mobile_provider_regressions.txt
+docs/qa/2026-10-02/artifacts/frontend-polling-readiness.txt
+docs/qa/2026-10-02/artifacts/frontend-provider_test_added.txt
+docs/qa/2026-10-02/artifacts/frontend-read_coverage_transformer.txt
+docs/qa/2026-10-02/artifacts/frontend-read_image_contract.txt
+docs/qa/2026-10-02/artifacts/frontend-read_mobile_secure_storage.txt
+docs/qa/2026-10-02/artifacts/frontend-read_mobile_shared.txt
+docs/qa/2026-10-02/artifacts/frontend-read_provider_audio.txt
+docs/qa/2026-10-02/artifacts/frontend-read_web_logic.txt
+docs/qa/2026-10-02/artifacts/frontend-readiness-investigate.txt
+docs/qa/2026-10-02/artifacts/frontend-secure_storage_lifecycle.txt
+docs/qa/2026-10-02/artifacts/frontend-server-readiness.txt
+docs/qa/2026-10-02/artifacts/frontend-server-stream-read.txt
+docs/qa/2026-10-02/artifacts/frontend-stop-dev-investigate.txt
+docs/qa/2026-10-02/artifacts/frontend-test_toolchain_versions.txt
+docs/qa/2026-10-02/artifacts/frontend-tests_typecheck.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_after.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_before.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_before_oxc.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_before_valid.txt
+docs/qa/2026-10-02/artifacts/review-gate_api_tests.txt
+docs/qa/2026-10-02/artifacts/review-gate_core_tests.txt
+docs/qa/2026-10-02/artifacts/review-gate_identity.txt
+docs/qa/2026-10-02/artifacts/review-gate_inventory.txt
+docs/qa/2026-10-02/artifacts/review-gate_reports.txt
+docs/qa/2026-10-02/artifacts/review-gate_reports_retry.txt
+docs/qa/2026-10-02/artifacts/review-gate_ui_source.txt
+docs/qa/2026-10-02/artifacts/review-gate_ui_tests.txt
+docs/qa/2026-10-02/artifacts/setup-evidence-inventory.txt
+docs/qa/2026-10-02/artifacts/setup-font-hook-location.txt
+docs/qa/2026-10-02/artifacts/setup-font-hook.txt
+docs/qa/2026-10-02/artifacts/setup-font-mock-inspect.txt
+docs/qa/2026-10-02/artifacts/setup-inspect-config.txt
+docs/qa/2026-10-02/artifacts/setup-install.txt
+docs/qa/2026-10-02/artifacts/setup-log-repair.txt
+docs/qa/2026-10-02/artifacts/setup-plan-record.txt
+docs/qa/2026-10-02/artifacts/setup-read-handoffs.txt
+docs/qa/2026-10-02/artifacts/setup-scan-help.txt
+docs/qa/2026-10-02/artifacts/setup-test-provider.txt
+docs/qa/2026-10-02/artifacts/setup-tooling-install.txt
+docs/qa/2026-10-02/artifacts/setup-versions.txt
+docs/qa/2026-10-02/artifacts/ux-add-cross-engine-smoke.txt
+docs/qa/2026-10-02/artifacts/ux-auth-report.json
+docs/qa/2026-10-02/artifacts/ux-auth-session-ready.txt
+docs/qa/2026-10-02/artifacts/ux-auth-static.txt
+docs/qa/2026-10-02/artifacts/ux-browser-engine-probe.txt
+docs/qa/2026-10-02/artifacts/ux-browser-regressions.txt
+docs/qa/2026-10-02/artifacts/ux-browser-report.json
+docs/qa/2026-10-02/artifacts/ux-browser-session-ready.txt
+docs/qa/2026-10-02/artifacts/ux-contrast-and-console-details.txt
+docs/qa/2026-10-02/artifacts/ux-corrupt-image.png
+docs/qa/2026-10-02/artifacts/ux-detail-mobile-375.png
+docs/qa/2026-10-02/artifacts/ux-home-desktop.png
+docs/qa/2026-10-02/artifacts/ux-home-mobile-320.png
+docs/qa/2026-10-02/artifacts/ux-home-mobile-375.png
+docs/qa/2026-10-02/artifacts/ux-identity.txt
+docs/qa/2026-10-02/artifacts/ux-inspect-browser-progress.txt
+docs/qa/2026-10-02/artifacts/ux-inspect.txt
+docs/qa/2026-10-02/artifacts/ux-interim-browser-results.txt
+docs/qa/2026-10-02/artifacts/ux-landing-demo.png
+docs/qa/2026-10-02/artifacts/ux-landing-inspect.txt
+docs/qa/2026-10-02/artifacts/ux-library-empty.png
+docs/qa/2026-10-02/artifacts/ux-library-error.png
+docs/qa/2026-10-02/artifacts/ux-library-loading.png
+docs/qa/2026-10-02/artifacts/ux-login-modal.png
+docs/qa/2026-10-02/artifacts/ux-mobile-and-tour-semantics.txt
+docs/qa/2026-10-02/artifacts/ux-not-found.png
+docs/qa/2026-10-02/artifacts/ux-prepare-axe.txt
+docs/qa/2026-10-02/artifacts/ux-record-cancel.txt
+docs/qa/2026-10-02/artifacts/ux-remaining-ui.txt
+docs/qa/2026-10-02/artifacts/ux-static-flows.txt
+docs/qa/2026-10-02/artifacts/ux-static-ui.txt
+docs/qa/2026-10-02/artifacts/ux-stop-premature-browser.txt
+docs/qa/2026-10-02/artifacts/ux-studio-empty.png
+docs/qa/2026-10-02/artifacts/ux-studio-firefox.png
+docs/qa/2026-10-02/artifacts/ux-studio-mobile-375.png
+docs/qa/2026-10-02/artifacts/ux-studio-saved.png
+docs/qa/2026-10-02/artifacts/ux-studio-webkit.png
+docs/qa/2026-10-02/artifacts/ux-syntax-check.txt
+docs/qa/2026-10-02/artifacts/ux-write-auth-script.txt
+docs/qa/2026-10-02/artifacts/ux-write-browser-script.txt
+docs/qa/2026-10-02/artifacts/ux-write-charter.txt
+docs/qa/2026-10-02/artifacts/ux-write-regression-tests.txt
+docs/qa/2026-10-02/passes/BACKEND-LOG.md
+docs/qa/2026-10-02/passes/BACKEND.md
+docs/qa/2026-10-02/passes/CORE-SUPPLEMENT.md
+docs/qa/2026-10-02/passes/FRONTEND-LOG.md
+docs/qa/2026-10-02/passes/REVIEW-LOG.md
+docs/qa/2026-10-02/passes/SETUP-LOG.md
+docs/qa/2026-10-02/passes/UX-LOG.md
+docs/qa/2026-10-02/passes/UX.md
+docs/qa/2026-10-02/tools/docs/qa/2026-10-02/artifacts/ux-regression-results.json
+docs/qa/2026-10-02/tools/font-mock.cjs
+docs/qa/2026-10-02/tools/run.py
+docs/qa/2026-10-02/tools/scan-code.py
+docs/qa/2026-10-02/tools/ux-auth.cjs
+docs/qa/2026-10-02/tools/ux-browser.cjs
+docs/qa/2026-10-02/tools/ux-playwright.config.cjs
+docs/qa/2026-10-02/tools/ux-regression.spec.cjs
+diff --git a/apps/mobile/package.json b/apps/mobile/package.json
+index c07b833..370ec35 100644
+--- a/apps/mobile/package.json
++++ b/apps/mobile/package.json
+@@ -48,9 +48,11 @@
+   "devDependencies": {
+     "@babel/core": "^7.29.6",
+     "@types/react": "~18.2.48",
++    "@types/react-test-renderer": "18.3.1",
+     "babel-preset-expo": "~10.0.2",
+     "dotenv": "^16.4.5",
+     "eslint": "^8.56.0",
++    "react-test-renderer": "19.2.3",
+     "typescript": "^5.3.3",
+     "vitest": "^4.1.0"
+   },
+diff --git a/apps/web/vitest.config.ts b/apps/web/vitest.config.ts
+index 7b4783f..489d2b0 100644
+--- a/apps/web/vitest.config.ts
++++ b/apps/web/vitest.config.ts
+@@ -1,6 +1,8 @@
+ import { defineConfig } from 'vitest/config';
+ 
+ export default defineConfig({
++  // Next preserves JSX for its own compiler; Vitest must transform TSX for coverage.
++  oxc: { jsx: { runtime: 'automatic' } },
+   test: {
+     environment: 'node',
+     include: ['src/**/*.test.ts'],
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index c74a6a8..bfc09d1 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -179,6 +179,9 @@ importers:
+       '@types/react':
+         specifier: ~18.2.48
+         version: 18.2.48
++      '@types/react-test-renderer':
++        specifier: 18.3.1
++        version: 18.3.1
+       babel-preset-expo:
+         specifier: ~10.0.2
+         version: 10.0.2(@babel/core@7.29.7)
+@@ -188,6 +191,9 @@ importers:
+       eslint:
+         specifier: ^8.56.0
+         version: 8.57.1
++      react-test-renderer:
++        specifier: 19.2.3
++        version: 19.2.3(react@19.2.3)
+       typescript:
+         specifier: ^5.3.3
+         version: 5.9.3
+@@ -4806,6 +4812,12 @@ packages:
+       '@types/react': 18.2.48
+     dev: true
+ 
++  /@types/react-test-renderer@18.3.1:
++    resolution: {integrity: sha512-vAhnk0tG2eGa37lkU9+s5SoroCsRI08xnsWFiAXOuPH2jqzMbcXvKExXViPi1P5fIklDeCvXqyrdmipFaSkZrA==}
++    dependencies:
++      '@types/react': 18.2.48
++    dev: true
++
+   /@types/react@18.2.48:
+     resolution: {integrity: sha512-qboRCl6Ie70DQQG9hhNREz81jqC1cs9EVNcjQ1AU+jH6NFfSAhVVbrrY/+nSF+Bsk4AOwm9Qa61InvMCyV+H3w==}
+     dependencies:
+@@ -9566,6 +9578,10 @@ packages:
+   /react-is@18.3.1:
+     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+ 
++  /react-is@19.3.0:
++    resolution: {integrity: sha512-UpMYezM4v5/18F28aC66AEsjXIgE02kyEMH6yLdgLXu/UTfa1Ntwck/nNLrbqJsEXW7gPb0coNO9FQse9WTovA==}
++    dev: true
++
+   /react-native-safe-area-context@5.7.0(react-native@0.86.2)(react@19.2.3):
+     resolution: {integrity: sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==}
+     peerDependencies:
+@@ -9662,6 +9678,16 @@ packages:
+     resolution: {integrity: sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==}
+     engines: {node: '>=0.10.0'}
+ 
++  /react-test-renderer@19.2.3(react@19.2.3):
++    resolution: {integrity: sha512-TMR1LnSFiWZMJkCgNf5ATSvAheTT2NvKIwiVwdBPHxjBI7n/JbWd4gaZ16DVd9foAXdvDz+sB5yxZTwMjPRxpw==}
++    peerDependencies:
++      react: ^19.2.3
++    dependencies:
++      react: 19.2.3
++      react-is: 19.3.0
++      scheduler: 0.27.0
++    dev: true
++
+   /react@18.3.1:
+     resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+     engines: {node: '>=0.10.0'}
+
+Exit: 0

@@ -1,0 +1,36 @@
+UTC start: 2026-10-03T01:21:14Z
+Command: corepack pnpm install --frozen-lockfile --store-dir /private/tmp/obsong-qa-pnpm-store --ignore-scripts
+Exit: 0
+
+Scope: all 10 workspace projects
+(node:39840) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +1122
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 1122, reused 0, downloaded 90, added 80
+Progress: resolved 1122, reused 0, downloaded 228, added 229
+Progress: resolved 1122, reused 0, downloaded 386, added 388
+Progress: resolved 1122, reused 0, downloaded 490, added 483
+Progress: resolved 1122, reused 0, downloaded 557, added 555
+Progress: resolved 1122, reused 0, downloaded 643, added 639
+Progress: resolved 1122, reused 0, downloaded 734, added 728
+Progress: resolved 1122, reused 0, downloaded 810, added 800
+Progress: resolved 1122, reused 0, downloaded 887, added 885
+Progress: resolved 1122, reused 0, downloaded 986, added 987
+Progress: resolved 1122, reused 0, downloaded 1072, added 1062
+Progress: resolved 1122, reused 0, downloaded 1117, added 1118
+Progress: resolved 1122, reused 0, downloaded 1120, added 1121
+Progress: resolved 1122, reused 0, downloaded 1120, added 1122, done
+
+devDependencies:
++ @typescript-eslint/eslint-plugin 6.21.0
++ @typescript-eslint/parser 6.21.0
++ eslint 8.57.1
++ eslint-config-prettier 9.1.2
++ eslint-plugin-react-hooks 5.2.0
++ prettier 3.7.4
++ typescript 5.9.3
+
+Done in 13.9s

@@ -1,0 +1,12 @@
+UTC start: 2026-10-03T01:25:54Z
+Command: git diff --check && git status --short apps/api docs/qa/2026-10-02/passes/BACKEND.md && python3 -c 'import json; from pathlib import Path; p=Path("docs/qa/2026-10-02/artifacts"); print("coverage before",json.loads((p/"backend-coverage-before/coverage-summary.json").read_text())["total"]); print("coverage after",json.loads((p/"backend-coverage-after/coverage-summary.json").read_text())["total"])'
+
+?? apps/api/src/__tests__/qa.auth.test.ts
+?? apps/api/src/__tests__/qa.boundaries.test.ts
+?? apps/api/src/__tests__/qa.persistence.test.ts
+?? apps/api/src/__tests__/qa.proxy.test.ts
+?? docs/qa/2026-10-02/passes/BACKEND.md
+coverage before {'lines': {'total': 268, 'covered': 103, 'skipped': 0, 'pct': 38.43}, 'statements': {'total': 285, 'covered': 108, 'skipped': 0, 'pct': 37.89}, 'functions': {'total': 41, 'covered': 15, 'skipped': 0, 'pct': 36.58}, 'branches': {'total': 234, 'covered': 78, 'skipped': 0, 'pct': 33.33}, 'branchesTrue': {'total': 0, 'covered': 0, 'skipped': 0, 'pct': 100}}
+coverage after {'lines': {'total': 268, 'covered': 174, 'skipped': 0, 'pct': 64.92}, 'statements': {'total': 285, 'covered': 184, 'skipped': 0, 'pct': 64.56}, 'functions': {'total': 41, 'covered': 25, 'skipped': 0, 'pct': 60.97}, 'branches': {'total': 234, 'covered': 145, 'skipped': 0, 'pct': 61.96}, 'branchesTrue': {'total': 0, 'covered': 0, 'skipped': 0, 'pct': 100}}
+
+Exit: 0

@@ -1,0 +1,1120 @@
+UTC start: 2026-10-03T01:21:28Z
+Command: nl -ba apps/mobile/src/state/CompositionsProvider.tsx && nl -ba apps/mobile/src/screens/CompositionsScreen.tsx && nl -ba apps/web/src/hooks/useToneEngine.ts && rg -n "width|height|pixels.length|validate" packages/core-image/src/analyzer.ts packages/core-image/src/analysis.ts && cat docs/qa/2026-10-02/tools/run.py
+Exit: 2
+
+     1	import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+     2	import AsyncStorage from '@react-native-async-storage/async-storage';
+     3	import type { Composition, CompositionSummary, CreateCompositionDTO } from '@toposonics/types';
+     4	import {
+     5	  fetchComposition,
+     6	  fetchAllCompositions,
+     7	  createComposition,
+     8	  deleteComposition as apiDeleteComposition,
+     9	} from '../services/apiClient';
+    10	import { useAuth } from '../auth/AuthProvider';
+    11	import {
+    12	  canUseCompositionCache,
+    13	  getCompositionDetailCacheKey,
+    14	  getCompositionListCacheKey,
+    15	} from './compositionCache';
+    16	
+    17	interface CompositionsContextValue {
+    18	  /** Lightweight list summaries; full compositions live in compositionsById. */
+    19	  compositions: CompositionSummary[];
+    20	  /** Full compositions (with noteEvents), populated on demand by loadComposition. */
+    21	  compositionsById: Record<string, Composition>;
+    22	  loading: boolean;
+    23	  usingCache: boolean;
+    24	  refresh: () => Promise<void>;
+    25	  loadComposition: (id: string) => Promise<Composition | null>;
+    26	  saveComposition: (payload: Omit<CreateCompositionDTO, 'userId'>) => Promise<Composition | null>;
+    27	  removeComposition: (id: string) => Promise<void>;
+    28	}
+    29	
+    30	const CompositionsContext = createContext<CompositionsContextValue | undefined>(undefined);
+    31	
+    32	export function CompositionsProvider({ children }: { children: React.ReactNode }) {
+    33	  const { token, user } = useAuth();
+    34	  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
+    35	  const [compositionsById, setCompositionsById] = useState<Record<string, Composition>>({});
+    36	  const [loading, setLoading] = useState(true);
+    37	  const [usingCache, setUsingCache] = useState(false);
+    38	
+    39	  const activeUserId = user?.id ?? null;
+    40	  // Tracks the currently active user so in-flight fetches from a previous user
+    41	  // (slow network + sign-out/account-switch) can be discarded before they write state.
+    42	  const activeUserIdRef = React.useRef(activeUserId);
+    43	  useEffect(() => {
+    44	    activeUserIdRef.current = activeUserId;
+    45	  }, [activeUserId]);
+    46	
+    47	  // Mirror the committed list in a ref so mutations can derive the next list synchronously
+    48	  // and persist it. Reading a variable assigned inside a functional state updater is unsafe:
+    49	  // React may run the updater during a later render, after saveToCache already ran.
+    50	  const compositionsRef = React.useRef(compositions);
+    51	  useEffect(() => {
+    52	    compositionsRef.current = compositions;
+    53	  }, [compositions]);
+    54	
+    55	  const saveToCache = useCallback(async (items: CompositionSummary[]) => {
+    56	    if (!activeUserId) return;
+    57	
+    58	    try {
+    59	      await AsyncStorage.setItem(
+    60	        getCompositionListCacheKey(activeUserId),
+    61	        JSON.stringify({ items, cachedAt: Date.now() })
+    62	      );
+    63	    } catch (err) {
+    64	      console.warn('Failed to cache compositions', err);
+    65	    }
+    66	  }, [activeUserId]);
+    67	
+    68	  const saveDetailToCache = useCallback(async (item: Composition) => {
+    69	    if (!activeUserId) return;
+    70	
+    71	    try {
+    72	      await AsyncStorage.setItem(getCompositionDetailCacheKey(activeUserId, item.id), JSON.stringify(item));
+    73	    } catch (err) {
+    74	      console.warn('Failed to cache composition detail', err);
+    75	    }
+    76	  }, [activeUserId]);
+    77	
+    78	  const hydrateFromCache = useCallback(async () => {
+    79	    if (!activeUserId) return;
+    80	
+    81	    try {
+    82	      const cached = await AsyncStorage.getItem(getCompositionListCacheKey(activeUserId));
+    83	      if (cached) {
+    84	        // Caches written before the summary migration hold full compositions; they still
+    85	        // satisfy every summary field the list UI reads, so no migration is needed. They
+    86	        // are no longer merged into compositionsById — that map holds full compositions
+    87	        // only, populated by loadComposition (which has its own detail cache).
+    88	        const parsed = JSON.parse(cached) as { items: CompositionSummary[] };
+    89	        setCompositions(parsed.items);
+    90	        setUsingCache(true);
+    91	      }
+    92	    } catch (err) {
+    93	      console.warn('Failed to hydrate compositions cache', err);
+    94	    }
+    95	  }, [activeUserId]);
+    96	
+    97	  useEffect(() => {
+    98	    setCompositions([]);
+    99	    setCompositionsById({});
+   100	    setUsingCache(false);
+   101	  }, [activeUserId]);
+   102	
+   103	  const refresh = useCallback(async () => {
+   104	    if (!canUseCompositionCache(token, activeUserId)) {
+   105	      setCompositions([]);
+   106	      setCompositionsById({});
+   107	      setUsingCache(false);
+   108	      setLoading(false);
+   109	      return;
+   110	    }
+   111	
+   112	    const requestUserId = activeUserId;
+   113	    setLoading(true);
+   114	    setUsingCache(false);
+   115	    try {
+   116	      // Page through the whole library so saves beyond the server's page size
+   117	      // (default 50) don't silently disappear from the list.
+   118	      const data = await fetchAllCompositions();
+   119	      // Discard results if the active user changed while the request was in flight,
+   120	      // so we never repopulate a signed-out screen (or another account) with A's data.
+   121	      if (activeUserIdRef.current !== requestUserId) return;
+   122	      // The list endpoint now returns summaries (no noteEvents/imageData), so they are
+   123	      // not merged into compositionsById — full records come from loadComposition.
+   124	      setCompositions(data);
+   125	      await saveToCache(data);
+   126	    } catch (err) {
+   127	      if (activeUserIdRef.current !== requestUserId) return;
+   128	      console.warn('Falling back to cached compositions', err);
+   129	      await hydrateFromCache();
+   130	    } finally {
+   131	      if (activeUserIdRef.current === requestUserId) {
+   132	        setLoading(false);
+   133	      }
+   134	    }
+   135	  }, [activeUserId, token, hydrateFromCache, saveToCache]);
+   136	
+   137	  useEffect(() => {
+   138	    refresh();
+   139	  }, [refresh]);
+   140	
+   141	  const loadComposition = useCallback(
+   142	    async (id: string) => {
+   143	      if (!canUseCompositionCache(token, activeUserId)) {
+   144	        return null;
+   145	      }
+   146	
+   147	      const cacheUserId = activeUserId as string;
+   148	      const requestUserId = activeUserId;
+   149	
+   150	      try {
+   151	        const data = await fetchComposition(id);
+   152	        if (activeUserIdRef.current === requestUserId) {
+   153	          setCompositionsById((prev) => ({ ...prev, [id]: data }));
+   154	          await saveDetailToCache(data);
+   155	        }
+   156	        return data;
+   157	      } catch (err) {
+   158	        console.warn('Failed to fetch composition, using cache', err);
+   159	        const cached = await AsyncStorage.getItem(
+   160	          getCompositionDetailCacheKey(cacheUserId, id)
+   161	        );
+   162	        if (cached) {
+   163	          return JSON.parse(cached) as Composition;
+   164	        }
+   165	        return null;
+   166	      }
+   167	    },
+   168	    [activeUserId, token, saveDetailToCache]
+   169	  );
+   170	
+   171	  const saveComposition = useCallback(
+   172	    async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
+   173	      if (!canUseCompositionCache(token, activeUserId)) return null;
+   174	
+   175	      const requestUserId = activeUserId;
+   176	      const created = await createComposition(payload);
+   177	      // Discard if the active user changed while the save was in flight (consistent with
+   178	      // refresh/loadComposition), so we don't write into the wrong user's state/cache.
+   179	      if (activeUserIdRef.current !== requestUserId) return created;
+   180	
+   181	      // The list holds lightweight summaries: derive one from the created composition so
+   182	      // the noteEvents/imageData blobs stay out of the list state and its cache.
+   183	      const createdSummary: CompositionSummary = {
+   184	        id: created.id,
+   185	        userId: created.userId,
+   186	        title: created.title,
+   187	        description: created.description,
+   188	        mappingMode: created.mappingMode,
+   189	        key: created.key,
+   190	        scale: created.scale,
+   191	        presetId: created.presetId,
+   192	        tempo: created.tempo,
+   193	        imageThumbnail: created.imageThumbnail,
+   194	        noteCount: created.noteEvents.length,
+   195	        createdAt: created.createdAt,
+   196	        updatedAt: created.updatedAt,
+   197	      };
+   198	      // Derive the next list from the committed ref (not inside a functional updater) so the
+   199	      // exact list we persist is the one we set. Assign the ref immediately so a second
+   200	      // mutation completing before React's sync effect runs builds on this list, not a stale one.
+   201	      const nextList = [createdSummary, ...compositionsRef.current];
+   202	      compositionsRef.current = nextList;
+   203	      setCompositions(nextList);
+   204	      void saveToCache(nextList);
+   205	      setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
+   206	      await saveDetailToCache(created);
+   207	      return created;
+   208	    },
+   209	    [activeUserId, token, saveDetailToCache, saveToCache]
+   210	  );
+   211	
+   212	  const removeComposition = useCallback(
+   213	    async (id: string) => {
+   214	      await apiDeleteComposition(id);
+   215	
+   216	      // Prune from in-memory state and the persisted caches so the deleted item
+   217	      // doesn't reappear from cache on the next mount. Derive the next list from the
+   218	      // committed ref so saveToCache persists exactly what we set; assign the ref
+   219	      // immediately so back-to-back mutations never build on a stale list.
+   220	      const nextList = compositionsRef.current.filter((c) => c.id !== id);
+   221	      compositionsRef.current = nextList;
+   222	      setCompositions(nextList);
+   223	      setCompositionsById((prev) => {
+   224	        const next = { ...prev };
+   225	        delete next[id];
+   226	        return next;
+   227	      });
+   228	      void saveToCache(nextList);
+   229	      if (activeUserId) {
+   230	        try {
+   231	          await AsyncStorage.removeItem(getCompositionDetailCacheKey(activeUserId, id));
+   232	        } catch (err) {
+   233	          console.warn('Failed to evict composition detail cache', err);
+   234	        }
+   235	      }
+   236	    },
+   237	    [activeUserId, saveToCache]
+   238	  );
+   239	
+   240	  const value = useMemo(
+   241	    () => ({
+   242	      compositions,
+   243	      compositionsById,
+   244	      loading,
+   245	      usingCache,
+   246	      refresh,
+   247	      loadComposition,
+   248	      saveComposition,
+   249	      removeComposition,
+   250	    }),
+   251	    [
+   252	      compositions,
+   253	      compositionsById,
+   254	      loading,
+   255	      usingCache,
+   256	      refresh,
+   257	      loadComposition,
+   258	      saveComposition,
+   259	      removeComposition,
+   260	    ]
+   261	  );
+   262	
+   263	  return <CompositionsContext.Provider value={value}>{children}</CompositionsContext.Provider>;
+   264	}
+   265	
+   266	export function useCompositions() {
+   267	  const ctx = useContext(CompositionsContext);
+   268	  if (!ctx) throw new Error('useCompositions must be used within CompositionsProvider');
+   269	  return ctx;
+   270	}
+     1	import React, { useState } from 'react';
+     2	import {
+     3	  View,
+     4	  Text,
+     5	  StyleSheet,
+     6	  FlatList,
+     7	  TouchableOpacity,
+     8	  ActivityIndicator,
+     9	  Alert,
+    10	} from 'react-native';
+    11	import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+    12	import type { RootStackParamList } from '../../App';
+    13	import { useAuth } from '../auth/AuthProvider';
+    14	import { useCompositions } from '../state/CompositionsProvider';
+    15	import { SignInModal } from '../components/SignInModal';
+    16	
+    17	type Props = {
+    18	  navigation: NativeStackNavigationProp<RootStackParamList, 'Compositions'>;
+    19	};
+    20	
+    21	export default function CompositionsScreen({ navigation }: Props) {
+    22	  const { loading: authLoading, signInWithApple, signInWithPassword, token } = useAuth();
+    23	  const { compositions, loading, refresh, usingCache } = useCompositions();
+    24	  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+    25	  const [isSigningIn, setIsSigningIn] = useState(false);
+    26	
+    27	  // CompositionsProvider already refreshes on mount and whenever the auth token /
+    28	  // active user changes, so no screen-level mount refresh is needed here (it would
+    29	  // double the initial fetch). Pull-to-refresh still calls refresh() directly.
+    30	
+    31	  const handlePasswordSignIn = async (email: string, password: string) => {
+    32	    try {
+    33	      setIsSigningIn(true);
+    34	      await signInWithPassword(email, password);
+    35	      setIsSignInModalOpen(false);
+    36	    } catch (error) {
+    37	      Alert.alert('Sign-In failed', (error as Error).message);
+    38	    } finally {
+    39	      setIsSigningIn(false);
+    40	    }
+    41	  };
+    42	
+    43	  const handleAppleSignIn = async () => {
+    44	    try {
+    45	      setIsSigningIn(true);
+    46	      await signInWithApple();
+    47	      setIsSignInModalOpen(false);
+    48	    } catch (error) {
+    49	      Alert.alert('Apple Sign-In failed', (error as Error).message);
+    50	    } finally {
+    51	      setIsSigningIn(false);
+    52	    }
+    53	  };
+    54	
+    55	  // Only show the full-screen spinner on the initial load; subsequent refreshes are shown
+    56	  // by the list's own RefreshControl (refreshing={loading}) instead of unmounting the list.
+    57	  if (authLoading || (loading && compositions.length === 0)) {
+    58	    return (
+    59	      <View style={styles.centerContainer}>
+    60	        <ActivityIndicator size="large" color="#0284c7" />
+    61	        <Text style={styles.loadingText}>Loading compositions...</Text>
+    62	      </View>
+    63	    );
+    64	  }
+    65	
+    66	  if (!token) {
+    67	    return (
+    68	      <>
+    69	        <View style={styles.centerContainer}>
+    70	          <Text style={styles.errorText}>Sign in to view your compositions</Text>
+    71	          <TouchableOpacity
+    72	            style={styles.retryButton}
+    73	            onPress={() => setIsSignInModalOpen(true)}
+    74	          >
+    75	            <Text style={styles.retryButtonText}>Sign In</Text>
+    76	          </TouchableOpacity>
+    77	        </View>
+    78	        <SignInModal
+    79	          visible={isSignInModalOpen}
+    80	          isSubmitting={isSigningIn}
+    81	          onClose={() => setIsSignInModalOpen(false)}
+    82	          onSubmit={handlePasswordSignIn}
+    83	          onAppleSignIn={handleAppleSignIn}
+    84	          title="Sign In to View Your Library"
+    85	          description="Your saved compositions are private. Sign in to browse and replay them."
+    86	        />
+    87	      </>
+    88	    );
+    89	  }
+    90	
+    91	  if (compositions.length === 0) {
+    92	    return (
+    93	      <View style={styles.centerContainer}>
+    94	        <Text style={styles.emptyIcon}>🎵</Text>
+    95	        <Text style={styles.emptyTitle}>No compositions yet</Text>
+    96	        <Text style={styles.emptyText}>
+    97	          Create your first soundscape in the editor
+    98	        </Text>
+    99	        <TouchableOpacity
+   100	          style={styles.createButton}
+   101	          onPress={() => navigation.navigate('Editor')}
+   102	        >
+   103	          <Text style={styles.createButtonText}>Open Editor</Text>
+   104	        </TouchableOpacity>
+   105	      </View>
+   106	    );
+   107	  }
+   108	
+   109	  return (
+   110	    <View style={styles.container}>
+   111	      {usingCache && (
+   112	        <View style={styles.cacheBanner}>
+   113	          <Text style={styles.cacheBannerIcon}>📡</Text>
+   114	          <View style={styles.cacheBannerContent}>
+   115	            <Text style={styles.cacheBannerTitle}>Offline Mode</Text>
+   116	            <Text style={styles.cacheBannerText}>
+   117	              Showing cached compositions. Pull to refresh when online.
+   118	            </Text>
+   119	          </View>
+   120	        </View>
+   121	      )}
+   122	      <FlatList
+   123	        data={compositions}
+   124	        keyExtractor={(item) => item.id}
+   125	        renderItem={({ item }) => (
+   126	          <TouchableOpacity
+   127	            style={styles.card}
+   128	            onPress={() => navigation.navigate('CompositionDetail', { id: item.id })}
+   129	          >
+   130	            <Text style={styles.cardTitle}>{item.title}</Text>
+   131	            {item.description && (
+   132	              <Text style={styles.cardDescription}>{item.description}</Text>
+   133	            )}
+   134	            <View style={styles.cardMeta}>
+   135	              <Text style={styles.cardMetaText}>
+   136	                {item.key} {item.scale.replace('_', ' ')}
+   137	              </Text>
+   138	              {/* Old rows/caches predate noteCount; show a dash rather than a false zero. */}
+   139	              <Text style={styles.cardMetaText}>
+   140	                {item.noteCount ?? '—'} notes
+   141	              </Text>
+   142	            </View>
+   143	          </TouchableOpacity>
+   144	        )}
+   145	        contentContainerStyle={styles.listContent}
+   146	        onRefresh={refresh}
+   147	        refreshing={loading}
+   148	      />
+   149	    </View>
+   150	  );
+   151	}
+   152	
+   153	const styles = StyleSheet.create({
+   154	  container: {
+   155	    flex: 1,
+   156	  },
+   157	  cacheBanner: {
+   158	    backgroundColor: '#fbbf24',
+   159	    paddingVertical: 12,
+   160	    paddingHorizontal: 16,
+   161	    flexDirection: 'row',
+   162	    alignItems: 'center',
+   163	    borderBottomWidth: 1,
+   164	    borderBottomColor: '#f59e0b',
+   165	  },
+   166	  cacheBannerIcon: {
+   167	    fontSize: 24,
+   168	    marginRight: 12,
+   169	  },
+   170	  cacheBannerContent: {
+   171	    flex: 1,
+   172	  },
+   173	  cacheBannerTitle: {
+   174	    fontSize: 14,
+   175	    fontWeight: '700',
+   176	    color: '#78350f',
+   177	    marginBottom: 2,
+   178	  },
+   179	  cacheBannerText: {
+   180	    fontSize: 12,
+   181	    color: '#92400e',
+   182	  },
+   183	  centerContainer: {
+   184	    flex: 1,
+   185	    justifyContent: 'center',
+   186	    alignItems: 'center',
+   187	    padding: 20,
+   188	  },
+   189	  loadingText: {
+   190	    color: '#9ca3af',
+   191	    marginTop: 12,
+   192	  },
+   193	  errorText: {
+   194	    color: '#ef4444',
+   195	    textAlign: 'center',
+   196	    marginBottom: 16,
+   197	  },
+   198	  retryButton: {
+   199	    backgroundColor: '#4b5563',
+   200	    paddingHorizontal: 24,
+   201	    paddingVertical: 12,
+   202	    borderRadius: 8,
+   203	  },
+   204	  retryButtonText: {
+   205	    color: '#ffffff',
+   206	    fontWeight: '600',
+   207	  },
+   208	  emptyIcon: {
+   209	    fontSize: 64,
+   210	    marginBottom: 16,
+   211	  },
+   212	  emptyTitle: {
+   213	    fontSize: 24,
+   214	    fontWeight: '600',
+   215	    color: '#f9fafb',
+   216	    marginBottom: 8,
+   217	  },
+   218	  emptyText: {
+   219	    fontSize: 16,
+   220	    color: '#9ca3af',
+   221	    textAlign: 'center',
+   222	    marginBottom: 24,
+   223	  },
+   224	  createButton: {
+   225	    backgroundColor: '#0284c7',
+   226	    paddingHorizontal: 32,
+   227	    paddingVertical: 16,
+   228	    borderRadius: 12,
+   229	  },
+   230	  createButtonText: {
+   231	    color: '#ffffff',
+   232	    fontSize: 18,
+   233	    fontWeight: '600',
+   234	  },
+   235	  listContent: {
+   236	    padding: 16,
+   237	  },
+   238	  card: {
+   239	    backgroundColor: '#1e1e26',
+   240	    padding: 16,
+   241	    borderRadius: 12,
+   242	    marginBottom: 12,
+   243	    borderWidth: 1,
+   244	    borderColor: '#374151',
+   245	  },
+   246	  cardTitle: {
+   247	    fontSize: 18,
+   248	    fontWeight: '600',
+   249	    color: '#f9fafb',
+   250	    marginBottom: 8,
+   251	  },
+   252	  cardDescription: {
+   253	    fontSize: 14,
+   254	    color: '#9ca3af',
+   255	    marginBottom: 12,
+   256	  },
+   257	  cardMeta: {
+   258	    flexDirection: 'row',
+   259	    justifyContent: 'space-between',
+   260	  },
+   261	  cardMetaText: {
+   262	    fontSize: 12,
+   263	    color: '#6b7280',
+   264	  },
+   265	});
+     1	'use client';
+     2	
+     3	import { useEffect, useRef, useState, useCallback } from 'react';
+     4	import type { NoteEvent, SoundPreset, VoiceType } from '@toposonics/types';
+     5	import { getAudioGraphSignature, getAudioTopology } from './useToneEngine.utils';
+     6	
+     7	type ToneTransport = {
+     8	  clear: (id: number) => void;
+     9	  stop: () => void;
+    10	  start: () => void;
+    11	  scheduleOnce: (callback: () => void, time: string) => number;
+    12	  position: number | string;
+    13	  seconds: number;
+    14	  bpm: { value: number };
+    15	};
+    16	type ToneModule = {
+    17	  PolySynth: new (...args: unknown[]) => ToneSynth;
+    18	  Synth: new (...args: unknown[]) => unknown;
+    19	  Reverb: new (...args: unknown[]) => ToneReverb;
+    20	  Filter: new (...args: unknown[]) => ToneFilter;
+    21	  Panner: new (...args: unknown[]) => TonePanner;
+    22	  FeedbackDelay: new (...args: unknown[]) => ToneFeedbackDelay;
+    23	  Part: new <T>(callback: (time: number, value: T) => void, events: T[]) => TonePart;
+    24	  Destination: unknown;
+    25	  Transport: ToneTransport;
+    26	  start: () => Promise<void>;
+    27	};
+    28	type ToneNode = {
+    29	  dispose: () => void;
+    30	};
+    31	type ToneSynth = ToneNode & {
+    32	  connect: (node: unknown) => void;
+    33	  chain: (...nodes: unknown[]) => void;
+    34	  triggerAttackRelease: (
+    35	    note: string,
+    36	    duration: number,
+    37	    time?: number,
+    38	    velocity?: number
+    39	  ) => void;
+    40	};
+    41	type ToneReverb = ToneNode & {
+    42	  wet: { setValueAtTime: (value: number, time: number) => void };
+    43	  generate: () => Promise<unknown>;
+    44	  toDestination: () => void;
+    45	};
+    46	type ToneFilter = ToneNode & {
+    47	  frequency: { setValueAtTime: (value: number, time: number) => void };
+    48	};
+    49	type TonePanner = ToneNode & {
+    50	  pan: { setValueAtTime: (value: number, time: number) => void };
+    51	};
+    52	type ToneFeedbackDelay = ToneNode;
+    53	type TonePart = ToneNode & {
+    54	  loop: boolean | number;
+    55	  start: (time: number) => void;
+    56	  stop: () => void;
+    57	};
+    58	
+    59	let tonePromise: Promise<ToneModule> | null = null;
+    60	
+    61	function loadTone() {
+    62	  tonePromise ??= Promise.all([
+    63	    import('tone/build/esm/instrument/PolySynth.js'),
+    64	    import('tone/build/esm/instrument/Synth.js'),
+    65	    import('tone/build/esm/effect/Reverb.js'),
+    66	    import('tone/build/esm/component/filter/Filter.js'),
+    67	    import('tone/build/esm/component/channel/Panner.js'),
+    68	    import('tone/build/esm/effect/FeedbackDelay.js'),
+    69	    import('tone/build/esm/event/Part.js'),
+    70	    import('tone/build/esm/core/Global.js'),
+    71	  ]).then(([polySynth, synth, reverb, filter, panner, feedbackDelay, part, global]) => {
+    72	    const context = global.getContext();
+    73	
+    74	    return {
+    75	      PolySynth: polySynth.PolySynth as ToneModule['PolySynth'],
+    76	      Synth: synth.Synth as ToneModule['Synth'],
+    77	      Reverb: reverb.Reverb as ToneModule['Reverb'],
+    78	      Filter: filter.Filter as ToneModule['Filter'],
+    79	      Panner: panner.Panner as ToneModule['Panner'],
+    80	      FeedbackDelay: feedbackDelay.FeedbackDelay as ToneModule['FeedbackDelay'],
+    81	      Part: part.Part as ToneModule['Part'],
+    82	      Destination: context.destination,
+    83	      Transport: context.transport as ToneTransport,
+    84	      start: global.start,
+    85	    };
+    86	  });
+    87	  return tonePromise;
+    88	}
+    89	
+    90	interface UseToneEngineOptions {
+    91	  noteEvents: NoteEvent[];
+    92	  tempo: number;
+    93	  preset: SoundPreset;
+    94	}
+    95	
+    96	interface VoiceSynth {
+    97	  synth: ToneSynth;
+    98	  reverb: ToneReverb;
+    99	  filter: ToneFilter;
+   100	  panner: TonePanner;
+   101	  delay: ToneFeedbackDelay | null;
+   102	}
+   103	
+   104	// Tone's FeedbackDelay defaults to a fully wet mix, which would REPLACE the dry signal
+   105	// with delayed repeats (shifting every note by the delay time). A partial wet layers
+   106	// echoes over the original instead; presets only declare time/feedback, so the mix is
+   107	// fixed here.
+   108	const DELAY_WET = 0.35;
+   109	
+   110	// NoteEvent.effects.filterCutoff is normalized 0-1 (brightness-driven). Map it onto an
+   111	// exponential frequency curve (~200 Hz at 0, ~8 kHz at 1) so equal cutoff steps sound
+   112	// like equal changes in brightness.
+   113	function filterCutoffToFrequency(cutoff: number): number {
+   114	  return 200 * Math.pow(40, cutoff);
+   115	}
+   116	
+   117	export function useToneEngine({ noteEvents, tempo, preset }: UseToneEngineOptions) {
+   118	  const [isPlaying, setIsPlaying] = useState(false);
+   119	  const [isLoading, setIsLoading] = useState(false);
+   120	  const [currentTime, setCurrentTime] = useState(0);
+   121	
+   122	  // Legacy single-synth refs (for backward compatibility)
+   123	  const toneRef = useRef<ToneModule | null>(null);
+   124	  const synthRef = useRef<ToneSynth | null>(null);
+   125	  const reverbRef = useRef<ToneReverb | null>(null);
+   126	  const filterRef = useRef<ToneFilter | null>(null);
+   127	  const pannerRef = useRef<TonePanner | null>(null);
+   128	  const delayRef = useRef<ToneFeedbackDelay | null>(null);
+   129	
+   130	  // Multi-voice synth refs
+   131	  const voiceSynthsRef = useRef<Map<VoiceType, VoiceSynth>>(new Map());
+   132	
+   133	  const partRef = useRef<TonePart | null>(null);
+   134	  const stopSchedulerIdRef = useRef<number | null>(null);
+   135	  const graphSignatureRef = useRef<string | null>(null);
+   136	
+   137	  // Detect if we're in multi-voice mode
+   138	  const isMultiVoice = getAudioTopology(noteEvents) === 'multi';
+   139	  const graphSignature = getAudioGraphSignature(noteEvents, preset);
+   140	
+   141	  const disposePart = useCallback(() => {
+   142	    if (partRef.current) {
+   143	      partRef.current.dispose();
+   144	      partRef.current = null;
+   145	    }
+   146	  }, []);
+   147	
+   148	  const disposeAudioGraph = useCallback(() => {
+   149	    disposePart();
+   150	
+   151	    if (synthRef.current) {
+   152	      synthRef.current.dispose();
+   153	      synthRef.current = null;
+   154	    }
+   155	    if (reverbRef.current) {
+   156	      reverbRef.current.dispose();
+   157	      reverbRef.current = null;
+   158	    }
+   159	    if (filterRef.current) {
+   160	      filterRef.current.dispose();
+   161	      filterRef.current = null;
+   162	    }
+   163	    if (pannerRef.current) {
+   164	      pannerRef.current.dispose();
+   165	      pannerRef.current = null;
+   166	    }
+   167	    if (delayRef.current) {
+   168	      delayRef.current.dispose();
+   169	      delayRef.current = null;
+   170	    }
+   171	
+   172	    for (const voiceSynth of voiceSynthsRef.current.values()) {
+   173	      voiceSynth.synth.dispose();
+   174	      voiceSynth.reverb.dispose();
+   175	      voiceSynth.filter.dispose();
+   176	      voiceSynth.panner.dispose();
+   177	      voiceSynth.delay?.dispose();
+   178	    }
+   179	    voiceSynthsRef.current.clear();
+   180	
+   181	    graphSignatureRef.current = null;
+   182	  }, [disposePart]);
+   183	
+   184	  const stop = useCallback(() => {
+   185	    const tone = toneRef.current;
+   186	
+   187	    if (tone && stopSchedulerIdRef.current !== null) {
+   188	      tone.Transport.clear(stopSchedulerIdRef.current);
+   189	      stopSchedulerIdRef.current = null;
+   190	    }
+   191	
+   192	    if (partRef.current) {
+   193	      partRef.current.stop();
+   194	    }
+   195	
+   196	    if (tone) {
+   197	      tone.Transport.stop();
+   198	      tone.Transport.position = 0;
+   199	    }
+   200	
+   201	    setIsPlaying(false);
+   202	    setCurrentTime(0);
+   203	  }, []);
+   204	
+   205	  const createMultiVoiceGraph = useCallback(async () => {
+   206	    const voices: VoiceType[] = ['bass', 'melody', 'pad'];
+   207	
+   208	    for (const voice of voices) {
+   209	      let synthConfig;
+   210	      let reverbConfig;
+   211	
+   212	      switch (voice) {
+   213	        case 'bass':
+   214	          synthConfig = {
+   215	            oscillator: { type: 'triangle' as const },
+   216	            envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 1.0 },
+   217	          };
+   218	          reverbConfig = { decay: 1.5, wet: 0.15 };
+   219	          break;
+   220	
+   221	        case 'melody':
+   222	          synthConfig = {
+   223	            oscillator: { type: preset.oscillatorType },
+   224	            envelope: preset.synthesis?.envelope || {
+   225	              attack: 0.01,
+   226	              decay: 0.1,
+   227	              sustain: 0.3,
+   228	              release: 0.5,
+   229	            },
+   230	          };
+   231	          reverbConfig = { decay: 2.5, wet: 0.3 };
+   232	          break;
+   233	
+   234	        case 'pad':
+   235	          synthConfig = {
+   236	            oscillator: { type: 'sine' as const },
+   237	            envelope: { attack: 0.5, decay: 0.2, sustain: 0.7, release: 2.0 },
+   238	          };
+   239	          reverbConfig = { decay: 4.0, wet: 0.5 };
+   240	          break;
+   241	
+   242	        default:
+   243	          synthConfig = {
+   244	            oscillator: { type: preset.oscillatorType },
+   245	            envelope: preset.synthesis?.envelope || {
+   246	              attack: 0.1,
+   247	              decay: 0.2,
+   248	              sustain: 0.6,
+   249	              release: 0.8,
+   250	            },
+   251	          };
+   252	          reverbConfig = { decay: 2, wet: 0.2 };
+   253	      }
+   254	
+   255	      const tone = toneRef.current ?? (await loadTone());
+   256	      toneRef.current = tone;
+   257	
+   258	      const synth = new tone.PolySynth(tone.Synth, synthConfig) as ToneSynth;
+   259	      const reverb = new tone.Reverb(reverbConfig) as ToneReverb;
+   260	      await reverb.generate();
+   261	
+   262	      // Every voice gets its own Filter + Panner so per-note filterCutoff and pan apply
+   263	      // to bass and pad, not just melody. Known limitation: simultaneous chord notes on
+   264	      // one voice share the Panner, so intra-chord stereo spread collapses to the
+   265	      // last-set value — pan over time still works.
+   266	      const filter = new tone.Filter({
+   267	        type: 'lowpass',
+   268	        frequency: 3000,
+   269	        Q: 1,
+   270	      }) as ToneFilter;
+   271	      const panner = new tone.Panner(0) as TonePanner;
+   272	
+   273	      // Presets may declare a delay effect; give each voice its own FeedbackDelay so
+   274	      // multi-voice compositions render it too (before reverb, sharing its tail).
+   275	      const delayConfig = preset.synthesis?.effects?.delay;
+   276	      const delay = delayConfig
+   277	        ? (new tone.FeedbackDelay({
+   278	            delayTime: delayConfig.time,
+   279	            feedback: delayConfig.feedback,
+   280	            wet: DELAY_WET,
+   281	          }) as ToneFeedbackDelay)
+   282	        : null;
+   283	
+   284	      if (delay) {
+   285	        synth.chain(filter, panner, delay, reverb, tone.Destination);
+   286	      } else {
+   287	        synth.chain(filter, panner, reverb, tone.Destination);
+   288	      }
+   289	
+   290	      voiceSynthsRef.current.set(voice, { synth, reverb, filter, panner, delay });
+   291	    }
+   292	  }, [preset]);
+   293	
+   294	  const createSingleVoiceGraph = useCallback(async () => {
+   295	    const tone = toneRef.current ?? (await loadTone());
+   296	    toneRef.current = tone;
+   297	
+   298	    const synth = new tone.PolySynth(tone.Synth, {
+   299	      oscillator: {
+   300	        type: preset.oscillatorType,
+   301	      },
+   302	      envelope: preset.synthesis?.envelope || {
+   303	        attack: 0.1,
+   304	        decay: 0.2,
+   305	        sustain: 0.6,
+   306	        release: 0.8,
+   307	      },
+   308	    }) as ToneSynth;
+   309	
+   310	    const reverb = new tone.Reverb({
+   311	      decay: preset.synthesis?.effects?.reverb?.decay || 2,
+   312	      wet: 0,
+   313	    }) as ToneReverb;
+   314	
+   315	    const filter = new tone.Filter({
+   316	      type: preset.synthesis?.filter?.type || 'lowpass',
+   317	      frequency: preset.synthesis?.filter?.frequency || 2000,
+   318	      Q: preset.synthesis?.filter?.resonance || 1,
+   319	    }) as ToneFilter;
+   320	
+   321	    const panner = new tone.Panner(0) as TonePanner;
+   322	
+   323	    // Presets may declare a delay effect; insert a FeedbackDelay into the chain so it
+   324	    // actually sounds (before reverb, so echoes share the preset's reverb tail). Partial
+   325	    // wet — the default fully-wet mix would replace the dry signal with shifted repeats.
+   326	    const delayConfig = preset.synthesis?.effects?.delay;
+   327	    const delay = delayConfig
+   328	      ? (new tone.FeedbackDelay({
+   329	          delayTime: delayConfig.time,
+   330	          feedback: delayConfig.feedback,
+   331	          wet: DELAY_WET,
+   332	        }) as ToneFeedbackDelay)
+   333	      : null;
+   334	
+   335	    if (delay) {
+   336	      synth.chain(filter, panner, delay, reverb, tone.Destination);
+   337	    } else {
+   338	      synth.chain(filter, panner, reverb, tone.Destination);
+   339	    }
+   340	
+   341	    synthRef.current = synth;
+   342	    reverbRef.current = reverb;
+   343	    filterRef.current = filter;
+   344	    pannerRef.current = panner;
+   345	    delayRef.current = delay;
+   346	  }, [preset]);
+   347	
+   348	  const ensureAudioGraph = useCallback(async () => {
+   349	    const tone = await loadTone();
+   350	    toneRef.current = tone;
+   351	
+   352	    await tone.start();
+   353	
+   354	    if (graphSignatureRef.current === graphSignature) {
+   355	      return;
+   356	    }
+   357	
+   358	    setIsLoading(true);
+   359	    stop();
+   360	    disposeAudioGraph();
+   361	
+   362	    try {
+   363	      if (isMultiVoice) {
+   364	        await createMultiVoiceGraph();
+   365	      } else {
+   366	        await createSingleVoiceGraph();
+   367	      }
+   368	
+   369	      graphSignatureRef.current = graphSignature;
+   370	    } catch (error) {
+   371	      disposeAudioGraph();
+   372	      throw error;
+   373	    } finally {
+   374	      setIsLoading(false);
+   375	    }
+   376	  }, [
+   377	    createMultiVoiceGraph,
+   378	    createSingleVoiceGraph,
+   379	    disposeAudioGraph,
+   380	    graphSignature,
+   381	    isMultiVoice,
+   382	    stop,
+   383	  ]);
+   384	
+   385	  const buildPart = useCallback(() => {
+   386	    disposePart();
+   387	
+   388	    if (!noteEvents.length) {
+   389	      return null;
+   390	    }
+   391	
+   392	    // NoteEvent.start/duration are in BEATS, but Tone.js interprets numeric time and
+   393	    // duration values as SECONDS (Transport.bpm only affects tick/notation times). Convert
+   394	    // beats -> seconds once here so the tempo actually applies and playback length matches
+   395	    // the auto-stop math in play() (which is already computed in seconds).
+   396	    const secondsPerBeat = 60 / tempo;
+   397	    const events = noteEvents.map((event) => ({
+   398	      time: event.start * secondsPerBeat,
+   399	      note: event.note,
+   400	      duration: event.duration * secondsPerBeat,
+   401	      velocity: event.velocity,
+   402	      pan: event.pan || 0,
+   403	      reverbSend: event.effects?.reverbSend || 0.2,
+   404	      // Left undefined when absent so the filter keeps its static preset frequency.
+   405	      filterCutoff: event.effects?.filterCutoff,
+   406	      voice: event.trackId as VoiceType | undefined,
+   407	    }));
+   408	
+   409	    const tone = toneRef.current;
+   410	    if (!tone) {
+   411	      return null;
+   412	    }
+   413	
+   414	    const part = new tone.Part((time, value) => {
+   415	      if (isMultiVoice && value.voice) {
+   416	        const voiceSynth = voiceSynthsRef.current.get(value.voice);
+   417	        if (!voiceSynth) return;
+   418	
+   419	        voiceSynth.reverb.wet.setValueAtTime(value.reverbSend, time);
+   420	        voiceSynth.panner.pan.setValueAtTime(value.pan, time);
+   421	
+   422	        if (value.filterCutoff != null) {
+   423	          voiceSynth.filter.frequency.setValueAtTime(
+   424	            filterCutoffToFrequency(value.filterCutoff),
+   425	            time
+   426	          );
+   427	        }
+   428	
+   429	        voiceSynth.synth.triggerAttackRelease(value.note, value.duration, time, value.velocity);
+   430	        return;
+   431	      }
+   432	
+   433	      if (!synthRef.current || !reverbRef.current || !pannerRef.current) {
+   434	        return;
+   435	      }
+   436	
+   437	      pannerRef.current.pan.setValueAtTime(value.pan, time);
+   438	      reverbRef.current.wet.setValueAtTime(value.reverbSend, time);
+   439	
+   440	      if (value.filterCutoff != null && filterRef.current) {
+   441	        filterRef.current.frequency.setValueAtTime(
+   442	          filterCutoffToFrequency(value.filterCutoff),
+   443	          time
+   444	        );
+   445	      }
+   446	
+   447	      synthRef.current.triggerAttackRelease(value.note, value.duration, time, value.velocity);
+   448	    }, events);
+   449	
+   450	    part.loop = false;
+   451	    partRef.current = part;
+   452	    tone.Transport.bpm.value = tempo;
+   453	
+   454	    return part;
+   455	  }, [disposePart, isMultiVoice, noteEvents, tempo]);
+   456	
+   457	  useEffect(() => {
+   458	    if (toneRef.current) {
+   459	      toneRef.current.Transport.bpm.value = tempo;
+   460	    }
+   461	  }, [tempo]);
+   462	
+   463	  // Update current time while playing
+   464	  useEffect(() => {
+   465	    if (!isPlaying) return;
+   466	
+   467	    let frameId: number;
+   468	
+   469	    const updateTime = () => {
+   470	      if (toneRef.current) {
+   471	        setCurrentTime(toneRef.current.Transport.seconds);
+   472	      }
+   473	      frameId = requestAnimationFrame(updateTime);
+   474	    };
+   475	
+   476	    frameId = requestAnimationFrame(updateTime);
+   477	
+   478	    return () => cancelAnimationFrame(frameId);
+   479	  }, [isPlaying]);
+   480	
+   481	  const play = useCallback(async () => {
+   482	    if (!noteEvents.length) {
+   483	      console.warn('No note events to play');
+   484	      return;
+   485	    }
+   486	
+   487	    try {
+   488	      await ensureAudioGraph();
+   489	      const part = buildPart();
+   490	
+   491	      if (!part) {
+   492	        console.warn('No part to play');
+   493	        return;
+   494	      }
+   495	
+   496	      if (stopSchedulerIdRef.current !== null) {
+   497	        toneRef.current?.Transport.clear(stopSchedulerIdRef.current);
+   498	        stopSchedulerIdRef.current = null;
+   499	      }
+   500	
+   501	      if (!toneRef.current) {
+   502	        return;
+   503	      }
+   504	
+   505	      toneRef.current.Transport.stop();
+   506	      toneRef.current.Transport.position = 0;
+   507	      setCurrentTime(0);
+   508	
+   509	      part.start(0);
+   510	      toneRef.current.Transport.start();
+   511	      setIsPlaying(true);
+   512	
+   513	      const durationBeats = noteEvents.reduce(
+   514	        (max, event) => Math.max(max, event.start + event.duration),
+   515	        0
+   516	      );
+   517	      const durationSeconds = (durationBeats + 1) * (60 / tempo);
+   518	
+   519	      stopSchedulerIdRef.current = toneRef.current.Transport.scheduleOnce(() => {
+   520	        stop();
+   521	      }, `+${durationSeconds}`);
+   522	    } catch (error) {
+   523	      console.error('Failed to play composition:', error);
+   524	      stop();
+   525	    }
+   526	  }, [buildPart, ensureAudioGraph, noteEvents, stop, tempo]);
+   527	
+   528	  // Cleanup on unmount
+   529	  useEffect(() => {
+   530	    return () => {
+   531	      stop();
+   532	      disposeAudioGraph();
+   533	    };
+   534	  }, [disposeAudioGraph, stop]);
+   535	
+   536	  return {
+   537	    play,
+   538	    stop,
+   539	    isPlaying,
+   540	    isLoading,
+   541	    currentTime,
+   542	  };
+   543	}
+rg: packages/core-image/src/analysis.ts: No such file or directory (os error 2)
+packages/core-image/src/analyzer.ts:27: * @param width - Image width in pixels
+packages/core-image/src/analyzer.ts:28: * @param height - Image height in pixels
+packages/core-image/src/analyzer.ts:34:  width: number,
+packages/core-image/src/analyzer.ts:35:  height: number,
+packages/core-image/src/analyzer.ts:52:    rowIndex = Math.floor(height / 2),
+packages/core-image/src/analyzer.ts:66:    const endRow = Math.min(height, rowIndex + Math.ceil(rowsToAverage / 2));
+packages/core-image/src/analyzer.ts:67:    brightnessProfile = computeAveragedBrightnessProfile(pixels, width, height, startRow, endRow);
+packages/core-image/src/analyzer.ts:70:    brightnessProfile = computeBrightnessProfileFromRow(pixels, width, height, rowIndex);
+packages/core-image/src/analyzer.ts:80:    width,
+packages/core-image/src/analyzer.ts:81:    height,
+packages/core-image/src/analyzer.ts:108: * @param width - Image width
+packages/core-image/src/analyzer.ts:109: * @param height - Image height
+packages/core-image/src/analyzer.ts:115:  width: number,
+packages/core-image/src/analyzer.ts:116:  height: number,
+packages/core-image/src/analyzer.ts:122:     * implementation), length = width * height. Values may be normalized floats (0-1)
+packages/core-image/src/analyzer.ts:137:  if (precomputedEdgeMagnitudes && precomputedEdgeMagnitudes.length === width * height) {
+packages/core-image/src/analyzer.ts:149:    // A precomputed buffer whose length != width*height would index out of bounds in
+packages/core-image/src/analyzer.ts:153:    edgeMagnitudes = applySobelEdgeDetection(pixels, width, height);
+packages/core-image/src/analyzer.ts:157:  const centerRow = Math.floor(height / 2);
+packages/core-image/src/analyzer.ts:158:  let ridgeStrength = extractEdgeProfile(edgeMagnitudes, width, height, {
+packages/core-image/src/analyzer.ts:168:    width,
+packages/core-image/src/analyzer.ts:169:    height,
+packages/core-image/src/analyzer.ts:171:    Math.min(height, centerRow + 3)
+packages/core-image/src/analyzer.ts:189:    width,
+packages/core-image/src/analyzer.ts:190:    height,
+packages/core-image/src/analyzer.ts:207: * @param width - Image width
+packages/core-image/src/analyzer.ts:208: * @param height - Image height
+packages/core-image/src/analyzer.ts:214:  width: number,
+packages/core-image/src/analyzer.ts:215:  height: number,
+packages/core-image/src/analyzer.ts:230:  const centerRow = Math.floor(height / 2);
+packages/core-image/src/analyzer.ts:233:    width,
+packages/core-image/src/analyzer.ts:234:    height,
+packages/core-image/src/analyzer.ts:236:    Math.min(height, centerRow + 3)
+packages/core-image/src/analyzer.ts:251:  const rawHorizon = extractHorizonContour(pixels, width, height, horizonSmoothing);
+packages/core-image/src/analyzer.ts:258:  const rawTexture = computeTextureProfile(pixels, width, height, {
+packages/core-image/src/analyzer.ts:268:    width,
+packages/core-image/src/analyzer.ts:269:    height,

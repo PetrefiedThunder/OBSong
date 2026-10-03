@@ -1,0 +1,340 @@
+UTC start: 2026-10-03T01:21:47Z
+Command: rg --files packages/core-image/src && sed -n "1,140p" packages/core-image/src/brightness.ts && sed -n "1,170p" apps/mobile/src/screens/CompositionDetailScreen.tsx && cat packages/core-image/package.json && test -d node_modules && command -v pnpm
+Exit: 0
+
+packages/core-image/src/index.ts
+packages/core-image/src/analyzer.ts
+packages/core-image/src/horizon.ts
+packages/core-image/src/__tests__/sanity.test.ts
+packages/core-image/src/__tests__/analyzer.test.ts
+packages/core-image/src/__tests__/analysis.test.ts
+packages/core-image/src/texture.ts
+packages/core-image/src/depth.ts
+packages/core-image/src/brightness.ts
+packages/core-image/src/arrayStats.ts
+/**
+ * Brightness analysis utilities
+ * Environment-agnostic functions for analyzing image brightness
+ */
+
+/**
+ * Compute brightness for a single pixel from RGBA values
+ * Uses weighted average based on human perception (ITU-R BT.709)
+ *
+ * @param r - Red channel (0-255)
+ * @param g - Green channel (0-255)
+ * @param b - Blue channel (0-255)
+ * @returns Brightness value (0-255)
+ */
+export function computePixelBrightness(r: number, g: number, b: number): number {
+  // Weighted average based on human perception
+  // Red: 21%, Green: 72%, Blue: 7%
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Extract brightness profile from a specific row of pixels
+ *
+ * @param pixels - Flattened RGBA pixel array (Uint8ClampedArray or number[])
+ * @param width - Image width in pixels
+ * @param height - Image height in pixels
+ * @param rowIndex - Which row to analyze (0 = top, height-1 = bottom)
+ * @returns Array of brightness values (0-255) for each x position
+ */
+export function computeBrightnessProfileFromRow(
+  pixels: Uint8ClampedArray | number[],
+  width: number,
+  height: number,
+  rowIndex: number
+): number[] {
+  const profile: number[] = [];
+
+  // Guard against out-of-range rows: reading past the pixel buffer yields `undefined`,
+  // which propagates as NaN through the whole downstream audio pipeline.
+  if (rowIndex < 0 || rowIndex >= height) {
+    return new Array(width).fill(0);
+  }
+
+  const rowOffset = rowIndex * width * 4; // 4 channels per pixel (RGBA)
+
+  for (let x = 0; x < width; x++) {
+    const pixelOffset = rowOffset + x * 4;
+    const r = pixels[pixelOffset];
+    const g = pixels[pixelOffset + 1];
+    const b = pixels[pixelOffset + 2];
+    // Alpha channel (pixels[pixelOffset + 3]) is ignored
+
+    profile.push(computePixelBrightness(r, g, b));
+  }
+
+  return profile;
+}
+
+/**
+ * Downsample a brightness profile to a target number of samples
+ * Uses averaging within each bin
+ *
+ * @param profile - Original brightness profile
+ * @param targetSamples - Desired number of samples
+ * @returns Downsampled profile
+ */
+export function downsampleProfile(profile: number[], targetSamples: number): number[] {
+  if (profile.length <= targetSamples) {
+    return [...profile];
+  }
+
+  const result: number[] = [];
+  const binSize = profile.length / targetSamples;
+
+  for (let i = 0; i < targetSamples; i++) {
+    const startIdx = Math.floor(i * binSize);
+    const endIdx = Math.floor((i + 1) * binSize);
+    const bin = profile.slice(startIdx, endIdx);
+
+    // Average the values in this bin
+    const average = bin.reduce((sum, val) => sum + val, 0) / bin.length;
+    result.push(average);
+  }
+
+  return result;
+}
+
+/**
+ * Compute average brightness across multiple rows (vertical averaging)
+ *
+ * @param pixels - Flattened RGBA pixel array
+ * @param width - Image width
+ * @param height - Image height
+ * @param startRow - Starting row index
+ * @param endRow - Ending row index (exclusive)
+ * @returns Averaged brightness profile
+ */
+export function computeAveragedBrightnessProfile(
+  pixels: Uint8ClampedArray | number[],
+  width: number,
+  height: number,
+  startRow: number,
+  endRow: number
+): number[] {
+  // Clamp the requested range into the image so callers that pass an unclamped window
+  // (e.g. centerRow - 2 for a short image) don't read out-of-bounds rows.
+  const clampedStart = Math.max(0, Math.min(startRow, height));
+  const clampedEnd = Math.max(clampedStart, Math.min(endRow, height));
+
+  const profiles: number[][] = [];
+
+  for (let row = clampedStart; row < clampedEnd; row++) {
+    profiles.push(computeBrightnessProfileFromRow(pixels, width, height, row));
+  }
+
+  // Average across all rows
+  const result: number[] = new Array(width).fill(0);
+
+  if (profiles.length === 0) {
+    return result;
+  }
+
+  for (const profile of profiles) {
+    for (let x = 0; x < width; x++) {
+      result[x] += profile[x] / profiles.length;
+    }
+  }
+
+  return result;
+}
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { useNavigation, type RouteProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../../App';
+import type { Composition } from '@toposonics/types';
+import { useAuth } from '../auth/AuthProvider';
+import { useCompositions } from '../state/CompositionsProvider';
+import {
+  playNoteEvents,
+  formatNoteEventsDuration,
+  type PlaybackController,
+} from '../services/audioPlayer';
+import { SignInModal } from '../components/SignInModal';
+
+type Props = {
+  route: RouteProp<RootStackParamList, 'CompositionDetail'>;
+};
+
+export default function CompositionDetailScreen({ route }: Props) {
+  const { id } = route.params;
+  const navigation = useNavigation();
+  const [composition, setComposition] = useState<Composition | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const playbackRef = React.useRef<PlaybackController | null>(null);
+  const isMountedRef = React.useRef(true);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
+  const { loadComposition: loadCompositionRecord, removeComposition } = useCompositions();
+
+  const loadCompositionFromStore = useCallback(async () => {
+    const data = await loadCompositionRecord(id);
+    if (!data) {
+      throw new Error('Composition not found');
+    }
+    return data;
+  }, [id, loadCompositionRecord]);
+
+  const loadCompositionData = useCallback(async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const data = await loadCompositionFromStore();
+      setComposition(data);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to load composition');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadCompositionFromStore, token]);
+
+  useEffect(() => {
+    void loadCompositionData();
+  }, [loadCompositionData]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      playbackRef.current?.cancel();
+      playbackRef.current = null;
+    };
+  }, []);
+
+  const playComposition = async () => {
+    if (!composition) return;
+
+    try {
+      setIsPlaying(true);
+      const controller = playNoteEvents(composition.noteEvents, {
+        tempo: composition.tempo ?? 90,
+      });
+      playbackRef.current = controller;
+      await controller.done;
+    } catch (error) {
+      Alert.alert('Playback failed', (error as Error).message);
+    } finally {
+      playbackRef.current = null;
+      if (isMountedRef.current) {
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const stopPlayback = () => {
+    playbackRef.current?.cancel();
+  };
+
+  const handleDelete = () => {
+    if (!composition) return;
+
+    Alert.alert(
+      'Delete composition',
+      `Delete "${composition.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              playbackRef.current?.cancel();
+              await removeComposition(composition.id);
+              navigation.goBack();
+            } catch (error) {
+              if (isMountedRef.current) setIsDeleting(false);
+              Alert.alert('Delete failed', (error as Error).message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePasswordSignIn = async (email: string, password: string) => {
+    try {
+      setIsSigningIn(true);
+      await signInWithPassword(email, password);
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsSigningIn(true);
+      await signInWithApple();
+      setIsSignInModalOpen(false);
+    } catch (error) {
+      Alert.alert('Apple Sign-In failed', (error as Error).message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  if (authLoading || loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#0284c7" />
+      </View>
+    );
+  }
+
+  if (!token) {
+    return (
+      <>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Sign in to load this composition</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setIsSignInModalOpen(true)}
+          >
+{
+  "name": "@toposonics/core-image",
+  "version": "0.1.0",
+  "description": "Image analysis utilities for TopoSonics - environment agnostic",
+  "main": "dist/index.js",
+  "react-native": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@toposonics/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+/opt/homebrew/bin/pnpm

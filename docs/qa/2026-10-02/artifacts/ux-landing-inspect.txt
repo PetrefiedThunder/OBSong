@@ -1,0 +1,820 @@
+UTC start: 2026-10-03T01:22:01Z
+Command: sed -n "1,250p" apps/web/src/app/page.tsx && sed -n "180,340p" apps/web/src/components/LandingDemoPlayer.tsx && sed -n "1,260p" "apps/web/src/app/compositions/[id]/page.tsx" && sed -n "1,200p" packages/shared/src/apiClient.ts
+Exit: 0
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Button } from '@toposonics/ui';
+import { getAllScenePacks } from '@toposonics/core-audio';
+import type { ScenePack, NoteEvent } from '@toposonics/types';
+import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
+import { TourProvider, useTour } from '@/components/tour/TourProvider';
+import { TourPopup } from '@/components/tour/TourPopup';
+import { mockNoteEvents, tourDemoTempoBpm } from '@toposonics/shared';
+import { playDemoNotes, unlockAudio } from '@/lib/demoPlayback';
+import { theme } from '@toposonics/ui';
+
+type Category = 'All' | 'Nature' | 'Urban' | 'Atmospheric';
+
+/**
+ * Runs tour-step side effects: while the PLAY_MUSIC step is open the sample phrase
+ * audibly plays, and it stops as soon as the user advances, skips, or leaves.
+ * playDemoNotes returns its controller synchronously, so cleanup cancels correctly
+ * even while Tone is still loading. (The audio context itself is unlocked from the
+ * tour buttons' click handlers — see TourPopup.)
+ */
+function TourWrapper() {
+  const { tourStep } = useTour();
+
+  useEffect(() => {
+    if (tourStep?.action !== 'PLAY_MUSIC') return undefined;
+
+    const controller = playDemoNotes(mockNoteEvents, tourDemoTempoBpm);
+    return () => controller.stop();
+  }, [tourStep]);
+
+  return null;
+}
+
+export default function HomePage() {
+  return (
+    <TourProvider>
+      <HomePageContent />
+      <TourPopup />
+      <TourWrapper />
+    </TourProvider>
+  );
+}
+
+function HomePageContent() {
+  const allScenePacks = getAllScenePacks();
+  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
+  const [activeDemo, setActiveDemo] = useState<{
+    scenePack: ScenePack;
+    noteEvents: NoteEvent[];
+    tempoBpm: number;
+  } | null>(null);
+  const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+  const { startTour } = useTour();
+
+  // Filter scene packs by category
+  const scenePacks = selectedCategory === 'All'
+    ? allScenePacks
+    : allScenePacks.filter(pack => pack.category === selectedCategory);
+
+  const handlePlayDemo = async (scenePack: ScenePack) => {
+    setLoadingDemo(scenePack.id);
+    try {
+      const response = await fetch(`/demo/compositions/${scenePack.id}.json`);
+      if (!response.ok) {
+        throw new Error('Demo not found');
+      }
+      const data = await response.json();
+      setActiveDemo({
+        scenePack,
+        noteEvents: data.noteEvents,
+        tempoBpm: typeof data.tempoBpm === 'number' && data.tempoBpm > 0 ? data.tempoBpm : 120,
+      });
+    } catch (error) {
+      console.error('Failed to load demo:', error);
+      alert('Demo composition not available for this scene pack');
+    } finally {
+      setLoadingDemo(null);
+    }
+  };
+
+  return (
+    <>
+      <div className="container mx-auto px-4 py-16">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">
+            Turn Images into Musical Landscapes
+          </h1>
+          <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            TopoSonics transforms your photos into unique soundscapes using curated musical
+            presets. Choose a scene, upload an image, and hear your visual landscape come to life.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/studio">
+              <Button variant="primary" size="lg">
+                Open Studio
+              </Button>
+            </Link>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                // Unlock the audio context inside the real click gesture so the tour's
+                // PLAY_MUSIC step (which fires from an effect, outside any gesture) can
+                // audibly play under strict browser autoplay policies.
+                unlockAudio();
+                startTour();
+              }}
+            >
+              Take the Tour
+            </Button>
+          </div>
+        </div>
+
+        {/* Scene Pack Showcase */}
+        <div className="mb-20">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-3">Explore Scene Packs</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto mb-6">
+              Each scene pack is a carefully crafted musical experience designed for specific
+              types of imagery. Try a demo or jump straight into the studio.
+            </p>
+
+            {/* Category Filter */}
+            <div className="flex justify-center gap-2 flex-wrap">
+              {(['All', 'Nature', 'Urban', 'Atmospheric'] as Category[]).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedCategory === category
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-surface-elevated text-gray-300 hover:bg-surface-elevated'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {scenePacks.map((pack) => (
+              <div
+                key={pack.id}
+                className="group relative rounded-xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:scale-105"
+                style={{
+                  background: `linear-gradient(135deg, ${pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT}15, transparent)`,
+                }}
+              >
+                <div className="p-6 space-y-4">
+                  {/* Header */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-xl font-bold">{pack.name}</h3>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-elevated text-gray-400 border border-gray-700">
+                        {pack.category}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400">{pack.tagline}</p>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-sm text-gray-300 line-clamp-3">{pack.description}</p>
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1">
+                    {pack.recommendedSubjects.slice(0, 3).map((subject, idx) => (
+                      <span
+                        key={idx}
+                        className="text-xs px-2 py-1 rounded bg-surface-elevated"
+                        style={{
+                          color: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
+                        }}
+                      >
+                        {subject}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => handlePlayDemo(pack)}
+                      disabled={loadingDemo === pack.id}
+                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
+                      }}
+                    >
+                      {loadingDemo === pack.id ? 'Loading...' : '▶ Try Demo'}
+                    </button>
+                    <Link
+                      href={`/studio?scene=${pack.id}`}
+                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors border text-center"
+                      style={{
+                        borderColor: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
+                        color: pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT,
+                      }}
+                    >
+                      Open →
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Accent gradient overlay */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none"
+                  style={{
+                    background: `radial-gradient(circle at top right, ${pack.uiThemeHints?.accentColor || theme.colors.secondary.DEFAULT}, transparent)`,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* How It Works */}
+        <div className="max-w-3xl mx-auto mb-20">
+          <h2 className="text-3xl font-bold text-center mb-8">How It Works</h2>
+          <div className="space-y-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-bold">
+                1
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Choose a Scene Pack</h3>
+                <p className="text-gray-400">
+                  Start with a curated musical preset that matches your image&apos;s mood—from
+                  majestic mountains to industrial cityscapes.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-bold">
+                2
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Upload an Image</h3>
+                <p className="text-gray-400">
+                  Choose a photo that matches the scene pack&apos;s recommendations—or experiment
+                  with something unexpected.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-xl font-bold">
+    toneRef.current?.Transport.stop();
+    setIsPlaying(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-surface-elevated rounded-xl p-8 max-w-md w-full space-y-6 border border-gray-700"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          borderColor: scenePack.uiThemeHints?.accentColor || '#A855F7',
+        }}
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 id={titleId} className="text-2xl font-bold mb-2">
+              {scenePack.name}
+            </h2>
+            <p className="text-gray-400 text-sm">{scenePack.tagline}</p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            {!isPlaying ? (
+              <button
+                onClick={handlePlay}
+                className="flex-1 px-6 py-3 rounded-lg font-medium transition-colors text-white"
+                style={{
+                  backgroundColor: scenePack.uiThemeHints?.accentColor || '#A855F7',
+                }}
+              >
+                ▶ Play Demo
+              </button>
+            ) : (
+              <button
+                onClick={handleStop}
+                className="flex-1 px-6 py-3 rounded-lg font-medium transition-colors bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                ⏹ Stop
+              </button>
+            )}
+            <a
+              href={`/studio?scene=${scenePack.id}`}
+              className="flex-1 px-6 py-3 rounded-lg font-medium transition-colors border-2 text-center"
+              style={{
+                borderColor: scenePack.uiThemeHints?.accentColor || '#A855F7',
+                color: scenePack.uiThemeHints?.accentColor || '#A855F7',
+              }}
+            >
+              Open in Studio →
+            </a>
+          </div>
+
+          <div className="bg-surface-secondary rounded-lg p-4 space-y-2">
+            <div>
+              <h4 className="text-xs font-medium text-gray-400 mb-1">Best For</h4>
+              <div className="flex flex-wrap gap-1">
+                {scenePack.recommendedSubjects.map((subject, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs px-2 py-1 rounded bg-surface-elevated"
+                    style={{
+                      color: scenePack.uiThemeHints?.accentColor || '#A855F7',
+                    }}
+                  >
+                    {subject}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-xs font-medium text-gray-400 mb-1">Lighting</h4>
+              <p className="text-sm text-gray-300">{scenePack.recommendedLighting}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Button, Card } from '@toposonics/ui';
+import type { Composition } from '@toposonics/types';
+import { fetchComposition, updateComposition, deleteComposition } from '@/lib/api';
+import { exportCompositionToMidi } from '@/lib/midiExport';
+import { getPresetById, getDefaultPreset } from '@toposonics/core-audio';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToneEngine } from '@/hooks/useToneEngine';
+import { PlaybackControls } from '@/components/PlaybackControls';
+import { TimelineVisualizer } from '@/components/TimelineVisualizer';
+import { LoginModal } from '@/components/LoginModal';
+
+export default function CompositionDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user, token, login, isLoading: authLoading } = useAuth();
+
+  const [composition, setComposition] = useState<Composition | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [tempo, setTempo] = useState(90);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const id = params.id as string;
+
+  const loadComposition = useCallback(async () => {
+    if (!token) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchComposition(id, token);
+      setComposition(data);
+      setTempo(data.tempo || 90);
+    } catch (err) {
+      console.error('Failed to load composition:', err);
+      setError('Failed to load composition');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, token]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!token) {
+      setComposition(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    void loadComposition();
+  }, [authLoading, loadComposition, token]);
+
+  const handleLogin = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      await login(email, password);
+      setIsLoginModalOpen(false);
+    } catch (error) {
+      console.error('Failed to sign in for composition detail:', error);
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const startEditing = () => {
+    if (!composition) return;
+    setEditTitle(composition.title);
+    setEditDescription(composition.description || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!token || !composition) return;
+    const title = editTitle.trim();
+    if (!title) {
+      alert('Title cannot be empty');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updated = await updateComposition(
+        composition.id,
+        { title, description: editDescription.trim() },
+        token
+      );
+      setComposition(updated);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to update composition:', err);
+      alert('Failed to save changes');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExportMidi = () => {
+    if (!composition || composition.noteEvents.length === 0) return;
+    try {
+      exportCompositionToMidi({
+        noteEvents: composition.noteEvents,
+        tempoBpm: tempo,
+        title: composition.title,
+        description: composition.description,
+        mappingMode: composition.mappingMode,
+        key: composition.key,
+        scale: composition.scale,
+        presetId: composition.presetId,
+        userId: composition.userId,
+        metadata: composition.metadata,
+      });
+    } catch (err) {
+      console.error('Failed to export MIDI:', err);
+      alert('Failed to export MIDI');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!token || !composition) return;
+
+    if (!confirm('Are you sure you want to delete this composition?')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteComposition(composition.id, token);
+      router.push('/compositions');
+    } catch (err) {
+      console.error('Failed to delete composition:', err);
+      alert('Failed to delete composition');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Audio engine
+  const preset =
+    (composition && getPresetById(composition.presetId || '')) || getDefaultPreset();
+  const { play, stop, isPlaying, isLoading: audioLoading, currentTime } = useToneEngine({
+    noteEvents: composition?.noteEvents || [],
+    tempo,
+    preset,
+  });
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Checking your session...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-20">
+            <h1 className="text-3xl font-bold mb-4">Sign In Required</h1>
+            <p className="text-gray-400 mb-6">
+              This composition belongs to your private library.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button variant="primary" onClick={() => setIsLoginModalOpen(true)}>
+                Sign In
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/compositions')}>
+                Back to Library
+              </Button>
+            </div>
+          </div>
+        </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLogin={handleLogin}
+          isLoggingIn={isLoggingIn}
+          title="Sign In to View This Composition"
+          description="Your saved compositions are private. Sign in to open this detail page."
+        />
+      </>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Loading composition...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !composition) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="text-red-400 mb-4">{error || 'Composition not found'}</div>
+          <Button onClick={() => router.push('/compositions')}>Back to Compositions</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const canDelete = user && user.id === composition.userId;
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/compositions')}
+          className="mb-4"
+        >
+          ← Back to Compositions
+        </Button>
+        {isEditing ? (
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="edit-title" className="block text-sm font-medium mb-1">
+                Title
+              </label>
+              <input
+                id="edit-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                maxLength={200}
+                className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-description" className="block text-sm font-medium mb-1">
+                Description
+              </label>
+              <textarea
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                maxLength={2000}
+/**
+ * Shared API client utilities
+ * Provides a unified interface for making API requests
+ */
+
+import type {
+  ApiResponse,
+  ApiErrorResponse,
+  Composition,
+  CompositionSummary,
+  CreateCompositionDTO,
+  UpdateCompositionDTO,
+} from '@toposonics/types';
+
+export interface ApiClientConfig {
+  baseUrl: string;
+}
+
+export interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: unknown;
+  token?: string | null;
+}
+
+export interface FetchCompositionsOptions {
+  /** Page size; the server accepts 1-100 and defaults to 50. */
+  limit?: number;
+  /**
+   * Rows to skip before the page; defaults to 0. Legacy offset pagination —
+   * prefer `cursor` for a stable read under concurrent writes (#124).
+   * Ignored when `cursor` is set.
+   */
+  offset?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. Keyset-paginates over
+   * (created_at DESC, id DESC) so rows inserted mid-pagination can't shift the
+   * read window the way offset paging can.
+   */
+  cursor?: string;
+}
+
+/** A page of composition summaries plus the cursor for the next page, if any. */
+export interface CompositionsPage {
+  compositions: CompositionSummary[];
+  /** Present only when another page exists. */
+  nextCursor?: string;
+}
+
+/**
+ * Generic API request function
+ * Handles auth headers and response parsing
+ */
+export async function apiRequest<T>(
+  baseUrl: string,
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  // 204/empty bodies (e.g. DELETE) have nothing to parse.
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return undefined as T;
+  }
+
+  // Parse defensively: a gateway/proxy may return non-JSON (HTML) error pages, and we
+  // must not let a JSON.parse failure mask the real HTTP status.
+  let parsed: (ApiResponse<T> | ApiErrorResponse) | null = null;
+  try {
+    parsed = (await response.json()) as ApiResponse<T> | ApiErrorResponse;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    throw new Error('Invalid JSON response from server');
+  }
+
+  // A body that parses to null/non-object (e.g. a proxy returning bare `null`) would make
+  // `parsed.success` throw a TypeError and mask the real status.
+  if (parsed == null || typeof parsed !== 'object') {
+    throw new Error(response.ok ? 'Invalid response from server' : `HTTP ${response.status}`);
+  }
+
+  if (!response.ok || !parsed.success) {
+    const errorResponse = parsed as ApiErrorResponse;
+    const message = errorResponse.error?.message ?? `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  return (parsed as ApiResponse<T>).data;
+}
+
+/**
+ * Generic API request function that keeps the full success envelope, for
+ * endpoints that put metadata (e.g. `nextCursor`) next to `data`.
+ */
+export async function apiRequestEnvelope<T, M extends Record<string, unknown> = {}>(
+  baseUrl: string,
+  path: string,
+  options: RequestOptions = {}
+): Promise<{ data: T } & M> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.token) {
+    headers.Authorization = 'Bearer ' + options.token;
+  }
+
+  const response = await fetch(baseUrl + path, {
+    method: options.method ?? 'GET',
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  // 204/empty bodies (e.g. DELETE) have nothing to parse.
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    return { data: undefined as T } as { data: T } & M;
+  }
+
+  // Parse defensively: a gateway/proxy may return non-JSON (HTML) error pages, and we
+  // must not let a JSON.parse failure mask the real HTTP status.
+  let parsed: (ApiResponse<T> | ApiErrorResponse) | null = null;
+  try {
+    parsed = (await response.json()) as ApiResponse<T> | ApiErrorResponse;
+  } catch {
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+    throw new Error('Invalid JSON response from server');
+  }
+
+  // A body that parses to null/non-object would make `parsed.success` throw a
+  // TypeError and mask the real status.
+  if (parsed == null || typeof parsed !== 'object') {
+    throw new Error(response.ok ? 'Invalid response from server' : 'HTTP ' + response.status);
+  }
+
+  if (!response.ok || !parsed.success) {
+    const errorResponse = parsed as ApiErrorResponse;
+    const message = errorResponse.error?.message ?? 'HTTP ' + response.status;
+    throw new Error(message);
+  }
+
+  const { success: _success, ...rest } = parsed as ApiResponse<T> & Record<string, unknown>;
+  return rest as { data: T } & M;
+}
+
+/**
+ * Create an API client with a base URL
+ */
+export function createApiClient(config: ApiClientConfig) {
+  const { baseUrl } = config;
+
+  /**
+   * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
+   * Requires authentication for private library access
+   */
+  const fetchCompositions = async (
+    token: string | null,
+    options: FetchCompositionsOptions = {}
+  ): Promise<CompositionSummary[]> => {
+    const page = await fetchCompositionsPage(token, options);
+    return page.compositions;
+  };
+
+  /**
+   * Like fetchCompositions but also returns the `nextCursor` from the response
+   * envelope, for callers driving cursor pagination themselves (#124).
+   */
+  const fetchCompositionsPage = async (
+    token: string | null,
+    options: FetchCompositionsOptions = {}
+  ): Promise<CompositionsPage> => {
+    // Build the query string by hand: React Native's URLSearchParams lacks set().
+    const params: string[] = [];
+    if (options.limit !== undefined) params.push(`limit=${options.limit}`);
+    if (options.offset !== undefined) params.push(`offset=${options.offset}`);
+    if (options.cursor !== undefined) params.push(`cursor=${encodeURIComponent(options.cursor)}`);
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    const envelope = await apiRequestEnvelope<CompositionSummary[], { nextCursor?: string }>(
+      baseUrl,
+      `/compositions${query}`,

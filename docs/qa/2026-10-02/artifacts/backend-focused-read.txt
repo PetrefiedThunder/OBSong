@@ -1,0 +1,874 @@
+UTC start: 2026-10-03T01:21:14Z
+Command: nl -ba apps/api/src/routes/compositions.ts && nl -ba apps/api/src/services/compositions.ts && cat apps/api/vitest.config.ts && sed -n "1,145p" apps/api/src/__tests__/compositions.routes.test.ts && cat apps/api/src/routes/health.ts
+Exit: 0
+
+     1	/**
+     2	 * Composition CRUD routes
+     3	 */
+     4	
+     5	import type { FastifyInstance } from 'fastify';
+     6	import type {
+     7	  Composition,
+     8	  CompositionSummary,
+     9	  CreateCompositionDTO,
+    10	  UpdateCompositionDTO,
+    11	  ApiResponse,
+    12	  ApiErrorResponse,
+    13	} from '@toposonics/types';
+    14	import { requireAuth } from '../auth';
+    15	import {
+    16	  listCompositions,
+    17	  getCompositionById,
+    18	  createComposition,
+    19	  updateComposition,
+    20	  deleteComposition,
+    21	} from '../services/compositions';
+    22	
+    23	// JSON schema for :id params — rejects non-UUIDs with a 400 instead of letting Postgres
+    24	// raise 22P02 (which previously surfaced as a 500).
+    25	const idParamsSchema = {
+    26	  type: 'object',
+    27	  required: ['id'],
+    28	  properties: {
+    29	    id: { type: 'string', format: 'uuid' },
+    30	  },
+    31	} as const;
+    32	
+    33	// Shared body field constraints. additionalProperties is allowed at the note-event level
+    34	// (forward compat for new per-note fields) but the top-level body is closed so unknown
+    35	// keys can't be smuggled in. The core playback/MIDI-export fields are required and typed
+    36	// so a saved composition can never hold events that crash the players later.
+    37	const noteEventsSchema = {
+    38	  type: 'array',
+    39	  maxItems: 100000,
+    40	  items: {
+    41	    type: 'object',
+    42	    required: ['note', 'start', 'duration', 'velocity'],
+    43	    properties: {
+    44	      note: { type: 'string', minLength: 2, maxLength: 8 },
+    45	      start: { type: 'number', minimum: 0 },
+    46	      duration: { type: 'number', exclusiveMinimum: 0 },
+    47	      velocity: { type: 'number', minimum: 0, maximum: 1 },
+    48	      pan: { type: 'number', minimum: -1, maximum: 1 },
+    49	      trackId: { type: 'string', maxLength: 32 },
+    50	      effects: { type: 'object' },
+    51	    },
+    52	  },
+    53	} as const;
+    54	
+    55	const createBodySchema = {
+    56	  type: 'object',
+    57	  required: ['title', 'noteEvents', 'mappingMode', 'key', 'scale'],
+    58	  additionalProperties: false,
+    59	  properties: {
+    60	    title: { type: 'string', minLength: 1, maxLength: 200 },
+    61	    description: { type: 'string', maxLength: 2000 },
+    62	    noteEvents: noteEventsSchema,
+    63	    mappingMode: { type: 'string', maxLength: 64 },
+    64	    key: { type: 'string', maxLength: 8 },
+    65	    scale: { type: 'string', maxLength: 64 },
+    66	    presetId: { type: 'string', maxLength: 64 },
+    67	    tempo: { type: 'number', minimum: 1, maximum: 1000 },
+    68	    // Keep the combined field maxima below the server bodyLimit (10 MB, server.ts) so a
+    69	    // request carrying both near their limits is validated, not rejected with a 413.
+    70	    imageThumbnail: { type: 'string', maxLength: 500_000 },
+    71	    imageData: { type: 'string', maxLength: 8_000_000 },
+    72	    metadata: { type: 'object' },
+    73	  },
+    74	} as const;
+    75	
+    76	const updateBodySchema = {
+    77	  type: 'object',
+    78	  additionalProperties: false,
+    79	  minProperties: 1,
+    80	  properties: createBodySchema.properties,
+    81	} as const;
+    82	
+    83	// Pagination for the list endpoint. Bounded limit keeps a single response well under the
+    84	// API's under-pressure heap cap; unknown query keys are stripped by AJV's removeAdditional.
+    85	// `cursor` is the additive keyset-pagination param (#124); offset still works for legacy
+    86	// clients that don't send it.
+    87	const listQuerySchema = {
+    88	  type: 'object',
+    89	  additionalProperties: false,
+    90	  properties: {
+    91	    limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+    92	    offset: { type: 'integer', minimum: 0, default: 0 },
+    93	    cursor: { type: 'string', minLength: 1, maxLength: 512 },
+    94	  },
+    95	} as const;
+    96	
+    97	export async function compositionRoutes(fastify: FastifyInstance) {
+    98	  /**
+    99	   * GET /compositions
+   100	   * Get the authenticated user's composition summaries (paginated). Full noteEvents and
+   101	   * imageData blobs are only served by GET /compositions/:id.
+   102	   */
+   103	  fastify.get<{
+   104	    Querystring: { limit?: number; offset?: number; cursor?: string };
+   105	    Reply:
+   106	      | (ApiResponse<CompositionSummary[]> & { nextCursor?: string })
+   107	      | ApiErrorResponse;
+   108	  }>(
+   109	    '/compositions',
+   110	    {
+   111	      preHandler: requireAuth,
+   112	      schema: { querystring: listQuerySchema },
+   113	    },
+   114	    async (request, reply) => {
+   115	      try {
+   116	        const { limit = 50, offset = 0, cursor } = request.query;
+   117	        const result = await listCompositions(request.userId as string, {
+   118	          limit,
+   119	          // Cursor mode ignores offset entirely (keyset over (created_at, id) DESC).
+   120	          ...(cursor ? { cursor } : { offset }),
+   121	        });
+   122	
+   123	        // Additive envelope (#124): `data` stays an array for existing offset clients;
+   124	        // cursor clients follow `nextCursor` until it is absent.
+   125	        return reply.send({
+   126	          success: true,
+   127	          data: result.compositions,
+   128	          ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}),
+   129	        });
+   130	      } catch (error) {
+   131	        fastify.log.error(error);
+   132	        if (error instanceof Error && error.message === 'Invalid cursor') {
+   133	          return reply.status(400).send({
+   134	            success: false,
+   135	            error: {
+   136	              code: 'INVALID_CURSOR',
+   137	              message: 'Invalid cursor',
+   138	            },
+   139	          });
+   140	        }
+   141	        return reply.status(500).send({
+   142	          success: false,
+   143	          error: {
+   144	            code: 'INTERNAL_ERROR',
+   145	            message: 'Failed to fetch compositions',
+   146	          },
+   147	        });
+   148	      }
+   149	    }
+   150	  );
+   151	
+   152	  /**
+   153	   * GET /compositions/:id
+   154	   * Get a specific composition by ID
+   155	   */
+   156	  fastify.get<{
+   157	    Params: { id: string };
+   158	    Reply: ApiResponse<Composition> | ApiErrorResponse;
+   159	  }>(
+   160	    '/compositions/:id',
+   161	    {
+   162	      preHandler: requireAuth,
+   163	      schema: { params: idParamsSchema },
+   164	    },
+   165	    async (request, reply) => {
+   166	      const { id } = request.params;
+   167	
+   168	      try {
+   169	        const composition = await getCompositionById(id);
+   170	
+   171	        if (!composition || composition.userId !== request.userId) {
+   172	          return reply.status(404).send({
+   173	            success: false,
+   174	            error: {
+   175	              code: 'NOT_FOUND',
+   176	              message: `Composition with ID ${id} not found`,
+   177	            },
+   178	          });
+   179	        }
+   180	
+   181	        return reply.send({
+   182	          success: true,
+   183	          data: composition,
+   184	        });
+   185	      } catch (error) {
+   186	        fastify.log.error(error);
+   187	        return reply.status(500).send({
+   188	          success: false,
+   189	          error: {
+   190	            code: 'INTERNAL_ERROR',
+   191	            message: 'Failed to fetch composition',
+   192	          },
+   193	        });
+   194	      }
+   195	    }
+   196	  );
+   197	
+   198	  /**
+   199	   * POST /compositions
+   200	   * Create a new composition (requires auth)
+   201	   */
+   202	  fastify.post<{
+   203	    Body: Omit<CreateCompositionDTO, 'userId'>;
+   204	    Reply: ApiResponse<Composition> | ApiErrorResponse;
+   205	  }>(
+   206	    '/compositions',
+   207	    {
+   208	      preHandler: requireAuth,
+   209	      schema: { body: createBodySchema },
+   210	    },
+   211	    async (request, reply) => {
+   212	      const data = request.body;
+   213	
+   214	      try {
+   215	        // Field presence/type/length is enforced by the JSON schema above.
+   216	        // Create composition with authenticated user's ID
+   217	        const composition = await createComposition(request.userId!, data);
+   218	
+   219	        return reply.status(201).send({
+   220	          success: true,
+   221	          data: composition,
+   222	          message: 'Composition created successfully',
+   223	        });
+   224	      } catch (error) {
+   225	        fastify.log.error(error);
+   226	        return reply.status(500).send({
+   227	          success: false,
+   228	          error: {
+   229	            code: 'INTERNAL_ERROR',
+   230	            message: 'Failed to create composition',
+   231	          },
+   232	        });
+   233	      }
+   234	    }
+   235	  );
+   236	
+   237	  /**
+   238	   * PUT /compositions/:id
+   239	   * Update an existing composition (requires auth and ownership)
+   240	   */
+   241	  fastify.put<{
+   242	    Params: { id: string };
+   243	    Body: UpdateCompositionDTO;
+   244	    Reply: ApiResponse<Composition> | ApiErrorResponse;
+   245	  }>(
+   246	    '/compositions/:id',
+   247	    {
+   248	      preHandler: requireAuth,
+   249	      schema: { params: idParamsSchema, body: updateBodySchema },
+   250	    },
+   251	    async (request, reply) => {
+   252	      const { id } = request.params;
+   253	      const data = request.body;
+   254	
+   255	      try {
+   256	        const existing = await getCompositionById(id);
+   257	
+   258	        // Return 404 (not 403) for both missing and foreign rows so an attacker can't
+   259	        // distinguish "doesn't exist" from "exists but owned by someone else" (matches GET).
+   260	        if (!existing || existing.userId !== request.userId) {
+   261	          return reply.status(404).send({
+   262	            success: false,
+   263	            error: {
+   264	              code: 'NOT_FOUND',
+   265	              message: `Composition with ID ${id} not found`,
+   266	            },
+   267	          });
+   268	        }
+   269	
+   270	        const updated = await updateComposition(id, request.userId!, data);
+   271	
+   272	        if (!updated) {
+   273	          return reply.status(500).send({
+   274	            success: false,
+   275	            error: {
+   276	              code: 'UPDATE_FAILED',
+   277	              message: 'Failed to update composition',
+   278	            },
+   279	          });
+   280	        }
+   281	
+   282	        return reply.send({
+   283	          success: true,
+   284	          data: updated,
+   285	          message: 'Composition updated successfully',
+   286	        });
+   287	      } catch (error) {
+   288	        fastify.log.error(error);
+   289	        return reply.status(500).send({
+   290	          success: false,
+   291	          error: {
+   292	            code: 'INTERNAL_ERROR',
+   293	            message: 'Failed to update composition',
+   294	          },
+   295	        });
+   296	      }
+   297	    }
+   298	  );
+   299	
+   300	  /**
+   301	   * DELETE /compositions/:id
+   302	   * Delete a composition (requires auth and ownership)
+   303	   */
+   304	  fastify.delete<{
+   305	    Params: { id: string };
+   306	    Reply: ApiResponse<{ id: string }> | ApiErrorResponse;
+   307	  }>(
+   308	    '/compositions/:id',
+   309	    {
+   310	      preHandler: requireAuth,
+   311	      schema: { params: idParamsSchema },
+   312	    },
+   313	    async (request, reply) => {
+   314	      const { id } = request.params;
+   315	
+   316	      try {
+   317	        const existing = await getCompositionById(id);
+   318	
+   319	        // 404 for both missing and foreign rows (avoid id enumeration; matches GET/PUT).
+   320	        if (!existing || existing.userId !== request.userId) {
+   321	          return reply.status(404).send({
+   322	            success: false,
+   323	            error: {
+   324	              code: 'NOT_FOUND',
+   325	              message: `Composition with ID ${id} not found`,
+   326	            },
+   327	          });
+   328	        }
+   329	
+   330	        const deleted = await deleteComposition(id, request.userId!);
+   331	
+   332	        if (!deleted) {
+   333	          return reply.status(500).send({
+   334	            success: false,
+   335	            error: {
+   336	              code: 'DELETE_FAILED',
+   337	              message: 'Failed to delete composition',
+   338	            },
+   339	          });
+   340	        }
+   341	
+   342	        return reply.send({
+   343	          success: true,
+   344	          data: { id },
+   345	          message: 'Composition deleted successfully',
+   346	        });
+   347	      } catch (error) {
+   348	        fastify.log.error(error);
+   349	        return reply.status(500).send({
+   350	          success: false,
+   351	          error: {
+   352	            code: 'INTERNAL_ERROR',
+   353	            message: 'Failed to delete composition',
+   354	          },
+   355	        });
+   356	      }
+   357	    }
+   358	  );
+   359	}
+     1	import type {
+     2	  Composition,
+     3	  CompositionSummary,
+     4	  CreateCompositionDTO,
+     5	  UpdateCompositionDTO,
+     6	} from '@toposonics/types';
+     7	import { supabaseAdmin } from '../supabase';
+     8	
+     9	interface CompositionRow {
+    10	  id: string;
+    11	  user_id: string;
+    12	  name?: string | null;
+    13	  data: Record<string, unknown>;
+    14	  created_at: string;
+    15	  updated_at?: string | null;
+    16	}
+    17	
+    18	// Explicit allowlist of client-writable composition fields. Everything else (id, userId,
+    19	// createdAt, updatedAt, and any unknown keys) is derived server-side, never taken from the
+    20	// request body — this prevents mass assignment into the stored JSONB blob.
+    21	const WRITABLE_FIELDS = [
+    22	  'title',
+    23	  'description',
+    24	  'noteEvents',
+    25	  'mappingMode',
+    26	  'key',
+    27	  'scale',
+    28	  'presetId',
+    29	  'tempo',
+    30	  'imageThumbnail',
+    31	  'imageData',
+    32	  'metadata',
+    33	] as const;
+    34	
+    35	function pickWritableFields(input: Record<string, unknown>): Record<string, unknown> {
+    36	  const out: Record<string, unknown> = {};
+    37	  for (const field of WRITABLE_FIELDS) {
+    38	    if (input[field] !== undefined) {
+    39	      out[field] = input[field];
+    40	    }
+    41	  }
+    42	  return out;
+    43	}
+    44	
+    45	function mapRowToComposition(row: CompositionRow): Composition {
+    46	  const payload = row.data as unknown as Composition;
+    47	  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
+    48	  const updatedAt = row.updated_at ? new Date(row.updated_at) : payload.updatedAt ? new Date(payload.updatedAt) : createdAt;
+    49	
+    50	  return {
+    51	    ...payload,
+    52	    id: row.id,
+    53	    userId: row.user_id,
+    54	    title: payload.title || row.name || 'Untitled',
+    55	    createdAt,
+    56	    updatedAt,
+    57	  };
+    58	}
+    59	
+    60	// PostgREST JSON projection for list views: pulls only the scalar fields out of the `data`
+    61	// JSONB column so the heavy blobs (noteEvents, imageData) never leave the database.
+    62	// ->> extracts as text, -> keeps JSON (tempo stays numeric, metadata stays an object).
+    63	const SUMMARY_SELECT =
+    64	  'id, user_id, name, created_at, updated_at, ' +
+    65	  'title:data->>title, description:data->>description, mappingMode:data->>mappingMode, ' +
+    66	  'key:data->>key, scale:data->>scale, presetId:data->>presetId, tempo:data->tempo, ' +
+    67	  'imageThumbnail:data->>imageThumbnail, metadata:data->metadata';
+    68	
+    69	interface CompositionSummaryRow {
+    70	  id: string;
+    71	  user_id: string;
+    72	  name?: string | null;
+    73	  created_at: string;
+    74	  updated_at?: string | null;
+    75	  title: string | null;
+    76	  description: string | null;
+    77	  mappingMode: string | null;
+    78	  key: string | null;
+    79	  scale: string | null;
+    80	  presetId: string | null;
+    81	  // data->tempo is JSON so numbers round-trip as numbers, but coerce defensively below.
+    82	  tempo: number | string | null;
+    83	  imageThumbnail: string | null;
+    84	  metadata: Composition['metadata'] | null;
+    85	}
+    86	
+    87	function mapRowToCompositionSummary(row: CompositionSummaryRow): CompositionSummary {
+    88	  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
+    89	  const updatedAt = row.updated_at ? new Date(row.updated_at) : createdAt;
+    90	
+    91	  return {
+    92	    id: row.id,
+    93	    userId: row.user_id,
+    94	    title: row.title || row.name || 'Untitled',
+    95	    description: row.description ?? undefined,
+    96	    mappingMode: row.mappingMode as CompositionSummary['mappingMode'],
+    97	    key: row.key as CompositionSummary['key'],
+    98	    scale: row.scale as CompositionSummary['scale'],
+    99	    presetId: row.presetId ?? undefined,
+   100	    tempo: row.tempo == null ? undefined : Number(row.tempo),
+   101	    imageThumbnail: row.imageThumbnail ?? undefined,
+   102	    // Old rows were saved before metadata.noteCount existed; leave those undefined.
+   103	    noteCount: row.metadata?.noteCount,
+   104	    createdAt,
+   105	    updatedAt,
+   106	  };
+   107	}
+   108	
+   109	export interface ListCompositionsOptions {
+   110	  /** Page size (rows to return). */
+   111	  limit?: number;
+   112	  /** Rows to skip before the page (offset pagination; ignored when cursor is set). */
+   113	  offset?: number;
+   114	  /**
+   115	   * Opaque cursor from a previous page's `nextCursor` (base64url of `<isoCreatedAt>|<id>`).
+   116	   * When present, results are keyset-paginated by the stable (created_at DESC, id DESC)
+   117	   * ordering and offset is ignored.
+   118	   */
+   119	  cursor?: string;
+   120	}
+   121	
+   122	export interface ListCompositionsResult {
+   123	  compositions: CompositionSummary[];
+   124	  /** Cursor to pass for the next page; undefined on the last page. */
+   125	  nextCursor?: string;
+   126	}
+   127	
+   128	function encodeCursor(createdAt: string, id: string): string {
+   129	  return Buffer.from(`${createdAt}|${id}`, 'utf8').toString('base64url');
+   130	}
+   131	
+   132	/** Returns null for a malformed cursor so the route can answer 400 instead of 500. */
+   133	function decodeCursor(cursor: string): { createdAt: string; id: string } | null {
+   134	  let decoded: string;
+   135	  try {
+   136	    decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+   137	  } catch {
+   138	    return null;
+   139	  }
+   140	  const sep = decoded.lastIndexOf('|');
+   141	  if (sep <= 0) return null;
+   142	  const createdAt = decoded.slice(0, sep);
+   143	  const id = decoded.slice(sep + 1);
+   144	  // created_at must round-trip as a real timestamp; id must be a UUID.
+   145	  if (Number.isNaN(new Date(createdAt).getTime())) return null;
+   146	  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+   147	  return { createdAt, id };
+   148	}
+   149	
+   150	export async function listCompositions(
+   151	  userId: string,
+   152	  options: ListCompositionsOptions = {}
+   153	): Promise<ListCompositionsResult> {
+   154	  // Fail closed: never list the whole table. All access is via the service-role client,
+   155	  // which bypasses RLS, so this filter is the only tenant isolation.
+   156	  if (!userId) {
+   157	    throw new Error('listCompositions requires a userId');
+   158	  }
+   159	  const limit = options.limit ?? 50;
+   160	  const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+   161	  if (options.cursor && !cursor) {
+   162	    throw new Error('Invalid cursor');
+   163	  }
+   164	
+   165	  let query = supabaseAdmin
+   166	    .from('compositions')
+   167	    .select(SUMMARY_SELECT)
+   168	    .eq('user_id', userId)
+   169	    .order('created_at', { ascending: false })
+   170	    .order('id', { ascending: false });
+   171	
+   172	  if (cursor) {
+   173	    // Keyset filter for (created_at, id) DESC: rows strictly after the cursor position.
+   174	    query = query.or(
+   175	      `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`
+   176	    );
+   177	    // One extra row tells us whether another page exists.
+   178	    query = query.range(0, limit);
+   179	  } else {
+   180	    const offset = options.offset ?? 0;
+   181	    query = query.range(offset, offset + limit);
+   182	  }
+   183	
+   184	  const { data, error } = await query;
+   185	  if (error) {
+   186	    throw error;
+   187	  }
+   188	  const rows = data as unknown as CompositionSummaryRow[];
+   189	  const hasMore = rows.length > limit;
+   190	  const pageRows = rows.slice(0, limit);
+   191	
+   192	  // With an explicit offset (no cursor) the client drives paging, so nextCursor is only
+   193	  // emitted when this page provably isn't the last one. In cursor mode it is undefined on
+   194	  // the final page, which is the termination signal.
+   195	  const last = pageRows[pageRows.length - 1];
+   196	  const nextCursor =
+   197	    hasMore && last ? encodeCursor(last.created_at, last.id) : undefined;
+   198	
+   199	  return {
+   200	    compositions: pageRows.map(mapRowToCompositionSummary),
+   201	    nextCursor,
+   202	  };
+   203	}
+   204	
+   205	export async function getCompositionById(id: string): Promise<Composition | null> {
+   206	  const { data, error } = await supabaseAdmin.from('compositions').select('*').eq('id', id).single();
+   207	  if (error) {
+   208	    if (error.code === 'PGRST116') return null;
+   209	    // A malformed (non-UUID) id raises Postgres 22P02; treat it as "not found" rather than
+   210	    // surfacing a 500 with internal SQL details.
+   211	    if (error.code === '22P02') return null;
+   212	    throw error;
+   213	  }
+   214	  return mapRowToComposition(data as CompositionRow);
+   215	}
+   216	
+   217	export async function createComposition(
+   218	  userId: string,
+   219	  payload: Omit<CreateCompositionDTO, 'id' | 'createdAt' | 'updatedAt' | 'userId'>
+   220	): Promise<Composition> {
+   221	  const now = new Date();
+   222	  const compositionPayload: Composition = {
+   223	    ...pickWritableFields(payload as unknown as Record<string, unknown>),
+   224	    id: '',
+   225	    userId,
+   226	    createdAt: now,
+   227	    updatedAt: now,
+   228	  } as Composition;
+   229	
+   230	  const { data, error } = await supabaseAdmin
+   231	    .from('compositions')
+   232	    .insert({
+   233	      user_id: userId,
+   234	      name: payload.title,
+   235	      data: compositionPayload,
+   236	    })
+   237	    .select()
+   238	    .single();
+   239	
+   240	  if (error) {
+   241	    throw error;
+   242	  }
+   243	
+   244	  return mapRowToComposition(data as CompositionRow);
+   245	}
+   246	
+   247	export async function updateComposition(
+   248	  id: string,
+   249	  userId: string,
+   250	  updates: UpdateCompositionDTO
+   251	): Promise<Composition | null> {
+   252	  const existing = await getCompositionById(id);
+   253	  // Scope by owner so the mutating query is defended in depth (not only by the route's
+   254	  // read-then-check), closing the TOCTOU gap. NOTE: this still writes the whole data blob
+   255	  // (last-write-wins across the object); a partial/JSONB merge is a follow-up.
+   256	  if (!existing || existing.userId !== userId) return null;
+   257	
+   258	  const merged: Composition = {
+   259	    ...existing,
+   260	    ...pickWritableFields(updates as unknown as Record<string, unknown>),
+   261	    id: existing.id,
+   262	    userId: existing.userId,
+   263	    createdAt: existing.createdAt,
+   264	    updatedAt: new Date(),
+   265	  };
+   266	
+   267	  const { data, error } = await supabaseAdmin
+   268	    .from('compositions')
+   269	    .update({
+   270	      name: merged.title,
+   271	      data: merged,
+   272	      updated_at: merged.updatedAt.toISOString(),
+   273	    })
+   274	    .eq('id', id)
+   275	    .eq('user_id', userId)
+   276	    .select()
+   277	    .single();
+   278	
+   279	  if (error) {
+   280	    if (error.code === 'PGRST116' || error.code === '22P02') return null;
+   281	    throw error;
+   282	  }
+   283	
+   284	  return mapRowToComposition(data as CompositionRow);
+   285	}
+   286	
+   287	export async function deleteComposition(id: string, userId: string): Promise<boolean> {
+   288	  const { data, error } = await supabaseAdmin
+   289	    .from('compositions')
+   290	    .delete()
+   291	    .eq('id', id)
+   292	    .eq('user_id', userId)
+   293	    .select('id');
+   294	  if (error) {
+   295	    if (error.code === '22P02') return false;
+   296	    throw error;
+   297	  }
+   298	  // Returns the deleted rows; empty means nothing matched (missing or not owned).
+   299	  return Array.isArray(data) && data.length > 0;
+   300	}
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    // Dummy Supabase env so src/supabase.ts (which throws if unset) can be imported;
+    // the client is never actually used against the network in tests (services/auth are mocked).
+    env: {
+      SUPABASE_URL: 'http://localhost:54321',
+      SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+      NODE_ENV: 'test',
+    },
+    exclude: ['dist/**', 'node_modules/**'],
+  },
+});
+import Fastify, { type FastifyInstance } from 'fastify';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const TEST_USER = 'user-1';
+const OTHER_USER = 'user-2';
+const UUID = '11111111-1111-4111-8111-111111111111';
+
+// requireAuth is a preHandler; stub it to authenticate as TEST_USER.
+vi.mock('../auth', () => ({
+  requireAuth: async (req: { userId?: string }) => {
+    req.userId = TEST_USER;
+  },
+}));
+
+// Replace the service layer so no Supabase client is touched.
+vi.mock('../services/compositions', () => ({
+  listCompositions: vi.fn(),
+  getCompositionById: vi.fn(),
+  createComposition: vi.fn(),
+  updateComposition: vi.fn(),
+  deleteComposition: vi.fn(),
+}));
+
+import { compositionRoutes } from '../routes/compositions';
+import * as svc from '../services/compositions';
+import type { Composition, CompositionSummary } from '@toposonics/types';
+
+const mocked = vi.mocked(svc);
+
+const validCreateBody = {
+  title: 'My Comp',
+  noteEvents: [{ note: 'C4', start: 0, duration: 0.5, velocity: 0.8 }],
+  mappingMode: 'LINEAR_LANDSCAPE',
+  key: 'C',
+  scale: 'C_MAJOR',
+};
+
+function composition(userId: string): Composition {
+  return {
+    id: UUID,
+    userId,
+    title: 'My Comp',
+    noteEvents: [],
+    mappingMode: 'LINEAR_LANDSCAPE',
+    key: 'C',
+    scale: 'C_MAJOR',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function summary(userId: string): CompositionSummary {
+  return {
+    id: UUID,
+    userId,
+    title: 'My Comp',
+    mappingMode: 'LINEAR_LANDSCAPE',
+    key: 'C',
+    scale: 'C_MAJOR',
+    noteCount: 3,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+let app: FastifyInstance;
+
+beforeEach(async () => {
+  vi.clearAllMocks();
+  app = Fastify();
+  await app.register(compositionRoutes);
+  await app.ready();
+});
+
+afterEach(async () => {
+  await app.close();
+});
+
+describe('POST /compositions (validation, #88)', () => {
+  it('creates on a valid body', async () => {
+    mocked.createComposition.mockResolvedValue(composition(TEST_USER));
+    const res = await app.inject({ method: 'POST', url: '/compositions', payload: validCreateBody });
+    expect(res.statusCode).toBe(201);
+    expect(mocked.createComposition).toHaveBeenCalledWith(TEST_USER, expect.objectContaining({ title: 'My Comp' }));
+  });
+
+  it('rejects a missing required field with 400', async () => {
+    const { title, ...noTitle } = validCreateBody;
+    void title;
+    const res = await app.inject({ method: 'POST', url: '/compositions', payload: noTitle });
+    expect(res.statusCode).toBe(400);
+    expect(mocked.createComposition).not.toHaveBeenCalled();
+  });
+
+  it('strips unknown/mass-assignment keys so they never reach the service', async () => {
+    // With additionalProperties:false, Fastify's default AJV removes unknown keys rather
+    // than 400-ing; either way the forged userId/id must not reach createComposition.
+    mocked.createComposition.mockResolvedValue(composition(TEST_USER));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/compositions',
+      payload: { ...validCreateBody, userId: OTHER_USER, id: 'forged' },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = mocked.createComposition.mock.calls[0][1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('userId');
+    expect(body).not.toHaveProperty('id');
+  });
+
+  it('rejects a wrong-typed field with 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/compositions',
+      payload: { ...validCreateBody, title: { not: 'a string' } },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('rejects a note event missing "note" with 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/compositions',
+      payload: { ...validCreateBody, noteEvents: [{ start: 0, duration: 0.5, velocity: 0.8 }] },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(mocked.createComposition).not.toHaveBeenCalled();
+  });
+
+  it('keeps unknown note-event keys (forward compat) while enforcing the core fields', async () => {
+    mocked.createComposition.mockResolvedValue(composition(TEST_USER));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/compositions',
+      payload: {
+        ...validCreateBody,
+        noteEvents: [{ note: 'C4', start: 0, duration: 0.5, velocity: 0.8, futureField: 'x' }],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = mocked.createComposition.mock.calls[0][1] as { noteEvents: Record<string, unknown>[] };
+    expect(body.noteEvents[0]).toHaveProperty('futureField', 'x');
+  });
+});
+
+describe('GET /compositions (summary pagination, audit)', () => {
+/**
+ * Health check routes
+ */
+
+import type { FastifyInstance } from 'fastify';
+import type { HealthCheckResponse } from '@toposonics/types';
+import { config } from '../config';
+import { requireAuth } from '../auth';
+
+export async function healthRoutes(fastify: FastifyInstance) {
+  /**
+   * GET /health
+   * Basic health check endpoint
+   */
+  fastify.get<{ Reply: HealthCheckResponse }>('/health', async (_request, reply) => {
+    const uptime = process.uptime();
+
+    const response: HealthCheckResponse = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: config.apiVersion,
+      uptime: Math.floor(uptime),
+    };
+
+    return reply.send(response);
+  });
+
+  /**
+   * GET /health/detailed
+   * More detailed health information. Gated behind auth so environment/uptime/memory
+   * internals aren't exposed to anonymous clients (fingerprinting / memory-probe surface).
+   */
+  fastify.get('/health/detailed', { preHandler: requireAuth }, async (_request, reply) => {
+    const uptime = process.uptime();
+    const memoryUsage = process.memoryUsage();
+
+    return reply.send({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: config.apiVersion,
+      uptime: Math.floor(uptime),
+      environment: config.isProduction ? 'production' : 'development',
+      memory: {
+        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + ' MB',
+        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + ' MB',
+        rss: Math.round(memoryUsage.rss / 1024 / 1024) + ' MB',
+      },
+    });
+  });
+}

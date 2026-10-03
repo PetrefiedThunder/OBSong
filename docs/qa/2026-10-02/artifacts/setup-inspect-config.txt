@@ -1,0 +1,349 @@
+UTC start: 2026-10-03T01:21:15Z
+Command: cat apps/web/next.config.mjs apps/web/src/app/layout.tsx apps/web/tsconfig.json .gitignore; cat packages/core-audio/package.json packages/core-image/package.json; rg --files docs | sort
+Exit: 0
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  transpilePackages: [
+    '@toposonics/core-audio',
+    '@toposonics/core-image',
+    '@toposonics/shared',
+    '@toposonics/types',
+    '@toposonics/ui',
+  ],
+  // Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /node_modules\/tone\/build\/esm\/.*\.js$/,
+      resolve: {
+        fullySpecified: false,
+      },
+    });
+
+    return config;
+  },
+  async headers() {
+    // NOTE: the Content-Security-Policy is set per-request (with a nonce) in
+    // src/middleware.ts so script-src can be strict (no 'unsafe-inline'). The static
+    // headers below don't need a nonce and stay here.
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import Link from 'next/link';
+import './globals.css';
+import { AuthProvider } from '@/contexts/AuthContext';
+
+// Nonce-based CSP (see src/middleware.ts) requires per-request rendering: a static build
+// has no request nonce to stamp on Next's script tags, so 'strict-dynamic' would block
+// every chunk. Forcing dynamic rendering lets Next apply the request nonce to its scripts.
+export const dynamic = 'force-dynamic';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'TopoSonics - Turn Images into Music',
+  description:
+    'Transform static photos or live camera input into rich musical landscapes. Map visual features to pitch, time, and effects.',
+  keywords: ['generative music', 'image to audio', 'sonification', 'creative tools'],
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'TopoSonics',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#3b82f6',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body className={`${inter.className} font-sans`}>
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col">
+            <header className="border-b border-gray-800 bg-surface-primary">
+              <nav className="container mx-auto px-4 py-4">
+                <div className="flex items-center justify-between">
+                  <Link href="/" className="text-2xl font-bold text-primary-400">
+                    🎵 TopoSonics
+                  </Link>
+                  <div className="flex gap-6">
+                    <Link
+                      href="/studio"
+                      className="text-gray-300 hover:text-white transition-colors"
+                    >
+                      Studio
+                    </Link>
+                    <Link
+                      href="/compositions"
+                      className="text-gray-300 hover:text-white transition-colors"
+                    >
+                      Compositions
+                    </Link>
+                  </div>
+                </div>
+              </nav>
+            </header>
+            <main className="flex-1">{children}</main>
+            <footer className="border-t border-gray-800 bg-surface-primary py-6">
+              <div className="container mx-auto px-4 text-center text-gray-400 text-sm">
+                TopoSonics &copy; 2024 - Turn images into soundscapes
+              </div>
+            </footer>
+          </div>
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@toposonics/core-audio": [
+        "../../packages/core-audio/src/index.ts"
+      ],
+      "@toposonics/core-image": [
+        "../../packages/core-image/src/index.ts"
+      ],
+      "@toposonics/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@toposonics/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@toposonics/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Lock files from other package managers (use pnpm-lock.yaml only)
+package-lock.json
+yarn.lock
+
+# Testing
+coverage
+*.lcov
+.nyc_output
+
+# Next.js
+.next/
+out/
+build
+dist
+
+# Production
+/build
+/dist
+
+# Misc
+.DS_Store
+*.pem
+.idea
+.vscode
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local env files
+.env
+.env.production
+.env.staging
+.env.development
+.env.test
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Turbo
+.turbo
+
+# Expo
+.expo
+.expo-shared
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+# Build artifacts in source directories (packages)
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts.map
+
+# Prevent accidentally committing compiled TS files in src directories
+packages/*/src/*.js
+packages/*/src/*.js.map
+packages/*/src/*.d.ts
+packages/*/src/*.d.ts.map
+apps/*/src/*.js
+apps/*/src/*.js.map
+apps/*/src/*.d.ts
+apps/*/src/*.d.ts.map
+
+# Secrets / signing credentials (never commit these)
+apps/mobile/credentials/
+credentials/
+*.jks
+# Release keystores. The RN debug keystore is intentionally tracked (see
+# apps/mobile/android/app/debug.keystore); ignore all others.
+*.keystore
+!apps/mobile/android/app/debug.keystore
+
+# OS
+Thumbs.db
+{
+  "name": "@toposonics/core-audio",
+  "version": "0.1.0",
+  "description": "Audio mapping utilities for TopoSonics - converts image features to musical events",
+  "main": "dist/index.js",
+  "react-native": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "@toposonics/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+{
+  "name": "@toposonics/core-image",
+  "version": "0.1.0",
+  "description": "Image analysis utilities for TopoSonics - environment agnostic",
+  "main": "dist/index.js",
+  "react-native": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@toposonics/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+docs/ANDROID_SETUP.md
+docs/MOBILE_SUBMISSION.md
+docs/NATIVE_AUDIO_ENGINE_SPEC.md
+docs/PRODUCTION_READINESS_SUMMARY.md
+docs/SECURITY.md
+docs/qa/2026-10-02/SESSION-LOG.md
+docs/qa/2026-10-02/artifacts/backend-focused-read.txt
+docs/qa/2026-10-02/artifacts/backend-identity.txt
+docs/qa/2026-10-02/artifacts/backend-inventory.txt
+docs/qa/2026-10-02/artifacts/backend-source-read.txt
+docs/qa/2026-10-02/artifacts/frontend-identity.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_sources.txt
+docs/qa/2026-10-02/artifacts/setup-versions.txt
+docs/qa/2026-10-02/passes/BACKEND-LOG.md
+docs/qa/2026-10-02/passes/FRONTEND-LOG.md
+docs/qa/2026-10-02/passes/SETUP-LOG.md
+docs/qa/2026-10-02/tools/run.py

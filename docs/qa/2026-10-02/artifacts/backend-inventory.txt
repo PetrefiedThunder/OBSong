@@ -1,0 +1,50 @@
+UTC start: 2026-10-03T01:21:02Z
+Command: rg --files apps/api -g "!*.env*" -g "!node_modules/**" -g "!coverage/**" && cat apps/api/package.json && rg --files -g AGENTS.md -g "!node_modules/**" -g "!.pnpm-store/**"
+Exit: 1
+
+apps/api/src/auth.ts
+apps/api/src/services/compositions.ts
+apps/api/src/routes/health.ts
+apps/api/src/routes/compositions.ts
+apps/api/src/server.ts
+apps/api/src/config.ts
+apps/api/src/supabase.ts
+apps/api/src/__tests__/compositions.routes.test.ts
+apps/api/src/__tests__/compositions.service.test.ts
+apps/api/vitest.config.ts
+apps/api/tsconfig.json
+apps/api/package.json
+apps/api/README.md
+{
+  "name": "@toposonics/api",
+  "version": "0.1.0",
+  "description": "Fastify backend API for TopoSonics",
+  "private": true,
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p .",
+    "start": "node dist/server.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@toposonics/types": "workspace:*",
+    "@supabase/supabase-js": "^2.45.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/helmet": "^12.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/under-pressure": "^9.0.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "pino-pretty": "^11.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,683 @@
+UTC start: 2026-10-03T01:26:54Z
+Command: nl -ba apps/mobile/src/state/CompositionsProvider.tsx && nl -ba apps/mobile/src/auth/secureStorage.ts && nl -ba apps/web/src/lib/imageProcessing.ts && nl -ba apps/mobile/src/screens/CompositionDetailScreen.tsx | head -110
+
+     1	import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+     2	import AsyncStorage from '@react-native-async-storage/async-storage';
+     3	import type { Composition, CompositionSummary, CreateCompositionDTO } from '@toposonics/types';
+     4	import {
+     5	  fetchComposition,
+     6	  fetchAllCompositions,
+     7	  createComposition,
+     8	  deleteComposition as apiDeleteComposition,
+     9	} from '../services/apiClient';
+    10	import { useAuth } from '../auth/AuthProvider';
+    11	import {
+    12	  canUseCompositionCache,
+    13	  getCompositionDetailCacheKey,
+    14	  getCompositionListCacheKey,
+    15	} from './compositionCache';
+    16	
+    17	interface CompositionsContextValue {
+    18	  /** Lightweight list summaries; full compositions live in compositionsById. */
+    19	  compositions: CompositionSummary[];
+    20	  /** Full compositions (with noteEvents), populated on demand by loadComposition. */
+    21	  compositionsById: Record<string, Composition>;
+    22	  loading: boolean;
+    23	  usingCache: boolean;
+    24	  refresh: () => Promise<void>;
+    25	  loadComposition: (id: string) => Promise<Composition | null>;
+    26	  saveComposition: (payload: Omit<CreateCompositionDTO, 'userId'>) => Promise<Composition | null>;
+    27	  removeComposition: (id: string) => Promise<void>;
+    28	}
+    29	
+    30	const CompositionsContext = createContext<CompositionsContextValue | undefined>(undefined);
+    31	
+    32	export function CompositionsProvider({ children }: { children: React.ReactNode }) {
+    33	  const { token, user } = useAuth();
+    34	  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
+    35	  const [compositionsById, setCompositionsById] = useState<Record<string, Composition>>({});
+    36	  const [loading, setLoading] = useState(true);
+    37	  const [usingCache, setUsingCache] = useState(false);
+    38	
+    39	  const activeUserId = user?.id ?? null;
+    40	  // Tracks the currently active user so in-flight fetches from a previous user
+    41	  // (slow network + sign-out/account-switch) can be discarded before they write state.
+    42	  const activeUserIdRef = React.useRef(activeUserId);
+    43	  useEffect(() => {
+    44	    activeUserIdRef.current = activeUserId;
+    45	  }, [activeUserId]);
+    46	
+    47	  // Mirror the committed list in a ref so mutations can derive the next list synchronously
+    48	  // and persist it. Reading a variable assigned inside a functional state updater is unsafe:
+    49	  // React may run the updater during a later render, after saveToCache already ran.
+    50	  const compositionsRef = React.useRef(compositions);
+    51	  useEffect(() => {
+    52	    compositionsRef.current = compositions;
+    53	  }, [compositions]);
+    54	
+    55	  const saveToCache = useCallback(async (items: CompositionSummary[]) => {
+    56	    if (!activeUserId) return;
+    57	
+    58	    try {
+    59	      await AsyncStorage.setItem(
+    60	        getCompositionListCacheKey(activeUserId),
+    61	        JSON.stringify({ items, cachedAt: Date.now() })
+    62	      );
+    63	    } catch (err) {
+    64	      console.warn('Failed to cache compositions', err);
+    65	    }
+    66	  }, [activeUserId]);
+    67	
+    68	  const saveDetailToCache = useCallback(async (item: Composition) => {
+    69	    if (!activeUserId) return;
+    70	
+    71	    try {
+    72	      await AsyncStorage.setItem(getCompositionDetailCacheKey(activeUserId, item.id), JSON.stringify(item));
+    73	    } catch (err) {
+    74	      console.warn('Failed to cache composition detail', err);
+    75	    }
+    76	  }, [activeUserId]);
+    77	
+    78	  const hydrateFromCache = useCallback(async () => {
+    79	    if (!activeUserId) return;
+    80	
+    81	    try {
+    82	      const cached = await AsyncStorage.getItem(getCompositionListCacheKey(activeUserId));
+    83	      if (cached) {
+    84	        // Caches written before the summary migration hold full compositions; they still
+    85	        // satisfy every summary field the list UI reads, so no migration is needed. They
+    86	        // are no longer merged into compositionsById — that map holds full compositions
+    87	        // only, populated by loadComposition (which has its own detail cache).
+    88	        const parsed = JSON.parse(cached) as { items: CompositionSummary[] };
+    89	        setCompositions(parsed.items);
+    90	        setUsingCache(true);
+    91	      }
+    92	    } catch (err) {
+    93	      console.warn('Failed to hydrate compositions cache', err);
+    94	    }
+    95	  }, [activeUserId]);
+    96	
+    97	  useEffect(() => {
+    98	    setCompositions([]);
+    99	    setCompositionsById({});
+   100	    setUsingCache(false);
+   101	  }, [activeUserId]);
+   102	
+   103	  const refresh = useCallback(async () => {
+   104	    if (!canUseCompositionCache(token, activeUserId)) {
+   105	      setCompositions([]);
+   106	      setCompositionsById({});
+   107	      setUsingCache(false);
+   108	      setLoading(false);
+   109	      return;
+   110	    }
+   111	
+   112	    const requestUserId = activeUserId;
+   113	    setLoading(true);
+   114	    setUsingCache(false);
+   115	    try {
+   116	      // Page through the whole library so saves beyond the server's page size
+   117	      // (default 50) don't silently disappear from the list.
+   118	      const data = await fetchAllCompositions();
+   119	      // Discard results if the active user changed while the request was in flight,
+   120	      // so we never repopulate a signed-out screen (or another account) with A's data.
+   121	      if (activeUserIdRef.current !== requestUserId) return;
+   122	      // The list endpoint now returns summaries (no noteEvents/imageData), so they are
+   123	      // not merged into compositionsById — full records come from loadComposition.
+   124	      setCompositions(data);
+   125	      await saveToCache(data);
+   126	    } catch (err) {
+   127	      if (activeUserIdRef.current !== requestUserId) return;
+   128	      console.warn('Falling back to cached compositions', err);
+   129	      await hydrateFromCache();
+   130	    } finally {
+   131	      if (activeUserIdRef.current === requestUserId) {
+   132	        setLoading(false);
+   133	      }
+   134	    }
+   135	  }, [activeUserId, token, hydrateFromCache, saveToCache]);
+   136	
+   137	  useEffect(() => {
+   138	    refresh();
+   139	  }, [refresh]);
+   140	
+   141	  const loadComposition = useCallback(
+   142	    async (id: string) => {
+   143	      if (!canUseCompositionCache(token, activeUserId)) {
+   144	        return null;
+   145	      }
+   146	
+   147	      const cacheUserId = activeUserId as string;
+   148	      const requestUserId = activeUserId;
+   149	
+   150	      try {
+   151	        const data = await fetchComposition(id);
+   152	        if (activeUserIdRef.current === requestUserId) {
+   153	          setCompositionsById((prev) => ({ ...prev, [id]: data }));
+   154	          await saveDetailToCache(data);
+   155	        }
+   156	        return data;
+   157	      } catch (err) {
+   158	        console.warn('Failed to fetch composition, using cache', err);
+   159	        const cached = await AsyncStorage.getItem(
+   160	          getCompositionDetailCacheKey(cacheUserId, id)
+   161	        );
+   162	        if (cached) {
+   163	          return JSON.parse(cached) as Composition;
+   164	        }
+   165	        return null;
+   166	      }
+   167	    },
+   168	    [activeUserId, token, saveDetailToCache]
+   169	  );
+   170	
+   171	  const saveComposition = useCallback(
+   172	    async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
+   173	      if (!canUseCompositionCache(token, activeUserId)) return null;
+   174	
+   175	      const requestUserId = activeUserId;
+   176	      const created = await createComposition(payload);
+   177	      // Discard if the active user changed while the save was in flight (consistent with
+   178	      // refresh/loadComposition), so we don't write into the wrong user's state/cache.
+   179	      if (activeUserIdRef.current !== requestUserId) return created;
+   180	
+   181	      // The list holds lightweight summaries: derive one from the created composition so
+   182	      // the noteEvents/imageData blobs stay out of the list state and its cache.
+   183	      const createdSummary: CompositionSummary = {
+   184	        id: created.id,
+   185	        userId: created.userId,
+   186	        title: created.title,
+   187	        description: created.description,
+   188	        mappingMode: created.mappingMode,
+   189	        key: created.key,
+   190	        scale: created.scale,
+   191	        presetId: created.presetId,
+   192	        tempo: created.tempo,
+   193	        imageThumbnail: created.imageThumbnail,
+   194	        noteCount: created.noteEvents.length,
+   195	        createdAt: created.createdAt,
+   196	        updatedAt: created.updatedAt,
+   197	      };
+   198	      // Derive the next list from the committed ref (not inside a functional updater) so the
+   199	      // exact list we persist is the one we set. Assign the ref immediately so a second
+   200	      // mutation completing before React's sync effect runs builds on this list, not a stale one.
+   201	      const nextList = [createdSummary, ...compositionsRef.current];
+   202	      compositionsRef.current = nextList;
+   203	      setCompositions(nextList);
+   204	      void saveToCache(nextList);
+   205	      setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
+   206	      await saveDetailToCache(created);
+   207	      return created;
+   208	    },
+   209	    [activeUserId, token, saveDetailToCache, saveToCache]
+   210	  );
+   211	
+   212	  const removeComposition = useCallback(
+   213	    async (id: string) => {
+   214	      await apiDeleteComposition(id);
+   215	
+   216	      // Prune from in-memory state and the persisted caches so the deleted item
+   217	      // doesn't reappear from cache on the next mount. Derive the next list from the
+   218	      // committed ref so saveToCache persists exactly what we set; assign the ref
+   219	      // immediately so back-to-back mutations never build on a stale list.
+   220	      const nextList = compositionsRef.current.filter((c) => c.id !== id);
+   221	      compositionsRef.current = nextList;
+   222	      setCompositions(nextList);
+   223	      setCompositionsById((prev) => {
+   224	        const next = { ...prev };
+   225	        delete next[id];
+   226	        return next;
+   227	      });
+   228	      void saveToCache(nextList);
+   229	      if (activeUserId) {
+   230	        try {
+   231	          await AsyncStorage.removeItem(getCompositionDetailCacheKey(activeUserId, id));
+   232	        } catch (err) {
+   233	          console.warn('Failed to evict composition detail cache', err);
+   234	        }
+   235	      }
+   236	    },
+   237	    [activeUserId, saveToCache]
+   238	  );
+   239	
+   240	  const value = useMemo(
+   241	    () => ({
+   242	      compositions,
+   243	      compositionsById,
+   244	      loading,
+   245	      usingCache,
+   246	      refresh,
+   247	      loadComposition,
+   248	      saveComposition,
+   249	      removeComposition,
+   250	    }),
+   251	    [
+   252	      compositions,
+   253	      compositionsById,
+   254	      loading,
+   255	      usingCache,
+   256	      refresh,
+   257	      loadComposition,
+   258	      saveComposition,
+   259	      removeComposition,
+   260	    ]
+   261	  );
+   262	
+   263	  return <CompositionsContext.Provider value={value}>{children}</CompositionsContext.Provider>;
+   264	}
+   265	
+   266	export function useCompositions() {
+   267	  const ctx = useContext(CompositionsContext);
+   268	  if (!ctx) throw new Error('useCompositions must be used within CompositionsProvider');
+   269	  return ctx;
+   270	}
+     1	/**
+     2	 * Secure storage adapter for Supabase authentication
+     3	 * Uses expo-secure-store to encrypt and store sensitive data (JWTs)
+     4	 * on the device's secure keychain/keystore
+     5	 */
+     6	import * as SecureStore from 'expo-secure-store';
+     7	import AsyncStorage from '@react-native-async-storage/async-storage';
+     8	import { SupportedStorage } from '@supabase/supabase-js';
+     9	
+    10	const STORAGE_KEY_PREFIX = 'supabase.auth.';
+    11	const CHUNK_SUFFIX = '.chunk.';
+    12	const CHUNK_COUNT_SUFFIX = '.chunks';
+    13	
+    14	// expo-secure-store 12.x (SDK 50) caps values at 2048 bytes, and some Android
+    15	// keystore implementations hard-fail above it. A Supabase session blob (access JWT +
+    16	// refresh token + serialized user) is routinely 3-5 KB, so values that exceed the limit
+    17	// are split across numbered SecureStore keys instead of being silently dropped/truncated.
+    18	const SECURE_STORE_VALUE_LIMIT = 2048;
+    19	
+    20	interface ChunkedRef {
+    21	  chunks: number;
+    22	}
+    23	
+    24	async function removeChunks(prefixedKey: string): Promise<void> {
+    25	  const countRaw = await AsyncStorage.getItem(prefixedKey + CHUNK_COUNT_SUFFIX);
+    26	  if (countRaw == null) return;
+    27	
+    28	  const count = Number.parseInt(countRaw, 10);
+    29	  for (let i = 0; i < count; i++) {
+    30	    try {
+    31	      await SecureStore.deleteItemAsync(prefixedKey + CHUNK_SUFFIX + i);
+    32	    } catch {
+    33	      // best-effort cleanup
+    34	    }
+    35	  }
+    36	  await AsyncStorage.removeItem(prefixedKey + CHUNK_COUNT_SUFFIX);
+    37	}
+    38	
+    39	export const secureStorage: SupportedStorage = {
+    40	  /**
+    41	   * Store a value securely in the device's encrypted storage
+    42	   */
+    43	  async setItem(key: string, value: string): Promise<void> {
+    44	    const prefixedKey = STORAGE_KEY_PREFIX + key;
+    45	    try {
+    46	      if (value.length <= SECURE_STORE_VALUE_LIMIT) {
+    47	        // Fits a single key: store directly and clear any stale chunks from a
+    48	        // previous oversized value so getItem doesn't reassemble them.
+    49	        await removeChunks(prefixedKey);
+    50	        await SecureStore.setItemAsync(prefixedKey, value);
+    51	        return;
+    52	      }
+    53	
+    54	      const chunkCount = Math.ceil(value.length / SECURE_STORE_VALUE_LIMIT);
+    55	      for (let i = 0; i < chunkCount; i++) {
+    56	        await SecureStore.setItemAsync(
+    57	          prefixedKey + CHUNK_SUFFIX + i,
+    58	          value.slice(i * SECURE_STORE_VALUE_LIMIT, (i + 1) * SECURE_STORE_VALUE_LIMIT)
+    59	        );
+    60	      }
+    61	
+    62	      // The ref goes through AsyncStorage because it is JSON (a SecureStore value is a
+    63	      // plain string, and parsing "null"/"{" is ambiguous with raw stored values).
+    64	      await AsyncStorage.setItem(
+    65	        prefixedKey + CHUNK_COUNT_SUFFIX,
+    66	        JSON.stringify({ chunks: chunkCount } satisfies ChunkedRef)
+    67	      );
+    68	      // Clear the single-key slot so an old small value can't shadow the chunks.
+    69	      await SecureStore.deleteItemAsync(prefixedKey);
+    70	    } catch (error) {
+    71	      console.error('SecureStore setItem error:', error);
+    72	      throw error;
+    73	    }
+    74	  },
+    75	
+    76	  /**
+    77	   * Retrieve a value from secure storage
+    78	   */
+    79	  async getItem(key: string): Promise<string | null> {
+    80	    const prefixedKey = STORAGE_KEY_PREFIX + key;
+    81	    try {
+    82	      const refRaw = await AsyncStorage.getItem(prefixedKey + CHUNK_COUNT_SUFFIX);
+    83	      if (refRaw == null) {
+    84	        return await SecureStore.getItemAsync(prefixedKey);
+    85	      }
+    86	
+    87	      const ref = JSON.parse(refRaw) as ChunkedRef;
+    88	      const parts: string[] = [];
+    89	      for (let i = 0; i < ref.chunks; i++) {
+    90	        const part = await SecureStore.getItemAsync(prefixedKey + CHUNK_SUFFIX + i);
+    91	        if (part == null) {
+    92	          // A chunk vanished (keystore reset, partial wipe) — the session is
+    93	          // unrecoverable; report null rather than a corrupt partial blob.
+    94	          return null;
+    95	        }
+    96	        parts.push(part);
+    97	      }
+    98	      return parts.join('');
+    99	    } catch (error) {
+   100	      console.error('SecureStore getItem error:', error);
+   101	      return null;
+   102	    }
+   103	  },
+   104	
+   105	  /**
+   106	   * Remove a value from secure storage
+   107	   */
+   108	  async removeItem(key: string): Promise<void> {
+   109	    const prefixedKey = STORAGE_KEY_PREFIX + key;
+   110	    try {
+   111	      await removeChunks(prefixedKey);
+   112	      await SecureStore.deleteItemAsync(prefixedKey);
+   113	    } catch (error) {
+   114	      console.error('SecureStore removeItem error:', error);
+   115	      throw error;
+   116	    }
+   117	  },
+   118	};
+     1	/**
+     2	 * Browser-side image processing utilities
+     3	 * Extracts pixel data from images for analysis
+     4	 */
+     5	
+     6	import {
+     7	  analyzeImageForLinearLandscape,
+     8	  analyzeImageForDepthRidge,
+     9	  analyzeImageForMultiVoice,
+    10	} from '@toposonics/core-image';
+    11	import type { ImageAnalysisResult } from '@toposonics/types';
+    12	
+    13	/**
+    14	 * Load an image file and extract pixel data
+    15	 */
+    16	export async function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+    17	  return new Promise((resolve, reject) => {
+    18	    const img = new Image();
+    19	    const url = URL.createObjectURL(file);
+    20	
+    21	    img.onload = () => {
+    22	      URL.revokeObjectURL(url);
+    23	      resolve(img);
+    24	    };
+    25	
+    26	    img.onerror = () => {
+    27	      URL.revokeObjectURL(url);
+    28	      reject(new Error('Failed to load image'));
+    29	    };
+    30	
+    31	    img.src = url;
+    32	  });
+    33	}
+    34	
+    35	/**
+    36	 * Extract pixel data from an image element
+    37	 */
+    38	export function extractPixelData(img: HTMLImageElement): {
+    39	  pixels: Uint8ClampedArray;
+    40	  width: number;
+    41	  height: number;
+    42	} {
+    43	  const canvas = document.createElement('canvas');
+    44	  const ctx = canvas.getContext('2d');
+    45	
+    46	  if (!ctx) {
+    47	    throw new Error('Failed to get canvas context');
+    48	  }
+    49	
+    50	  // Resize for performance if image is very large
+    51	  const maxDimension = 1200;
+    52	  let width = img.width;
+    53	  let height = img.height;
+    54	
+    55	  if (width > maxDimension || height > maxDimension) {
+    56	    if (width > height) {
+    57	      height = (height / width) * maxDimension;
+    58	      width = maxDimension;
+    59	    } else {
+    60	      width = (width / height) * maxDimension;
+    61	      height = maxDimension;
+    62	    }
+    63	  }
+    64	
+    65	  canvas.width = width;
+    66	  canvas.height = height;
+    67	
+    68	  ctx.drawImage(img, 0, 0, width, height);
+    69	
+    70	  const imageData = ctx.getImageData(0, 0, width, height);
+    71	
+    72	  return {
+    73	    pixels: imageData.data,
+    74	    width,
+    75	    height,
+    76	  };
+    77	}
+    78	
+    79	/**
+    80	 * Full pipeline: file -> analysis result
+    81	 */
+    82	export async function analyzeImageFile(file: File): Promise<{
+    83	  analysis: ImageAnalysisResult;
+    84	  imageDataUrl: string;
+    85	  width: number;
+    86	  height: number;
+    87	}> {
+    88	  const img = await loadImageFromFile(file);
+    89	  const { pixels, width, height } = extractPixelData(img);
+    90	
+    91	  const analysis = analyzeImageForLinearLandscape(pixels, width, height, {
+    92	    maxSamples: 64,
+    93	    includeDepth: true,
+    94	    averageRows: true,
+    95	    rowsToAverage: 5,
+    96	  });
+    97	
+    98	  // Also get data URL for thumbnail
+    99	  const canvas = document.createElement('canvas');
+   100	  const ctx = canvas.getContext('2d');
+   101	  if (ctx) {
+   102	    canvas.width = width;
+   103	    canvas.height = height;
+   104	    ctx.drawImage(img, 0, 0, width, height);
+   105	  }
+   106	
+   107	  return {
+   108	    analysis,
+   109	    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+   110	    width,
+   111	    height,
+   112	  };
+   113	}
+   114	
+   115	/**
+   116	 * Full pipeline for depth/ridge: file -> depth/ridge analysis result
+   117	 */
+   118	export async function analyzeImageFileDepthRidge(file: File): Promise<{
+   119	  analysis: ImageAnalysisResult;
+   120	  imageDataUrl: string;
+   121	  width: number;
+   122	  height: number;
+   123	}> {
+   124	  const img = await loadImageFromFile(file);
+   125	  const { pixels, width, height } = extractPixelData(img);
+   126	
+   127	  const analysis = analyzeImageForDepthRidge(pixels, width, height, {
+   128	    maxSamples: 64,
+   129	    smoothingWindow: 5,
+   130	  });
+   131	
+   132	  const canvas = document.createElement('canvas');
+   133	  const ctx = canvas.getContext('2d');
+   134	  if (ctx) {
+   135	    canvas.width = width;
+   136	    canvas.height = height;
+   137	    ctx.drawImage(img, 0, 0, width, height);
+   138	  }
+   139	
+   140	  return {
+   141	    analysis,
+   142	    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+   143	    width,
+   144	    height,
+   145	  };
+   146	}
+   147	
+   148	/**
+   149	 * Full pipeline for multi-voice: file -> multi-voice analysis result
+   150	 */
+   151	export async function analyzeImageFileMultiVoice(file: File): Promise<{
+   152	  analysis: ImageAnalysisResult;
+   153	  imageDataUrl: string;
+   154	  width: number;
+   155	  height: number;
+   156	}> {
+   157	  const img = await loadImageFromFile(file);
+   158	  const { pixels, width, height } = extractPixelData(img);
+   159	
+   160	  const analysis = analyzeImageForMultiVoice(pixels, width, height, {
+   161	    maxSamples: 64,
+   162	    horizonSmoothing: 9,
+   163	  });
+   164	
+   165	  // Also get data URL for thumbnail
+   166	  const canvas = document.createElement('canvas');
+   167	  const ctx = canvas.getContext('2d');
+   168	  if (ctx) {
+   169	    canvas.width = width;
+   170	    canvas.height = height;
+   171	    ctx.drawImage(img, 0, 0, width, height);
+   172	  }
+   173	
+   174	  return {
+   175	    analysis,
+   176	    imageDataUrl: canvas.toDataURL('image/jpeg', 0.8),
+   177	    width,
+   178	    height,
+   179	  };
+   180	}
+     1	import React, { useCallback, useEffect, useState } from 'react';
+     2	import {
+     3	  View,
+     4	  Text,
+     5	  StyleSheet,
+     6	  ActivityIndicator,
+     7	  ScrollView,
+     8	  TouchableOpacity,
+     9	  Alert,
+    10	} from 'react-native';
+    11	import { useNavigation, type RouteProp } from '@react-navigation/native';
+    12	import type { RootStackParamList } from '../../App';
+    13	import type { Composition } from '@toposonics/types';
+    14	import { useAuth } from '../auth/AuthProvider';
+    15	import { useCompositions } from '../state/CompositionsProvider';
+    16	import {
+    17	  playNoteEvents,
+    18	  formatNoteEventsDuration,
+    19	  type PlaybackController,
+    20	} from '../services/audioPlayer';
+    21	import { SignInModal } from '../components/SignInModal';
+    22	
+    23	type Props = {
+    24	  route: RouteProp<RootStackParamList, 'CompositionDetail'>;
+    25	};
+    26	
+    27	export default function CompositionDetailScreen({ route }: Props) {
+    28	  const { id } = route.params;
+    29	  const navigation = useNavigation();
+    30	  const [composition, setComposition] = useState<Composition | null>(null);
+    31	  const [loading, setLoading] = useState(true);
+    32	  const [isPlaying, setIsPlaying] = useState(false);
+    33	  const [isDeleting, setIsDeleting] = useState(false);
+    34	  const playbackRef = React.useRef<PlaybackController | null>(null);
+    35	  const isMountedRef = React.useRef(true);
+    36	  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+    37	  const [isSigningIn, setIsSigningIn] = useState(false);
+    38	  const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
+    39	  const { loadComposition: loadCompositionRecord, removeComposition } = useCompositions();
+    40	
+    41	  const loadCompositionFromStore = useCallback(async () => {
+    42	    const data = await loadCompositionRecord(id);
+    43	    if (!data) {
+    44	      throw new Error('Composition not found');
+    45	    }
+    46	    return data;
+    47	  }, [id, loadCompositionRecord]);
+    48	
+    49	  const loadCompositionData = useCallback(async () => {
+    50	    if (!token) {
+    51	      setLoading(false);
+    52	      return;
+    53	    }
+    54	
+    55	    try {
+    56	      const data = await loadCompositionFromStore();
+    57	      setComposition(data);
+    58	    } catch (err) {
+    59	      Alert.alert('Error', 'Failed to load composition');
+    60	      console.error(err);
+    61	    } finally {
+    62	      setLoading(false);
+    63	    }
+    64	  }, [loadCompositionFromStore, token]);
+    65	
+    66	  useEffect(() => {
+    67	    void loadCompositionData();
+    68	  }, [loadCompositionData]);
+    69	
+    70	  useEffect(() => {
+    71	    isMountedRef.current = true;
+    72	    return () => {
+    73	      isMountedRef.current = false;
+    74	      playbackRef.current?.cancel();
+    75	      playbackRef.current = null;
+    76	    };
+    77	  }, []);
+    78	
+    79	  const playComposition = async () => {
+    80	    if (!composition) return;
+    81	
+    82	    try {
+    83	      setIsPlaying(true);
+    84	      const controller = playNoteEvents(composition.noteEvents, {
+    85	        tempo: composition.tempo ?? 90,
+    86	      });
+    87	      playbackRef.current = controller;
+    88	      await controller.done;
+    89	    } catch (error) {
+    90	      Alert.alert('Playback failed', (error as Error).message);
+    91	    } finally {
+    92	      playbackRef.current = null;
+    93	      if (isMountedRef.current) {
+    94	        setIsPlaying(false);
+    95	      }
+    96	    }
+    97	  };
+    98	
+    99	  const stopPlayback = () => {
+   100	    playbackRef.current?.cancel();
+   101	  };
+   102	
+   103	  const handleDelete = () => {
+   104	    if (!composition) return;
+   105	
+   106	    Alert.alert(
+   107	      'Delete composition',
+   108	      `Delete "${composition.title}"? This cannot be undone.`,
+   109	      [
+   110	        { text: 'Cancel', style: 'cancel' },
+
+Exit: 0

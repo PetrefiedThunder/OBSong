@@ -1,0 +1,59 @@
+UTC start: 2026-10-03T01:32:54Z
+Command: python3 - <<'PY'
+from pathlib import Path
+import json,re
+qa=Path("docs/qa/2026-10-02")
+missing=[]
+for p in [*qa.glob("*.md"),*qa.joinpath("passes").glob("*.md"),qa/"tools/README.md"]:
+ if p.name.endswith("LOG.md"): pattern=r"\[Output\]\(([^)]+)\)"
+ else: pattern=r"\[[^\]]*\]\(([^)]+)\)"
+ for dest in re.findall(pattern,p.read_text()):
+  if "://" in dest or dest.startswith("#"): continue
+  if not (p.parent/dest.split("#")[0]).exists(): missing.append((str(p),dest))
+print("Broken local links:",json.dumps(missing))
+print("Screenshots:",len(list((qa/"artifacts").glob("*.png"))))
+r=json.loads((qa/"artifacts/ux-regression-results.json").read_text())
+def walk(suites):
+ for suite in suites:
+  for spec in suite.get("specs",[]):
+   for t in spec["tests"]:
+    print(spec["title"],"expected",t["expectedStatus"],"actual",[x["status"] for x in t["results"]])
+    for result in t["results"]:
+     if result.get("error"):print(result["error"]["message"][:200])
+  walk(suite.get("suites",[]))
+walk(r["suites"])
+if missing:raise SystemExit(1)
+PY
+
+Broken local links: []
+Screenshots: 18
+empty studio cannot generate notes before an image is analyzed expected passed actual ['passed']
+scene demo loads locally and enables MIDI export expected passed actual ['passed']
+UX-001 sign-in dialog keeps keyboard focus inside expected failed actual ['failed']
+Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: true
+Received: false
+UX-002 selected musical key exposes pressed state expected failed actual ['failed']
+Error: expect(locator).toHaveAttribute(expected) failed
+
+Locator:  getByRole('button', { name: 'D', exact: true })
+Expected: "true"
+Re
+UX-003 home controls meet WCAG AA text contrast expected failed actual ['failed']
+Error: expect(received).toEqual(expected) // deep equality
+
+- Expected  -   1
++ Received  + 504
+
+- Array []
++
+UX-006 Play Demo begins playback expected failed actual ['failed']
+Error: expect(locator).toBeEnabled() failed
+
+Locator:  getByRole('button', { name: '⏹ Stop', exact: true })
+Expected: enabled
+Received: disabled
+Timeout: 
+
+Exit: 0

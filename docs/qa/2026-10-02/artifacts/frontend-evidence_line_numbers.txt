@@ -1,0 +1,282 @@
+UTC start: 2026-10-03T01:26:29Z
+Command: head -4 docs/qa/2026-10-02/artifacts/frontend-charter_start.txt && nl -ba apps/web/src/lib/imageProcessing.ts | sed -n "38,76p" && nl -ba apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts | sed -n "70,190p" && nl -ba apps/mobile/src/auth/__tests__/secureStorage.qa.test.ts | tail -30 && git diff -- apps/mobile/package.json pnpm-lock.yaml apps/web/vitest.config.ts
+
+UTC start: 2026-10-03T01:22:16Z
+Command: printf "Frontend exploratory charter: 20 minutes beginning 01:23 UTC. Probe image dimension boundaries and resource cleanup; private mobile cache isolation during delayed responses and account switches; playback cancellation. All I/O mocked. Added image boundary/resource tests without product changes.\n"
+Exit: 0
+
+    38	export function extractPixelData(img: HTMLImageElement): {
+    39	  pixels: Uint8ClampedArray;
+    40	  width: number;
+    41	  height: number;
+    42	} {
+    43	  const canvas = document.createElement('canvas');
+    44	  const ctx = canvas.getContext('2d');
+    45	
+    46	  if (!ctx) {
+    47	    throw new Error('Failed to get canvas context');
+    48	  }
+    49	
+    50	  // Resize for performance if image is very large
+    51	  const maxDimension = 1200;
+    52	  let width = img.width;
+    53	  let height = img.height;
+    54	
+    55	  if (width > maxDimension || height > maxDimension) {
+    56	    if (width > height) {
+    57	      height = (height / width) * maxDimension;
+    58	      width = maxDimension;
+    59	    } else {
+    60	      width = (width / height) * maxDimension;
+    61	      height = maxDimension;
+    62	    }
+    63	  }
+    64	
+    65	  canvas.width = width;
+    66	  canvas.height = height;
+    67	
+    68	  ctx.drawImage(img, 0, 0, width, height);
+    69	
+    70	  const imageData = ctx.getImageData(0, 0, width, height);
+    71	
+    72	  return {
+    73	    pixels: imageData.data,
+    74	    width,
+    75	    height,
+    76	  };
+    70	});
+    71	
+    72	describe('QA private mobile library state', () => {
+    73	  it('does not fetch or hydrate cache while signed out', async () => {
+    74	    mocks.auth = { token: null, user: null };
+    75	    await mount();
+    76	    expect(current.compositions).toEqual([]);
+    77	    expect(current.loading).toBe(false);
+    78	    expect(mocks.api.fetchAllCompositions).not.toHaveBeenCalled();
+    79	    expect(mocks.storage.getItem).not.toHaveBeenCalled();
+    80	  });
+    81	
+    82	  it('discards a delayed successful list response after account switch', async () => {
+    83	    const oldRequest = deferred<CompositionSummary[]>();
+    84	    mocks.api.fetchAllCompositions.mockReturnValueOnce(oldRequest.promise);
+    85	    await mount();
+    86	    const other = composition('b-private', 'qa-user-b');
+    87	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([other]);
+    88	    await switchAccount('qa-user-b');
+    89	    await act(async () => { oldRequest.resolve([composition('a-private')]); });
+    90	    expect(current.compositions).toEqual([other]);
+    91	  });
+    92	
+    93	  it('loads only the active user cache during an ordinary offline refresh', async () => {
+    94	    const item = composition('a-offline');
+    95	    mocks.api.fetchAllCompositions.mockRejectedValueOnce(new Error('Offline fixture'));
+    96	    mocks.storage.getItem.mockResolvedValueOnce(JSON.stringify({ items: [item] }));
+    97	    await mount();
+    98	    expect(mocks.storage.getItem).toHaveBeenCalledExactlyOnceWith(getCompositionListCacheKey('qa-user-a'));
+    99	    expect(current.compositions[0].id).toBe('a-offline');
+   100	    expect(current.usingCache).toBe(true);
+   101	  });
+   102	
+   103	  it('retains both saves that complete before React commits their state updates', async () => {
+   104	    await mount();
+   105	    mocks.api.createComposition
+   106	      .mockResolvedValueOnce(composition('first'))
+   107	      .mockResolvedValueOnce(composition('second'));
+   108	    await act(async () => {
+   109	      await Promise.all([
+   110	        current.saveComposition(composition('first')),
+   111	        current.saveComposition(composition('second')),
+   112	      ]);
+   113	    });
+   114	    expect(current.compositions.map((item) => item.id)).toEqual(['second', 'first']);
+   115	    const listWrites = mocks.storage.setItem.mock.calls.filter(
+   116	      ([key]) => key === getCompositionListCacheKey('qa-user-a')
+   117	    );
+   118	    const persisted = JSON.parse(listWrites.at(-1)![1]);
+   119	    expect(persisted.items.map((item: CompositionSummary) => item.id)).toEqual(['second', 'first']);
+   120	    expect(persisted.items[0]).not.toHaveProperty('noteEvents');
+   121	  });
+   122	
+   123	  it('evicts a deleted composition from state and both cache surfaces', async () => {
+   124	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('deleted')]);
+   125	    mocks.api.deleteComposition.mockResolvedValueOnce(undefined);
+   126	    await mount();
+   127	    await act(async () => { await current.removeComposition('deleted'); });
+   128	    expect(current.compositions).toEqual([]);
+   129	    expect(mocks.storage.removeItem).toHaveBeenCalledExactlyOnceWith(
+   130	      '@toposonics:compositions:qa-user-a:deleted'
+   131	    );
+   132	    const lastList = mocks.storage.setItem.mock.calls.at(-1)!;
+   133	    expect(JSON.parse(lastList[1]).items).toEqual([]);
+   134	  });
+   135	
+   136	  it.fails('FE-002: discards delayed cache hydration after switching accounts', async () => {
+   137	    const oldCacheRead = deferred<string>();
+   138	    mocks.api.fetchAllCompositions.mockRejectedValueOnce(new Error('Offline fixture'));
+   139	    mocks.storage.getItem.mockReturnValueOnce(oldCacheRead.promise);
+   140	    await mount();
+   141	    expect(mocks.storage.getItem).toHaveBeenCalledWith(getCompositionListCacheKey('qa-user-a'));
+   142	    const other = composition('b-private', 'qa-user-b');
+   143	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([other]);
+   144	    await switchAccount('qa-user-b');
+   145	    await act(async () => {
+   146	      oldCacheRead.resolve(JSON.stringify({ items: [composition('a-private')] }));
+   147	    });
+   148	    expect(current.compositions).toEqual([other]);
+   149	  });
+   150	
+   151	  it.fails('FE-002: a prior-account delete cannot persist the next account library under the old key', async () => {
+   152	    const deletion = deferred<void>();
+   153	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('a-private')]);
+   154	    mocks.api.deleteComposition.mockReturnValueOnce(deletion.promise);
+   155	    await mount();
+   156	    const remove = current.removeComposition('a-private');
+   157	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('b-private', 'qa-user-b')]);
+   158	    await switchAccount('qa-user-b');
+   159	    mocks.storage.setItem.mockClear();
+   160	    await act(async () => { deletion.resolve(); await remove; });
+   161	    const writesToOldAccount = mocks.storage.setItem.mock.calls.filter(
+   162	      ([key]) => key === getCompositionListCacheKey('qa-user-a')
+   163	    );
+   164	    expect(writesToOldAccount).toEqual([]);
+   165	  });
+   166	
+   167	  it.fails('FE-002: detail reads cannot return prior-account data after the account changes', async () => {
+   168	    const detail = deferred<Composition>();
+   169	    mocks.api.fetchComposition.mockReturnValueOnce(detail.promise);
+   170	    await mount();
+   171	    const load = current.loadComposition('a-private');
+   172	    await switchAccount('qa-user-b');
+   173	    let received: Composition | null = null;
+   174	    await act(async () => { detail.resolve(composition('a-private')); received = await load; });
+   175	    // CompositionDetailScreen consumes this returned value directly into screen state.
+   176	    expect(received).toBeNull();
+   177	    expect(current.compositionsById).toEqual({});
+   178	  });
+   179	});
+    30	    }
+    31	  });
+    32	
+    33	  it('returns null if an encrypted chunk is missing', async () => {
+    34	    await secureStorage.setItem('qa-fixture', 'x'.repeat(5000));
+    35	    stores.secure.delete('supabase.auth.qa-fixture.chunk.1');
+    36	    expect(await secureStorage.getItem('qa-fixture')).toBeNull();
+    37	  });
+    38	
+    39	  it('removes a short unchunked value', async () => {
+    40	    await secureStorage.setItem('qa-fixture', 'synthetic');
+    41	    await secureStorage.removeItem('qa-fixture');
+    42	    expect(stores.secure.size).toBe(0);
+    43	    expect(await secureStorage.getItem('qa-fixture')).toBeNull();
+    44	  });
+    45	
+    46	  it.fails('FE-003: sign-out removes every encrypted chunk of a long session', async () => {
+    47	    await secureStorage.setItem('qa-fixture', 'x'.repeat(5000));
+    48	    expect(stores.secure.size).toBe(3);
+    49	    await secureStorage.removeItem('qa-fixture');
+    50	    expect(stores.secure.size).toBe(0);
+    51	  });
+    52	
+    53	  it.fails('FE-003: overwriting a long session with a short one removes its old chunks', async () => {
+    54	    await secureStorage.setItem('qa-fixture', 'x'.repeat(5000));
+    55	    await secureStorage.setItem('qa-fixture', 'replacement');
+    56	    expect(await secureStorage.getItem('qa-fixture')).toBe('replacement');
+    57	    expect([...stores.secure.keys()]).toEqual(['supabase.auth.qa-fixture']);
+    58	  });
+    59	});
+diff --git a/apps/mobile/package.json b/apps/mobile/package.json
+index c07b833..370ec35 100644
+--- a/apps/mobile/package.json
++++ b/apps/mobile/package.json
+@@ -48,9 +48,11 @@
+   "devDependencies": {
+     "@babel/core": "^7.29.6",
+     "@types/react": "~18.2.48",
++    "@types/react-test-renderer": "18.3.1",
+     "babel-preset-expo": "~10.0.2",
+     "dotenv": "^16.4.5",
+     "eslint": "^8.56.0",
++    "react-test-renderer": "19.2.3",
+     "typescript": "^5.3.3",
+     "vitest": "^4.1.0"
+   },
+diff --git a/apps/web/vitest.config.ts b/apps/web/vitest.config.ts
+index 7b4783f..489d2b0 100644
+--- a/apps/web/vitest.config.ts
++++ b/apps/web/vitest.config.ts
+@@ -1,6 +1,8 @@
+ import { defineConfig } from 'vitest/config';
+ 
+ export default defineConfig({
++  // Next preserves JSX for its own compiler; Vitest must transform TSX for coverage.
++  oxc: { jsx: { runtime: 'automatic' } },
+   test: {
+     environment: 'node',
+     include: ['src/**/*.test.ts'],
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index c74a6a8..bfc09d1 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -179,6 +179,9 @@ importers:
+       '@types/react':
+         specifier: ~18.2.48
+         version: 18.2.48
++      '@types/react-test-renderer':
++        specifier: 18.3.1
++        version: 18.3.1
+       babel-preset-expo:
+         specifier: ~10.0.2
+         version: 10.0.2(@babel/core@7.29.7)
+@@ -188,6 +191,9 @@ importers:
+       eslint:
+         specifier: ^8.56.0
+         version: 8.57.1
++      react-test-renderer:
++        specifier: 19.2.3
++        version: 19.2.3(react@19.2.3)
+       typescript:
+         specifier: ^5.3.3
+         version: 5.9.3
+@@ -4806,6 +4812,12 @@ packages:
+       '@types/react': 18.2.48
+     dev: true
+ 
++  /@types/react-test-renderer@18.3.1:
++    resolution: {integrity: sha512-vAhnk0tG2eGa37lkU9+s5SoroCsRI08xnsWFiAXOuPH2jqzMbcXvKExXViPi1P5fIklDeCvXqyrdmipFaSkZrA==}
++    dependencies:
++      '@types/react': 18.2.48
++    dev: true
++
+   /@types/react@18.2.48:
+     resolution: {integrity: sha512-qboRCl6Ie70DQQG9hhNREz81jqC1cs9EVNcjQ1AU+jH6NFfSAhVVbrrY/+nSF+Bsk4AOwm9Qa61InvMCyV+H3w==}
+     dependencies:
+@@ -9566,6 +9578,10 @@ packages:
+   /react-is@18.3.1:
+     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+ 
++  /react-is@19.3.0:
++    resolution: {integrity: sha512-UpMYezM4v5/18F28aC66AEsjXIgE02kyEMH6yLdgLXu/UTfa1Ntwck/nNLrbqJsEXW7gPb0coNO9FQse9WTovA==}
++    dev: true
++
+   /react-native-safe-area-context@5.7.0(react-native@0.86.2)(react@19.2.3):
+     resolution: {integrity: sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==}
+     peerDependencies:
+@@ -9662,6 +9678,16 @@ packages:
+     resolution: {integrity: sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==}
+     engines: {node: '>=0.10.0'}
+ 
++  /react-test-renderer@19.2.3(react@19.2.3):
++    resolution: {integrity: sha512-TMR1LnSFiWZMJkCgNf5ATSvAheTT2NvKIwiVwdBPHxjBI7n/JbWd4gaZ16DVd9foAXdvDz+sB5yxZTwMjPRxpw==}
++    peerDependencies:
++      react: ^19.2.3
++    dependencies:
++      react: 19.2.3
++      react-is: 19.3.0
++      scheduler: 0.27.0
++    dev: true
++
+   /react@18.3.1:
+     resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+     engines: {node: '>=0.10.0'}
+
+Exit: 0

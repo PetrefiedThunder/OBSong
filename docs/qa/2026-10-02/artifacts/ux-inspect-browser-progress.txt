@@ -1,0 +1,4 @@
+UTC start: 2026-10-03T01:24:26Z
+Command: test ! -f docs/qa/2026-10-02/artifacts/ux-browser-report.json || cat docs/qa/2026-10-02/artifacts/ux-browser-report.json
+Exit: 0
+

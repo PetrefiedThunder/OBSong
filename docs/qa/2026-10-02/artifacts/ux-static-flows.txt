@@ -1,0 +1,772 @@
+UTC start: 2026-10-03T01:21:34Z
+Command: sed -n "1,280p" apps/web/src/app/compositions/page.tsx && sed -n "1,230p" apps/web/src/components/SaveCompositionCard.tsx && sed -n "1,260p" apps/web/src/components/MappingControls.tsx && sed -n "1,220p" apps/web/src/components/PlaybackControls.tsx && sed -n "1,210p" apps/web/src/contexts/AuthContext.tsx && sed -n "1,120p" apps/web/src/lib/supabaseClient.ts
+Exit: 0
+
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, Button } from '@toposonics/ui';
+import type { CompositionSummary } from '@toposonics/types';
+import { fetchAllCompositions } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { LoginModal } from '@/components/LoginModal';
+
+export default function CompositionsPage() {
+  const { token, login, isLoading: authLoading } = useAuth();
+  const [compositions, setCompositions] = useState<CompositionSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const loadCompositions = useCallback(async () => {
+    if (!token) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Page through the whole library so saves beyond the server's page size
+      // (default 50) don't silently disappear from the list.
+      const data = await fetchAllCompositions(token);
+      setCompositions(data);
+    } catch (err) {
+      console.error('Failed to load compositions:', err);
+      setError('Failed to load compositions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!token) {
+      setCompositions([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    void loadCompositions();
+  }, [authLoading, loadCompositions, token]);
+
+  const handleLogin = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      await login(email, password);
+      setIsLoginModalOpen(false);
+    } catch (error) {
+      console.error('Failed to sign in for compositions library:', error);
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Checking your session...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <>
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Compositions</h1>
+              <p className="text-gray-400">Your library is private in this v1 release.</p>
+            </div>
+            <Link href="/studio">
+              <Button variant="primary">Open Studio</Button>
+            </Link>
+          </div>
+
+          <Card title="Sign In Required" padding="lg">
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                Sign in to browse, replay, and manage your saved compositions.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button variant="primary" onClick={() => setIsLoginModalOpen(true)}>
+                  Sign In
+                </Button>
+                <Link href="/studio">
+                  <Button variant="outline">Go to Studio</Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onLogin={handleLogin}
+          isLoggingIn={isLoggingIn}
+          title="Sign In to View Your Library"
+          description="Your saved compositions are private. Sign in to browse and replay them."
+        />
+      </>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="animate-pulse text-gray-400">Loading compositions...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20">
+          <div className="text-red-400 mb-4">{error}</div>
+          <Button onClick={loadCompositions}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Compositions</h1>
+          <p className="text-gray-400">Browse and replay your soundscapes</p>
+        </div>
+        <Link href="/studio">
+          <Button variant="primary">Create New</Button>
+        </Link>
+      </div>
+
+      {compositions.length === 0 ? (
+        <div className="text-center py-20">
+          <div className="text-6xl mb-4">🎵</div>
+          <h2 className="text-2xl font-semibold mb-2">No compositions yet</h2>
+          <p className="text-gray-400 mb-6">
+            Create your first soundscape in the studio
+          </p>
+          <Link href="/studio">
+            <Button variant="primary" size="lg">
+              Open Studio
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {compositions.map((composition) => (
+            <Link key={composition.id} href={`/compositions/${composition.id}`}>
+              <Card
+                title={composition.title}
+                subtitle={composition.description}
+                variant="elevated"
+                padding="lg"
+              >
+                <div className="mt-4 space-y-2 text-sm text-gray-400">
+                  <div className="flex justify-between">
+                    <span>Key:</span>
+                    <span className="text-gray-300">
+                      {composition.key} {composition.scale.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Notes:</span>
+                    {/* Old rows predate noteCount; show a dash rather than a false zero. */}
+                    <span className="text-gray-300">{composition.noteCount ?? '—'}</span>
+                  </div>
+                  {composition.tempo && (
+                    <div className="flex justify-between">
+                      <span>Tempo:</span>
+                      <span className="text-gray-300">{composition.tempo} BPM</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Created:</span>
+                    <span className="text-gray-300">
+                      {new Date(composition.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+'use client';
+
+import { useId, useState } from 'react';
+import { Button, Card } from '@toposonics/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { createComposition } from '@/lib/api';
+import { generateImageThumbnail } from '@/lib/imageThumbnail';
+import { logAnalyticsEvent } from '@/lib/analytics';
+import { LoginModal } from './LoginModal';
+import type { NoteEvent, MappingMode, KeyType, ScaleType } from '@toposonics/types';
+
+interface SaveCompositionCardProps {
+  noteEvents: NoteEvent[];
+  mappingMode: MappingMode;
+  keyType: KeyType;
+  scale: ScaleType;
+  presetId: string;
+  tempo: number;
+  /** Source image; downscaled into imageThumbnail at save time so the detail page can show it. */
+  imageFile?: File | null;
+  /** Composition length in seconds, persisted as metadata.duration for the detail page. */
+  durationSeconds?: number;
+}
+
+export function SaveCompositionCard({
+  noteEvents,
+  mappingMode,
+  keyType,
+  scale,
+  presetId,
+  tempo,
+  imageFile,
+  durationSeconds,
+}: SaveCompositionCardProps) {
+  const { token, login } = useAuth();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const titleFieldId = useId();
+  const descriptionFieldId = useId();
+
+  const handleLoginForSave = async (email: string, password?: string) => {
+    setIsLoggingIn(true);
+    try {
+      const { token: newToken } = await login(email, password);
+      setIsLoginModalOpen(false);
+      await handleSave(newToken);
+    } catch (error) {
+      alert('Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleSave = async (overrideToken?: string) => {
+    const effectiveToken = overrideToken || token;
+
+    if (!effectiveToken) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    const compositionTitle = title || `Composition ${new Date().toLocaleDateString()}`;
+
+    setIsSaving(true);
+    try {
+      // Thumbnail generation is best-effort: a decode/canvas failure shouldn't block saving.
+      const imageThumbnail = imageFile
+        ? await generateImageThumbnail(imageFile).catch(() => undefined)
+        : undefined;
+
+      const savedComposition = await createComposition(
+        {
+          title: compositionTitle,
+          description: description || 'Generated from uploaded image',
+          noteEvents,
+          mappingMode,
+          key: keyType,
+          scale,
+          presetId,
+          tempo,
+          imageThumbnail,
+          metadata: {
+            noteCount: noteEvents.length,
+            ...(durationSeconds && durationSeconds > 0 ? { duration: durationSeconds } : {}),
+          },
+        },
+        effectiveToken
+      );
+
+      alert('Composition saved!');
+      logAnalyticsEvent('composition_saved', { compositionId: savedComposition.id, noteCount: noteEvents.length });
+    } catch (error) {
+      console.error('Failed to save composition:', error);
+      alert('Failed to save composition');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Card title="Save Composition" padding="lg">
+        <div className="space-y-4">
+          <div>
+            <label htmlFor={titleFieldId} className="block text-sm font-medium mb-2">
+              Title
+            </label>
+            <input
+              id={titleFieldId}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="My Composition"
+              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label htmlFor={descriptionFieldId} className="block text-sm font-medium mb-2">
+              Description
+            </label>
+            <textarea
+              id={descriptionFieldId}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description..."
+              rows={3}
+              className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => handleSave()}
+            disabled={isSaving}
+            loading={isSaving}
+          >
+            Save to Library
+          </Button>
+        </div>
+      </Card>
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={handleLoginForSave}
+        isLoggingIn={isLoggingIn}
+        title="Sign In to Save"
+        description="Enter your credentials to save this composition to your private library."
+      />
+    </>
+  );
+}
+'use client';
+
+import { useId } from 'react';
+import type { KeyType, ScaleType, MappingMode, TopoPreset } from '@toposonics/types';
+import { getAllPresets, getAllTopoPresets } from '@toposonics/core-audio';
+
+interface MappingControlsProps {
+  musicalKey: KeyType;
+  scale: ScaleType;
+  mappingMode: MappingMode;
+  presetId: string;
+  selectedTopoPreset: TopoPreset | null;
+  onKeyChange: (key: KeyType) => void;
+  onScaleChange: (scale: ScaleType) => void;
+  onMappingModeChange: (mode: MappingMode) => void;
+  onPresetChange: (presetId: string) => void;
+  onTopoPresetChange: (preset: TopoPreset | null) => void;
+}
+
+const KEYS: KeyType[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// One option per distinct scale *quality*. The root note is chosen separately via `key`,
+// so the legacy root-prefixed ScaleType values that share an interval pattern (e.g.
+// C_MAJOR/D_MAJOR/G_MAJOR) collapse to a single canonical entry here.
+const SCALES: { value: ScaleType; label: string }[] = [
+  { value: 'C_MAJOR', label: 'Major' },
+  { value: 'C_MINOR', label: 'Natural Minor' },
+  { value: 'A_HARMONIC_MINOR', label: 'Harmonic Minor' },
+  { value: 'C_PENTATONIC', label: 'Pentatonic Major' },
+  { value: 'A_MINOR_PENTATONIC', label: 'Pentatonic Minor' },
+  { value: 'C_BLUES', label: 'Blues' },
+  { value: 'D_DORIAN', label: 'Dorian' },
+  { value: 'C_MIXOLYDIAN', label: 'Mixolydian' },
+  { value: 'E_PHRYGIAN', label: 'Phrygian' },
+  { value: 'C_LYDIAN', label: 'Lydian' },
+  { value: 'C_WHOLE_TONE', label: 'Whole Tone' },
+];
+
+// Scene packs may set a root-prefixed alias whose interval pattern matches a canonical
+// option above. Normalize those to the canonical value so the <select> never renders blank
+// (an unmatched value shows no selection). Unlisted values map to themselves.
+const SCALE_ALIASES: Partial<Record<ScaleType, ScaleType>> = {
+  D_MAJOR: 'C_MAJOR',
+  G_MAJOR: 'C_MAJOR',
+  E_MINOR: 'C_MINOR',
+  A_MINOR: 'C_MINOR',
+  A_SHARP_MINOR: 'C_MINOR',
+  A_DORIAN: 'D_DORIAN',
+};
+
+const MAPPING_MODES: { value: MappingMode; label: string; description: string }[] = [
+  {
+    value: 'LINEAR_LANDSCAPE',
+    label: 'Linear Landscape',
+    description: 'Maps brightness directly to pitch across time',
+  },
+  {
+    value: 'DEPTH_RIDGE',
+    label: 'Depth Ridge',
+    description: 'Uses ridge detection and depth (experimental)',
+  },
+  {
+    value: 'MULTI_VOICE',
+    label: 'Multi-Voice',
+    description: 'Polyphonic composition with bass, melody, and pad layers',
+  },
+];
+
+export function MappingControls({
+  musicalKey,
+  scale,
+  mappingMode,
+  presetId,
+  selectedTopoPreset,
+  onKeyChange,
+  onScaleChange,
+  onMappingModeChange,
+  onPresetChange,
+  onTopoPresetChange,
+}: MappingControlsProps) {
+  const presets = getAllPresets();
+  const topoPresets = getAllTopoPresets();
+  const topoPresetId = useId();
+  const mappingModeId = useId();
+  const keyGroupId = useId();
+  const scaleId = useId();
+  const soundPresetId = useId();
+
+  return (
+    <div className="space-y-6">
+      {/* TopoSonics Preset */}
+      <div>
+        <label htmlFor={topoPresetId} className="block text-sm font-medium mb-2">
+          Musical Preset
+        </label>
+        <select
+          id={topoPresetId}
+          value={selectedTopoPreset?.id || ''}
+          onChange={(e) => {
+            const preset = e.target.value
+              ? topoPresets.find((p) => p.id === e.target.value) || null
+              : null;
+            onTopoPresetChange(preset);
+          }}
+          className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">Custom (No Preset)</option>
+          {topoPresets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name}
+            </option>
+          ))}
+        </select>
+        {selectedTopoPreset && (
+          <p className="text-xs text-gray-400 mt-2">{selectedTopoPreset.description}</p>
+        )}
+      </div>
+
+      {/* Mapping Mode */}
+      <div>
+        <span id={mappingModeId} className="block text-sm font-medium mb-2">
+          Mapping Mode
+        </span>
+        <div className="grid grid-cols-1 gap-2" role="group" aria-labelledby={mappingModeId}>
+          {MAPPING_MODES.map((mode) => (
+            <button
+              key={mode.value}
+              onClick={() => onMappingModeChange(mode.value)}
+              className={`p-3 rounded-lg text-left transition-colors ${
+                mappingMode === mode.value
+                  ? 'bg-primary-600 border-2 border-primary-500'
+                  : 'bg-surface-secondary border-2 border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              <div className="font-medium">{mode.label}</div>
+              <div className="text-xs text-gray-400 mt-1">{mode.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Musical Key */}
+      <div>
+        <span id={keyGroupId} className="block text-sm font-medium mb-2">
+          Key
+        </span>
+        <div className="grid grid-cols-6 gap-2" role="group" aria-labelledby={keyGroupId}>
+          {KEYS.map((k) => (
+            <button
+              key={k}
+              onClick={() => onKeyChange(k)}
+              className={`py-2 px-3 rounded-lg font-medium transition-colors ${
+                musicalKey === k
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-surface-secondary text-gray-300 hover:bg-surface-elevated'
+              }`}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Scale */}
+      <div>
+        <label htmlFor={scaleId} className="block text-sm font-medium mb-2">
+          Scale
+        </label>
+        <select
+          id={scaleId}
+          value={SCALE_ALIASES[scale] ?? scale}
+          onChange={(e) => onScaleChange(e.target.value as ScaleType)}
+          className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          {SCALES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Sound Preset */}
+      <div>
+        <label htmlFor={soundPresetId} className="block text-sm font-medium mb-2">
+          Sound Preset
+        </label>
+        <select
+          id={soundPresetId}
+          value={presetId}
+          onChange={(e) => onPresetChange(e.target.value)}
+          className="w-full bg-surface-secondary border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-400 mt-2">
+          {presets.find((p) => p.id === presetId)?.description}
+        </p>
+      </div>
+    </div>
+  );
+}
+'use client';
+
+import { useId } from 'react';
+import { Button } from '@toposonics/ui';
+
+interface PlaybackControlsProps {
+  isPlaying: boolean;
+  isLoading: boolean;
+  tempo: number;
+  onPlay: () => void;
+  onStop: () => void;
+  onTempoChange: (tempo: number) => void;
+  disabled?: boolean;
+}
+
+export function PlaybackControls({
+  isPlaying,
+  isLoading,
+  tempo,
+  onPlay,
+  onStop,
+  onTempoChange,
+  disabled = false,
+}: PlaybackControlsProps) {
+  const tempoId = useId();
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={onPlay}
+          disabled={disabled || isPlaying || isLoading}
+          loading={isLoading}
+          fullWidth
+        >
+          {isPlaying ? '▶ Playing...' : '▶ Play'}
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={onStop}
+          disabled={!isPlaying}
+        >
+          ⏹ Stop
+        </Button>
+      </div>
+
+      <div>
+        <div className="flex justify-between mb-2">
+          <label htmlFor={tempoId} className="text-sm font-medium">Tempo</label>
+          <span className="text-sm text-gray-400">{tempo} BPM</span>
+        </div>
+        <input
+          id={tempoId}
+          type="range"
+          min="60"
+          max="180"
+          value={tempo}
+          onChange={(e) => onTempoChange(Number(e.target.value))}
+          disabled={disabled}
+          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-600"
+        />
+      </div>
+    </div>
+  );
+}
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { User } from '@toposonics/types';
+import { supabaseClient } from '@/lib/supabaseClient';
+
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  login: (email: string, password?: string) => Promise<{ token: string; user: User }>;
+  logout: () => void;
+  isLoading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load auth from Supabase session on mount
+  useEffect(() => {
+    if (!supabaseClient) {
+      setIsLoading(false);
+      return;
+    }
+
+    const syncSession = async () => {
+      const { data } = await supabaseClient!.auth.getSession();
+      const session = data.session;
+
+      if (session) {
+        const mappedUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: (session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+          createdAt: new Date(session.user.created_at),
+          lastLoginAt: session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : undefined,
+        };
+
+        setToken(session.access_token);
+        setUser(mappedUser);
+      }
+
+      setIsLoading(false);
+    };
+
+    syncSession();
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        const mappedUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: (session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+          createdAt: new Date(session.user.created_at),
+          lastLoginAt: session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at) : undefined,
+        };
+        setToken(session.access_token);
+        setUser(mappedUser);
+      } else {
+        setToken(null);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email: string, password?: string) => {
+    if (!supabaseClient) {
+      throw new Error('Supabase client is not configured');
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password: password || '',
+    });
+
+    if (error || !data.session) {
+      throw error || new Error('Login failed');
+    }
+
+    const mappedUser: User = {
+      id: data.session.user.id,
+      email: data.session.user.email || '',
+      displayName: (data.session.user.user_metadata as Record<string, unknown>)?.full_name as string | undefined,
+      createdAt: new Date(data.session.user.created_at),
+      lastLoginAt: data.session.user.last_sign_in_at ? new Date(data.session.user.last_sign_in_at) : undefined,
+    };
+
+    setToken(data.session.access_token);
+    setUser(mappedUser);
+
+    return { token: data.session.access_token, user: mappedUser };
+  };
+
+  const logout = async () => {
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
+    setToken(null);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Supabase environment variables are missing. Auth will be disabled.');
+}
+
+export const supabaseClient = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;

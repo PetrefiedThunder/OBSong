@@ -1,0 +1,39 @@
+UTC start: 2026-10-03T01:23:58Z
+Command: corepack pnpm --filter @toposonics/api exec vitest run --coverage --coverage.include "src/**/*.ts" --coverage.exclude "src/__tests__/**" --coverage.reporter text --coverage.reporter json-summary --coverage.reporter json --coverage.reportsDirectory ../../docs/qa/2026-10-02/artifacts/backend-coverage-after
+Exit: 0
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api
+      Coverage enabled with v8
+
+ ✓ src/__tests__/compositions.service.test.ts (20 tests) 8ms
+ ✓ src/__tests__/qa.persistence.test.ts (10 tests) 10ms
+ ✓ src/__tests__/qa.proxy.test.ts (2 tests) 43ms
+ ✓ src/__tests__/qa.auth.test.ts (18 tests) 226ms
+ ✓ src/__tests__/compositions.routes.test.ts (23 tests) 238ms
+ ✓ src/__tests__/qa.boundaries.test.ts (31 tests) 316ms
+
+ Test Files  6 passed (6)
+      Tests  97 passed | 7 expected fail (104)
+   Start at  18:23:58
+   Duration  520ms (transform 220ms, setup 0ms, import 399ms, tests 842ms, environment 0ms)
+
+ % Coverage report from v8
+------------------|---------|----------|---------|---------|-------------------
+File              | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+------------------|---------|----------|---------|---------|-------------------
+All files         |   64.56 |    61.96 |   60.97 |   64.92 |                   
+ src              |   34.26 |    44.18 |   27.27 |   34.32 |                   
+  auth.ts         |     100 |     87.5 |     100 |     100 | 31-36,45          
+  config.ts       |   86.36 |    83.72 |     100 |   94.44 | 17                
+  server.ts       |       0 |        0 |       0 |       0 | 21-270            
+  supabase.ts     |       0 |        0 |     100 |       0 | 4-11              
+ src/routes       |   96.82 |    89.28 |     100 |   96.82 |                   
+  compositions.ts |   96.36 |     92.3 |     100 |   96.36 | 273,333           
+  health.ts       |     100 |       50 |     100 |     100 | 42                
+ src/services     |   93.67 |    81.81 |     100 |   94.36 |                   
+  compositions.ts |   93.67 |    81.81 |     100 |   94.36 | 138,186,241,281   
+------------------|---------|----------|---------|---------|-------------------
