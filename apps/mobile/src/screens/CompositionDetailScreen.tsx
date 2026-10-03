@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -33,39 +33,49 @@ export default function CompositionDetailScreen({ route }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const playbackRef = React.useRef<PlaybackController | null>(null);
   const isMountedRef = React.useRef(true);
+  const requestGenerationRef = React.useRef(0);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const { token, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
+  const { token, user, signInWithApple, signInWithPassword, loading: authLoading } = useAuth();
+  const userId = user?.id;
   const { loadComposition: loadCompositionRecord, removeComposition } = useCompositions();
 
-  const loadCompositionFromStore = useCallback(async () => {
-    const data = await loadCompositionRecord(id);
-    if (!data) {
-      throw new Error('Composition not found');
-    }
-    return data;
-  }, [id, loadCompositionRecord]);
-
-  const loadCompositionData = useCallback(async () => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const data = await loadCompositionFromStore();
-      setComposition(data);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to load composition');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadCompositionFromStore, token]);
+  useLayoutEffect(() => {
+    requestGenerationRef.current += 1;
+    setComposition(null);
+    setLoading(Boolean(token && userId));
+    setIsPlaying(false);
+    setIsDeleting(false);
+    return () => {
+      requestGenerationRef.current += 1;
+      playbackRef.current?.cancel();
+      playbackRef.current = null;
+    };
+  }, [id, loadCompositionRecord, token, userId]);
 
   useEffect(() => {
-    void loadCompositionData();
-  }, [loadCompositionData]);
+    let active = true;
+    const generation = requestGenerationRef.current;
+    const isCurrent = () => active && generation === requestGenerationRef.current;
+    const load = async () => {
+      if (!token || !userId) return;
+      try {
+        const data = await loadCompositionRecord(id);
+        if (!isCurrent()) return;
+        if (!data) throw new Error('Composition not found');
+        setComposition(data);
+      } catch (err) {
+        if (!isCurrent()) return;
+        Alert.alert('Error', 'Failed to load composition');
+        console.error(err);
+      } finally {
+        if (isCurrent()) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => { active = false; };
+  }, [id, loadCompositionRecord, token, userId]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -79,19 +89,22 @@ export default function CompositionDetailScreen({ route }: Props) {
   const playComposition = async () => {
     if (!composition) return;
 
+    let controller: PlaybackController | null = null;
     try {
       setIsPlaying(true);
-      const controller = playNoteEvents(composition.noteEvents, {
+      controller = playNoteEvents(composition.noteEvents, {
         tempo: composition.tempo ?? 90,
       });
       playbackRef.current = controller;
       await controller.done;
     } catch (error) {
-      Alert.alert('Playback failed', (error as Error).message);
+      if (isMountedRef.current && playbackRef.current === controller) {
+        Alert.alert('Playback failed', (error as Error).message);
+      }
     } finally {
-      playbackRef.current = null;
-      if (isMountedRef.current) {
-        setIsPlaying(false);
+      if (playbackRef.current === controller) {
+        playbackRef.current = null;
+        if (isMountedRef.current) setIsPlaying(false);
       }
     }
   };
@@ -102,6 +115,8 @@ export default function CompositionDetailScreen({ route }: Props) {
 
   const handleDelete = () => {
     if (!composition) return;
+    const generation = requestGenerationRef.current;
+    const isCurrent = () => isMountedRef.current && generation === requestGenerationRef.current;
 
     Alert.alert(
       'Delete composition',
@@ -112,13 +127,15 @@ export default function CompositionDetailScreen({ route }: Props) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            if (!isCurrent()) return;
             try {
               setIsDeleting(true);
               playbackRef.current?.cancel();
               await removeComposition(composition.id);
-              navigation.goBack();
+              if (isCurrent()) navigation.goBack();
             } catch (error) {
-              if (isMountedRef.current) setIsDeleting(false);
+              if (!isCurrent()) return;
+              setIsDeleting(false);
               Alert.alert('Delete failed', (error as Error).message);
             }
           },
