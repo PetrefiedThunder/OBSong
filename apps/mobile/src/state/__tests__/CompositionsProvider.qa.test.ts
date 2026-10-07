@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Composition, CompositionSummary } from '@toposonics/types';
 import { CompositionsProvider, useCompositions } from '../CompositionsProvider';
-import { getCompositionListCacheKey } from '../compositionCache';
+import { getCompositionDetailCacheKey, getCompositionListCacheKey } from '../compositionCache';
 
 const mocks = vi.hoisted(() => ({
   auth: { token: 'qa-session-a', user: { id: 'qa-user-a' } } as {
@@ -133,7 +133,7 @@ describe('QA private mobile library state', () => {
     expect(JSON.parse(lastList[1]).items).toEqual([]);
   });
 
-  it.fails('FE-002: discards delayed cache hydration after switching accounts', async () => {
+  it('FE-002: discards delayed cache hydration after switching accounts', async () => {
     const oldCacheRead = deferred<string>();
     mocks.api.fetchAllCompositions.mockRejectedValueOnce(new Error('Offline fixture'));
     mocks.storage.getItem.mockReturnValueOnce(oldCacheRead.promise);
@@ -148,7 +148,7 @@ describe('QA private mobile library state', () => {
     expect(current.compositions).toEqual([other]);
   });
 
-  it.fails('FE-002: a prior-account delete cannot persist the next account library under the old key', async () => {
+  it('FE-002: a prior-account delete cannot persist the next account library under the old key', async () => {
     const deletion = deferred<void>();
     mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('a-private')]);
     mocks.api.deleteComposition.mockReturnValueOnce(deletion.promise);
@@ -162,9 +162,11 @@ describe('QA private mobile library state', () => {
       ([key]) => key === getCompositionListCacheKey('qa-user-a')
     );
     expect(writesToOldAccount).toEqual([]);
+    expect(mocks.storage.removeItem).not.toHaveBeenCalled();
+    expect(current.compositions.map((item) => item.id)).toEqual(['b-private']);
   });
 
-  it.fails('FE-002: detail reads cannot return prior-account data after the account changes', async () => {
+  it('FE-002: detail reads cannot return prior-account data after the account changes', async () => {
     const detail = deferred<Composition>();
     mocks.api.fetchComposition.mockReturnValueOnce(detail.promise);
     await mount();
@@ -175,5 +177,112 @@ describe('QA private mobile library state', () => {
     // CompositionDetailScreen consumes this returned value directly into screen state.
     expect(received).toBeNull();
     expect(current.compositionsById).toEqual({});
+  });
+
+  it('FE-002: discards a response from an earlier session after switching A to B to A', async () => {
+    const oldRequest = deferred<CompositionSummary[]>();
+    mocks.api.fetchAllCompositions.mockReturnValueOnce(oldRequest.promise);
+    await mount();
+    await switchAccount('qa-user-b');
+    const fresh = composition('a-new-session');
+    mocks.api.fetchAllCompositions.mockResolvedValueOnce([fresh]);
+    await switchAccount('qa-user-a');
+    mocks.storage.setItem.mockClear();
+    await act(async () => { oldRequest.resolve([composition('a-old-session')]); });
+    expect(current.compositions).toEqual([fresh]);
+    expect(mocks.storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('FE-002: a stale detail failure does not start an old account cache read', async () => {
+    const detail = deferred<Composition>();
+    mocks.api.fetchComposition.mockReturnValueOnce(detail.promise);
+    await mount();
+    const load = current.loadComposition('a-private');
+    await switchAccount('qa-user-b');
+    await act(async () => { detail.reject(new Error('Offline fixture')); await load; });
+    expect(mocks.storage.getItem).not.toHaveBeenCalled();
+  });
+
+  it('FE-002: ignores detail cache reads completed after account switch', async () => {
+    const cacheRead = deferred<string>();
+    mocks.api.fetchComposition.mockRejectedValueOnce(new Error('Offline fixture'));
+    mocks.storage.getItem.mockReturnValueOnce(cacheRead.promise);
+    await mount();
+    let load!: Promise<Composition | null>;
+    await act(async () => { load = current.loadComposition('a-private'); });
+    expect(mocks.storage.getItem).toHaveBeenCalledWith(getCompositionDetailCacheKey('qa-user-a', 'a-private'));
+    await switchAccount('qa-user-b');
+    let received: Composition | null = null;
+    await act(async () => { cacheRead.resolve(JSON.stringify(composition('a-private'))); received = await load; });
+    expect(received).toBeNull();
+    expect(current.compositionsById).toEqual({});
+  });
+
+  it('FE-002: rechecks the session after a detail cache write before returning data', async () => {
+    const cacheWrite = deferred<void>();
+    mocks.api.fetchComposition.mockResolvedValueOnce(composition('a-private'));
+    await mount();
+    mocks.storage.setItem.mockReturnValueOnce(cacheWrite.promise);
+    let load!: Promise<Composition | null>;
+    await act(async () => { load = current.loadComposition('a-private'); });
+    await switchAccount('qa-user-b');
+    let received: Composition | null = null;
+    await act(async () => { cacheWrite.resolve(); received = await load; });
+    expect(received).toBeNull();
+    expect(current.compositionsById).toEqual({});
+  });
+
+  it('FE-002: a delayed save cannot return or cache a prior account composition', async () => {
+    const creation = deferred<Composition>();
+    mocks.api.createComposition.mockReturnValueOnce(creation.promise);
+    await mount();
+    const save = current.saveComposition(composition('a-created'));
+    await switchAccount('qa-user-b');
+    mocks.storage.setItem.mockClear();
+    let received: Composition | null = null;
+    await act(async () => { creation.resolve(composition('a-created')); received = await save; });
+    expect(received).toBeNull();
+    expect(current.compositionsById).toEqual({});
+    expect(mocks.storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('FE-002: retained callbacks cannot start work using a previous session', async () => {
+    await mount();
+    const previous = current;
+    await switchAccount('qa-user-b');
+    mocks.api.fetchAllCompositions.mockClear();
+    await act(async () => {
+      await previous.refresh();
+      await previous.loadComposition('a-private');
+      await previous.saveComposition(composition('a-created'));
+      await previous.removeComposition('a-private');
+    });
+    expect(mocks.api.fetchAllCompositions).not.toHaveBeenCalled();
+    expect(mocks.api.fetchComposition).not.toHaveBeenCalled();
+    expect(mocks.api.createComposition).not.toHaveBeenCalled();
+    expect(mocks.api.deleteComposition).not.toHaveBeenCalled();
+  });
+
+  it('FE-002: signed-out deletion does not call the API or change caches', async () => {
+    mocks.auth = { token: null, user: null };
+    await mount();
+    await act(async () => { await current.removeComposition('a-private'); });
+    expect(mocks.api.deleteComposition).not.toHaveBeenCalled();
+    expect(mocks.storage.setItem).not.toHaveBeenCalled();
+    expect(mocks.storage.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('FE-002: unmount invalidates outstanding detail reads', async () => {
+    const detail = deferred<Composition>();
+    mocks.api.fetchComposition.mockReturnValueOnce(detail.promise);
+    await mount();
+    const load = current.loadComposition('a-private');
+    await act(async () => { renderer!.unmount(); });
+    renderer = undefined;
+    mocks.storage.setItem.mockClear();
+    let received: Composition | null = null;
+    await act(async () => { detail.resolve(composition('a-private')); received = await load; });
+    expect(received).toBeNull();
+    expect(mocks.storage.setItem).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,7 @@ import type {
   UpdateCompositionDTO,
 } from '@toposonics/types';
 import { supabaseAdmin } from '../supabase';
+import { CompositionConflictError } from './compositionConflict';
 
 interface CompositionRow {
   id: string;
@@ -202,8 +203,10 @@ export async function listCompositions(
   };
 }
 
-export async function getCompositionById(id: string): Promise<Composition | null> {
-  const { data, error } = await supabaseAdmin.from('compositions').select('*').eq('id', id).single();
+async function getCompositionRowById(id: string, userId?: string): Promise<CompositionRow | null> {
+  let query = supabaseAdmin.from('compositions').select('*').eq('id', id);
+  if (userId !== undefined) query = query.eq('user_id', userId);
+  const { data, error } = await query.single();
   if (error) {
     if (error.code === 'PGRST116') return null;
     // A malformed (non-UUID) id raises Postgres 22P02; treat it as "not found" rather than
@@ -211,7 +214,12 @@ export async function getCompositionById(id: string): Promise<Composition | null
     if (error.code === '22P02') return null;
     throw error;
   }
-  return mapRowToComposition(data as CompositionRow);
+  return data as CompositionRow;
+}
+
+export async function getCompositionById(id: string): Promise<Composition | null> {
+  const row = await getCompositionRowById(id);
+  return row ? mapRowToComposition(row) : null;
 }
 
 export async function createComposition(
@@ -249,39 +257,55 @@ export async function updateComposition(
   userId: string,
   updates: UpdateCompositionDTO
 ): Promise<Composition | null> {
-  const existing = await getCompositionById(id);
-  // Scope by owner so the mutating query is defended in depth (not only by the route's
-  // read-then-check), closing the TOCTOU gap. NOTE: this still writes the whole data blob
-  // (last-write-wins across the object); a partial/JSONB merge is a follow-up.
-  if (!existing || existing.userId !== userId) return null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const row = await getCompositionRowById(id, userId);
+    if (!row || row.user_id !== userId) return null;
 
-  const merged: Composition = {
-    ...existing,
-    ...pickWritableFields(updates as unknown as Record<string, unknown>),
-    id: existing.id,
-    userId: existing.userId,
-    createdAt: existing.createdAt,
-    updatedAt: new Date(),
-  };
+    // Keep the exact stored JSON timestamp as the compare-and-swap token. It is
+    // server-managed and independent of any database updated_at trigger/precision.
+    const previousVersion = row.data.updatedAt;
+    if (previousVersion != null && typeof previousVersion !== 'string') {
+      throw new CompositionConflictError();
+    }
+    const previousTime = typeof previousVersion === 'string' ? Date.parse(previousVersion) : NaN;
+    const nextTime = Number.isFinite(previousTime)
+      ? Math.max(Date.now(), previousTime + 1)
+      : Date.now();
+    const existing = mapRowToComposition(row);
+    const merged: Composition = {
+      ...existing,
+      ...pickWritableFields(updates as unknown as Record<string, unknown>),
+      id: existing.id,
+      userId: existing.userId,
+      createdAt: existing.createdAt,
+      // Always advance the token, even for writes within the same millisecond.
+      updatedAt: new Date(nextTime),
+    };
 
-  const { data, error } = await supabaseAdmin
-    .from('compositions')
-    .update({
-      name: merged.title,
-      data: merged,
-      updated_at: merged.updatedAt.toISOString(),
-    })
-    .eq('id', id)
-    .eq('user_id', userId)
-    .select()
-    .single();
+    let query = supabaseAdmin
+      .from('compositions')
+      .update({
+        name: merged.title,
+        data: merged,
+        updated_at: merged.updatedAt.toISOString(),
+      })
+      .eq('id', id)
+      .eq('user_id', userId);
+    query = previousVersion == null
+      ? query.is('data->>updatedAt', null)
+      : query.eq('data->>updatedAt', previousVersion);
 
-  if (error) {
-    if (error.code === 'PGRST116' || error.code === '22P02') return null;
-    throw error;
+    const { data, error } = await query.select().single();
+    if (error) {
+      // A concurrent write/delete failed the precondition. Re-read ownership and
+      // merge only the caller's fields into the latest document before retrying.
+      if (error.code === 'PGRST116') continue;
+      if (error.code === '22P02') return null;
+      throw error;
+    }
+    return mapRowToComposition(data as CompositionRow);
   }
-
-  return mapRowToComposition(data as CompositionRow);
+  throw new CompositionConflictError();
 }
 
 export async function deleteComposition(id: string, userId: string): Promise<boolean> {

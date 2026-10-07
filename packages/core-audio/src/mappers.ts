@@ -548,7 +548,10 @@ export function mapTextureToPad(
   for (let i = 0; i < segmentCount; i++) {
     const start = i * segmentSize;
     if (start >= textureProfile.length) break;
-    const end = Math.min(start + segmentSize, textureProfile.length);
+    // Include any remainder in the final segment so the right edge is never dropped.
+    const end = i === segmentCount - 1
+      ? textureProfile.length
+      : Math.min(start + segmentSize, textureProfile.length);
     const segment = textureProfile.slice(start, end);
     const avg = segment.reduce((sum, val) => sum + val, 0) / segment.length;
     textureSegments.push(avg);

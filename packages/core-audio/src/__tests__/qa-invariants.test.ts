@@ -91,11 +91,25 @@ describe('QA seeded mapping contracts', () => {
     })).toEqual([]);
   });
 
-  it.fails('BE-101: pad segmentation includes a final partial texture segment', () => {
+  it('BE-101: pad segmentation includes a final partial texture segment', () => {
     // Seven valid samples split into six segments must not discard the final sample.
     const flat = mapTextureToPad([0, 0, 0, 0, 0, 0, 0], 'C', 'C_MAJOR', { segments: 6 });
     const rightEdge = mapTextureToPad([0, 0, 0, 0, 0, 0, 1], 'C', 'C_MAJOR', { segments: 6 });
     expect(rightEdge).not.toEqual(flat);
+  });
+
+  it.each([126, 127])('BE-101: the normal 128-sample profile includes trailing index %i', (index) => {
+    const flatProfile = new Array(128).fill(0);
+    const changedProfile = [...flatProfile];
+    changedProfile[index] = 1;
+    const flat = mapTextureToPad(flatProfile, 'C', 'C_MAJOR');
+    const changed = mapTextureToPad(changedProfile, 'C', 'C_MAJOR');
+    expect(changed).not.toEqual(flat);
+    expect(changed.filter((note) => note.start < 30)).toEqual(
+      flat.filter((note) => note.start < 30)
+    );
+    assertPlayable(changed);
+    expect(changedProfile[index]).toBe(1);
   });
 });
 

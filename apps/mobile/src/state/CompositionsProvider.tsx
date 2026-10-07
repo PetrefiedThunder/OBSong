@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Composition, CompositionSummary, CreateCompositionDTO } from '@toposonics/types';
 import {
@@ -37,23 +37,24 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
   const [usingCache, setUsingCache] = useState(false);
 
   const activeUserId = user?.id ?? null;
-  // Tracks the currently active user so in-flight fetches from a previous user
-  // (slow network + sign-out/account-switch) can be discarded before they write state.
-  const activeUserIdRef = React.useRef(activeUserId);
-  useEffect(() => {
-    activeUserIdRef.current = activeUserId;
-  }, [activeUserId]);
+  // Object identity distinguishes separate sessions even when A switches to B and back to A.
+  const session = useMemo(() => ({ userId: activeUserId, token }), [activeUserId, token]);
+  const activeSessionRef = React.useRef<typeof session | null>(session);
+  const isCurrentSession = useCallback(() => activeSessionRef.current === session, [session]);
 
-  // Mirror the committed list in a ref so mutations can derive the next list synchronously
-  // and persist it. Reading a variable assigned inside a functional state updater is unsafe:
-  // React may run the updater during a later render, after saveToCache already ran.
+  // Update this ref with each list write so concurrent mutations use the same list as state.
   const compositionsRef = React.useRef(compositions);
-  useEffect(() => {
-    compositionsRef.current = compositions;
-  }, [compositions]);
+  useLayoutEffect(() => {
+    activeSessionRef.current = session;
+    compositionsRef.current = [];
+    setCompositions([]);
+    setCompositionsById({});
+    setUsingCache(false);
+    return () => { activeSessionRef.current = null; };
+  }, [session]);
 
   const saveToCache = useCallback(async (items: CompositionSummary[]) => {
-    if (!activeUserId) return;
+    if (!activeUserId || !isCurrentSession()) return;
 
     try {
       await AsyncStorage.setItem(
@@ -63,45 +64,43 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
     } catch (err) {
       console.warn('Failed to cache compositions', err);
     }
-  }, [activeUserId]);
+  }, [activeUserId, isCurrentSession]);
 
   const saveDetailToCache = useCallback(async (item: Composition) => {
-    if (!activeUserId) return;
+    if (!activeUserId || !isCurrentSession()) return;
 
     try {
       await AsyncStorage.setItem(getCompositionDetailCacheKey(activeUserId, item.id), JSON.stringify(item));
     } catch (err) {
       console.warn('Failed to cache composition detail', err);
     }
-  }, [activeUserId]);
+  }, [activeUserId, isCurrentSession]);
 
   const hydrateFromCache = useCallback(async () => {
-    if (!activeUserId) return;
+    if (!activeUserId || !isCurrentSession()) return;
 
     try {
       const cached = await AsyncStorage.getItem(getCompositionListCacheKey(activeUserId));
+      if (!isCurrentSession()) return;
       if (cached) {
         // Caches written before the summary migration hold full compositions; they still
         // satisfy every summary field the list UI reads, so no migration is needed. They
         // are no longer merged into compositionsById — that map holds full compositions
         // only, populated by loadComposition (which has its own detail cache).
         const parsed = JSON.parse(cached) as { items: CompositionSummary[] };
+        compositionsRef.current = parsed.items;
         setCompositions(parsed.items);
         setUsingCache(true);
       }
     } catch (err) {
       console.warn('Failed to hydrate compositions cache', err);
     }
-  }, [activeUserId]);
-
-  useEffect(() => {
-    setCompositions([]);
-    setCompositionsById({});
-    setUsingCache(false);
-  }, [activeUserId]);
+  }, [activeUserId, isCurrentSession]);
 
   const refresh = useCallback(async () => {
+    if (!isCurrentSession()) return;
     if (!canUseCompositionCache(token, activeUserId)) {
+      compositionsRef.current = [];
       setCompositions([]);
       setCompositionsById({});
       setUsingCache(false);
@@ -109,7 +108,6 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    const requestUserId = activeUserId;
     setLoading(true);
     setUsingCache(false);
     try {
@@ -118,21 +116,22 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       const data = await fetchAllCompositions();
       // Discard results if the active user changed while the request was in flight,
       // so we never repopulate a signed-out screen (or another account) with A's data.
-      if (activeUserIdRef.current !== requestUserId) return;
+      if (!isCurrentSession()) return;
       // The list endpoint now returns summaries (no noteEvents/imageData), so they are
       // not merged into compositionsById — full records come from loadComposition.
+      compositionsRef.current = data;
       setCompositions(data);
       await saveToCache(data);
     } catch (err) {
-      if (activeUserIdRef.current !== requestUserId) return;
+      if (!isCurrentSession()) return;
       console.warn('Falling back to cached compositions', err);
       await hydrateFromCache();
     } finally {
-      if (activeUserIdRef.current === requestUserId) {
+      if (isCurrentSession()) {
         setLoading(false);
       }
     }
-  }, [activeUserId, token, hydrateFromCache, saveToCache]);
+  }, [activeUserId, token, hydrateFromCache, saveToCache, isCurrentSession]);
 
   useEffect(() => {
     refresh();
@@ -140,43 +139,47 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
 
   const loadComposition = useCallback(
     async (id: string) => {
-      if (!canUseCompositionCache(token, activeUserId)) {
+      if (!isCurrentSession() || !canUseCompositionCache(token, activeUserId)) {
         return null;
       }
 
       const cacheUserId = activeUserId as string;
-      const requestUserId = activeUserId;
-
       try {
         const data = await fetchComposition(id);
-        if (activeUserIdRef.current === requestUserId) {
-          setCompositionsById((prev) => ({ ...prev, [id]: data }));
-          await saveDetailToCache(data);
-        }
-        return data;
+        if (!isCurrentSession()) return null;
+        setCompositionsById((prev) => ({ ...prev, [id]: data }));
+        await saveDetailToCache(data);
+        return isCurrentSession() ? data : null;
       } catch (err) {
+        if (!isCurrentSession()) return null;
         console.warn('Failed to fetch composition, using cache', err);
         const cached = await AsyncStorage.getItem(
           getCompositionDetailCacheKey(cacheUserId, id)
         );
+        if (!isCurrentSession()) return null;
         if (cached) {
           return JSON.parse(cached) as Composition;
         }
         return null;
       }
     },
-    [activeUserId, token, saveDetailToCache]
+    [activeUserId, token, saveDetailToCache, isCurrentSession]
   );
 
   const saveComposition = useCallback(
     async (payload: Omit<CreateCompositionDTO, 'userId'>) => {
-      if (!canUseCompositionCache(token, activeUserId)) return null;
+      if (!isCurrentSession() || !canUseCompositionCache(token, activeUserId)) return null;
 
-      const requestUserId = activeUserId;
-      const created = await createComposition(payload);
+      let created: Composition;
+      try {
+        created = await createComposition(payload);
+      } catch (err) {
+        if (!isCurrentSession()) return null;
+        throw err;
+      }
       // Discard if the active user changed while the save was in flight (consistent with
       // refresh/loadComposition), so we don't write into the wrong user's state/cache.
-      if (activeUserIdRef.current !== requestUserId) return created;
+      if (!isCurrentSession()) return null;
 
       // The list holds lightweight summaries: derive one from the created composition so
       // the noteEvents/imageData blobs stay out of the list state and its cache.
@@ -204,14 +207,21 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
       void saveToCache(nextList);
       setCompositionsById((prev) => ({ ...prev, [created.id]: created }));
       await saveDetailToCache(created);
-      return created;
+      return isCurrentSession() ? created : null;
     },
-    [activeUserId, token, saveDetailToCache, saveToCache]
+    [activeUserId, token, saveDetailToCache, saveToCache, isCurrentSession]
   );
 
   const removeComposition = useCallback(
     async (id: string) => {
-      await apiDeleteComposition(id);
+      if (!isCurrentSession() || !canUseCompositionCache(token, activeUserId)) return;
+      try {
+        await apiDeleteComposition(id);
+      } catch (err) {
+        if (!isCurrentSession()) return;
+        throw err;
+      }
+      if (!isCurrentSession()) return;
 
       // Prune from in-memory state and the persisted caches so the deleted item
       // doesn't reappear from cache on the next mount. Derive the next list from the
@@ -234,7 +244,7 @@ export function CompositionsProvider({ children }: { children: React.ReactNode }
         }
       }
     },
-    [activeUserId, saveToCache]
+    [activeUserId, token, saveToCache, isCurrentSession]
   );
 
   const value = useMemo(

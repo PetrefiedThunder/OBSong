@@ -12,6 +12,7 @@ import type {
   ApiErrorResponse,
 } from '@toposonics/types';
 import { requireAuth } from '../auth';
+import { CompositionConflictError } from '../services/compositionConflict';
 import {
   listCompositions,
   getCompositionById,
@@ -285,6 +286,15 @@ export async function compositionRoutes(fastify: FastifyInstance) {
           message: 'Composition updated successfully',
         });
       } catch (error) {
+        if (error instanceof CompositionConflictError) {
+          return reply.status(409).send({
+            success: false,
+            error: {
+              code: 'COMPOSITION_CONFLICT',
+              message: error.message,
+            },
+          });
+        }
         fastify.log.error(error);
         return reply.status(500).send({
           success: false,
