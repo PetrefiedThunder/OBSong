@@ -1,0 +1,100 @@
+UTC start: 2026-10-03T01:23:09Z
+Command: node -e 'for(const p of ["/private/tmp/obsong-qa-tools/node_modules/react/package.json","/private/tmp/obsong-qa-tools/node_modules/react-test-renderer/package.json","./apps/mobile/node_modules/react/package.json"]){let j=require(p);console.log(p,j.version)}' && cat apps/web/tsconfig.json apps/mobile/tsconfig.json
+Exit: 0
+
+/private/tmp/obsong-qa-tools/node_modules/react/package.json 19.3.0
+/private/tmp/obsong-qa-tools/node_modules/react-test-renderer/package.json 19.2.3
+./apps/mobile/node_modules/react/package.json 19.2.3
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@toposonics/core-audio": [
+        "../../packages/core-audio/src/index.ts"
+      ],
+      "@toposonics/core-image": [
+        "../../packages/core-image/src/index.ts"
+      ],
+      "@toposonics/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@toposonics/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@toposonics/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "module": "esnext",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@toposonics/core-audio": [
+        "../../packages/core-audio/src/index.ts"
+      ],
+      "@toposonics/core-image": [
+        "../../packages/core-image/src/index.ts"
+      ],
+      "@toposonics/native-image-processing": [
+        "../../packages/native-image-processing/src/index.ts"
+      ],
+      "@toposonics/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@toposonics/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@toposonics/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

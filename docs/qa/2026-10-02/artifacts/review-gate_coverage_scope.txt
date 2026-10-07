@@ -1,0 +1,380 @@
+UTC start: 2026-10-03T01:27:38Z
+Command: cat docs/qa/2026-10-02/artifacts/frontend-mobile_coverage_before.txt docs/qa/2026-10-02/artifacts/frontend-mobile_coverage_after.txt docs/qa/2026-10-02/artifacts/frontend-web_coverage_before_valid.txt docs/qa/2026-10-02/artifacts/frontend-web_coverage_after.txt | head -155 && nl -ba docs/qa/2026-10-02/tools/ux-auth.cjs | head -160 && nl -ba docs/qa/2026-10-02/tools/ux-browser.cjs | head -115
+
+UTC start: 2026-10-03T01:22:53Z
+Command: pnpm --filter @toposonics/mobile exec vitest run --exclude "**/*.qa.test.ts" --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../../docs/qa/2026-10-02/artifacts/coverage-mobile-before
+Exit: 0
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile
+      Coverage enabled with v8
+
+ ✓ src/state/__tests__/compositionCache.test.ts (3 tests) 2ms
+ ✓ src/services/__tests__/playbackRate.test.ts (6 tests) 3ms
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  18:22:54
+   Duration  159ms (transform 28ms, setup 0ms, import 42ms, tests 5ms, environment 0ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |    2.34 |     4.22 |    3.33 |    2.16 |                   
+ src               |       0 |        0 |     100 |       0 |                   
+  config.ts        |       0 |        0 |     100 |       0 | 3-17              
+ src/auth          |       0 |        0 |       0 |       0 |                   
+  AuthProvider.tsx |       0 |        0 |       0 |       0 | 18-114            
+  secureStorage.ts |       0 |        0 |       0 |       0 | 10-115            
+  ...baseClient.ts |       0 |        0 |     100 |       0 | 6-18              
+ src/components    |       0 |        0 |       0 |       0 |                   
+  SignInModal.tsx  |       0 |        0 |       0 |       0 | 34-126            
+ src/screens       |       0 |        0 |       0 |       0 |                   
+  ...ailScreen.tsx |       0 |        0 |       0 |       0 | 28-271            
+  ...onsScreen.tsx |       0 |        0 |       0 |       0 | 22-153            
+  EditorScreen.tsx |       0 |        0 |       0 |       0 | 33-542            
+  HomeScreen.tsx   |       0 |        0 |       0 |       0 | 8-140             
+  ...omeScreen.tsx |       0 |      100 |       0 |       0 | 7-46              
+ src/services      |    8.82 |    13.75 |    4.76 |    8.06 |                   
+  apiClient.ts     |       0 |        0 |       0 |       0 | 22-108            
+  audioPlayer.ts   |       0 |        0 |       0 |       0 | 28-188            
+  ...Processing.ts |       0 |        0 |       0 |       0 | 35-129            
+  playbackRate.ts  |     100 |      100 |     100 |     100 |                   
+ src/state         |    3.27 |     5.88 |   14.28 |     3.6 |                   
+  ...sProvider.tsx |       0 |        0 |       0 |       0 | 30-269            
+  ...itionCache.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm --filter @toposonics/mobile exec vitest run --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../../docs/qa/2026-10-02/artifacts/coverage-mobile-after
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile
+      Coverage enabled with v8
+
+ ✓ src/state/__tests__/compositionCache.test.ts (3 tests) 6ms
+ ✓ src/auth/__tests__/secureStorage.qa.test.ts (8 tests) 12ms
+ ✓ src/services/__tests__/playbackRate.test.ts (6 tests) 9ms
+ ✓ src/state/__tests__/CompositionsProvider.qa.test.ts (8 tests) 35ms
+
+ Test Files  4 passed (4)
+      Tests  20 passed | 5 expected fail (25)
+   Start at  18:26:13
+   Duration  533ms (transform 198ms, setup 0ms, import 437ms, tests 62ms, environment 0ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   22.84 |    12.98 |   20.83 |   22.68 |                   
+ src               |       0 |        0 |     100 |       0 |                   
+  config.ts        |       0 |        0 |     100 |       0 | 3-17              
+ src/auth          |   46.15 |    26.66 |   28.57 |    44.7 |                   
+  AuthProvider.tsx |       0 |        0 |       0 |       0 | 18-114            
+  secureStorage.ts |      84 |      100 |     100 |    82.6 | ...00-101,114-115 
+  ...baseClient.ts |       0 |        0 |     100 |       0 | 6-18              
+ src/components    |       0 |        0 |       0 |       0 |                   
+  SignInModal.tsx  |       0 |        0 |       0 |       0 | 34-126            
+ src/screens       |       0 |        0 |       0 |       0 |                   
+  ...ailScreen.tsx |       0 |        0 |       0 |       0 | 28-271            
+  ...onsScreen.tsx |       0 |        0 |       0 |       0 | 22-153            
+  EditorScreen.tsx |       0 |        0 |       0 |       0 | 33-542            
+  HomeScreen.tsx   |       0 |        0 |       0 |       0 | 8-140             
+  ...omeScreen.tsx |       0 |      100 |       0 |       0 | 7-46              
+ src/services      |    8.82 |    13.75 |    4.76 |    8.06 |                   
+  apiClient.ts     |       0 |        0 |       0 |       0 | 22-108            
+  audioPlayer.ts   |       0 |        0 |       0 |       0 | 28-188            
+  ...Processing.ts |       0 |        0 |       0 |       0 | 35-129            
+  playbackRate.ts  |     100 |      100 |     100 |     100 |                   
+ src/state         |    83.6 |    61.76 |   95.23 |   89.18 |                   
+  ...sProvider.tsx |   83.05 |    59.37 |   94.44 |   88.78 | ...54,158-165,233 
+  ...itionCache.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------
+
+Exit: 0
+UTC start: 2026-10-03T01:24:35Z
+Command: corepack pnpm --filter @toposonics/web exec vitest run --exclude "**/*.qa.test.ts" --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../../docs/qa/2026-10-02/artifacts/coverage-web-before-valid
+Exit: 0
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored. The following esbuild options were set: `{ jsx: 'automatic' }`
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web
+      Coverage enabled with v8
+
+ ✓ src/hooks/__tests__/useToneEngine.utils.test.ts (5 tests) 2ms
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/app/layout.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected `from` but found `{`
+1: import type { Metadata, Viewport } from 'next';
+               ^
+2: import { Inter } from 'next/font/google';
+3: import Link from 'next/link';
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 1)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 12
+}
+Failed to parse file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web/src/components/ImageUploader.tsx. Excluding it from coverage.
+ Error [RolldownError]: Parse failed with 1 error:
+Expected a semicolon or an implicit semicolon after a statement, but found none
+4: import { Button } from '@toposonics/ui';
+5: 
+6: interface ImageUploaderProps {
+            ^
+7:   onImageSelected: (file: File) => void;
+8:   preview: string | null;
+    at error (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/logs-D6uA606S.mjs:166:24)
+    at normalizeParseError (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:25:9)
+    at wrap (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:5:39)
+    at parseAstAsync (file:///private/tmp/obsong-qa-tools/node_modules/rolldown/dist/parse-ast-index.mjs:54:9)
+    at V8CoverageProvider.remapCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:133:10)
+    at file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:119:23
+    at async Promise.all (index 3)
+    at V8CoverageProvider.getCoverageMapForUncoveredFiles (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:109:4)
+    at V8CoverageProvider.generateCoverage (file:///private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8/dist/provider.js:56:29)
+    at file:///Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:13671:23 {
+  code: 'PARSE_ERROR',
+  id: undefined,
+  pos: 117
+}
+     1	/* Auth/API are entirely synthetic and intercepted; no backend service receives requests. */
+     2	const fs=require('node:fs'),path=require('node:path'),{createRequire}=require('node:module');
+     3	const req=createRequire(path.join(process.env.QA_BROWSER_TOOLS||'/private/tmp/obsong-qa-tools','package.json'));
+     4	const {chromium}=req('playwright'),axeSource=fs.readFileSync(req.resolve('axe-core/axe.min.js'),'utf8');
+     5	const base=process.env.QA_BASE_URL||'http://127.0.0.1:3000',out=path.resolve('docs/qa/2026-10-02/artifacts');
+     6	const report={started:new Date().toISOString(),steps:[],requests:[],console:[],blockedExternal:[],axe:{}};
+     7	const user={id:'00000000-0000-4000-8000-000000000001',email:'qa@example.test',aud:'authenticated',role:'authenticated',created_at:'2026-10-02T00:00:00Z',user_metadata:{}};
+     8	let composition={id:'00000000-0000-4000-8000-000000000002',userId:user.id,title:'QA synthetic composition',description:'Local browser fixture',key:'C',scale:'C_MAJOR',mappingMode:'LINEAR_LANDSCAPE',presetId:'sine-soft',tempo:90,createdAt:'2026-10-02T00:00:00Z',updatedAt:'2026-10-02T00:00:00Z',noteEvents:[{note:'C4',start:0,duration:1,velocity:0.7}],metadata:{duration:2},noteCount:1};
+     9	let listState='empty',saveFails=false,authFails=true,releaseLoading,dialogMessages=[];
+    10	const save=()=>fs.writeFileSync(path.join(out,'ux-auth-report.json'),JSON.stringify(report,null,2));
+    11	async function step(name,fn){try{report.steps.push({name,utc:new Date().toISOString(),outcome:'pass',detail:await fn()});}catch(e){report.steps.push({name,utc:new Date().toISOString(),outcome:'fail',error:e.message.slice(0,1300)});}save();}
+    12	async function shot(page,name){await page.screenshot({path:path.join(out,'ux-'+name+'.png'),fullPage:true});return 'ux-'+name+'.png';}
+    13	async function scan(page,name){await page.evaluate(axeSource);const r=await page.evaluate(async()=>{const a=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return a.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,failureSummary:n.failureSummary}))}));});report.axe[name]=r;return r;}
+    14	(async()=>{let browser;try{
+    15	 browser=await chromium.connect(process.env.PW_TEST_CONNECT_WS_ENDPOINT);
+    16	 const context=await browser.newContext({viewport:{width:1440,height:1000}});
+    17	 await context.route('**/*',async route=>{
+    18	  const u=new URL(route.request().url());
+    19	  if(u.origin===new URL(base).origin)return route.continue();
+    20	  const method=route.request().method();
+    21	  const json=(data,status=200)=>route.fulfill({status,contentType:'application/json',headers:{'access-control-allow-origin':base,'access-control-allow-headers':'*','access-control-allow-methods':'*'},body:JSON.stringify(data)});
+    22	  if(u.origin==='http://127.0.0.1:3999'){
+    23	   report.requests.push({service:'auth-stub',method,path:u.pathname});
+    24	   if(method==='OPTIONS')return json({});
+    25	   if(u.pathname==='/auth/v1/token'){
+    26	    if(authFails)return json({error:'invalid_grant',error_description:'Invalid login credentials'},400);
+    27	    const payload={sub:user.id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'};
+    28	    const accessToken=[Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify(payload)).toString('base64url'),'local-fixture'].join('.');
+    29	    return json({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'local-fixture',user});
+    30	   } return json(user);
+    31	  }
+    32	  if(u.origin==='http://127.0.0.1:3998'){
+    33	   report.requests.push({service:'api-stub',method,path:u.pathname,state:listState});
+    34	   if(method==='OPTIONS')return json({});
+    35	   if(method==='POST'){
+    36	    if(saveFails)return json({success:false,error:{message:'Synthetic save unavailable'}},503);
+    37	    composition={...composition,...JSON.parse(route.request().postData()||'{}')};listState='items';return json({success:true,data:composition},201);
+    38	   }
+    39	   if(method==='PUT'){composition={...composition,...JSON.parse(route.request().postData()||'{}')};return json({success:true,data:composition});}
+    40	   if(method==='DELETE'){listState='empty';return route.fulfill({status:204,headers:{'access-control-allow-origin':base},body:''});}
+    41	   if(u.pathname==='/compositions'){
+    42	    if(listState==='loading')await new Promise(r=>releaseLoading=r);
+    43	    if(listState==='error')return json({success:false,error:{message:'Synthetic library unavailable'}},503);
+    44	    return json({success:true,data:listState==='items'?[composition]:[]});
+    45	   }
+    46	   return json({success:true,data:composition});
+    47	  }
+    48	  report.blockedExternal.push({origin:u.origin,path:u.pathname});return route.abort('blockedbyclient');
+    49	 });
+    50	 const page=await context.newPage(); page.setDefaultTimeout(12000); page.setDefaultNavigationTimeout(30000);
+    51	 page.on('dialog',async d=>{dialogMessages.push(d.message());await d.dismiss();});
+    52	 page.on('console',m=>{if(m.type()==='error')report.console.push(m.text().replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g,'[REDACTED]').slice(0,800));});
+    53	 await step('Invalid sign-in preserves input and displays error',async()=>{
+    54	  await page.goto(base+'/compositions',{waitUntil:'networkidle'});
+    55	  await page.getByRole('button',{name:'Sign In',exact:true}).click();
+    56	  await page.getByLabel('Email',{exact:true}).fill('qa@example.test');
+    57	  await page.getByLabel('Password',{exact:true}).fill('local-fixture');
+    58	  await page.getByRole('dialog').getByRole('button',{name:'Sign In',exact:true}).click();
+    59	  await page.waitForTimeout(500);
+    60	  return {dialogs:[...dialogMessages],modalRemains:await page.getByRole('dialog').count()===1};
+    61	 });
+    62	 await step('Successful stub sign-in and private empty library',async()=>{
+    63	  authFails=false;
+    64	  await page.getByRole('dialog').getByRole('button',{name:'Sign In',exact:true}).click();
+    65	  await page.getByRole('heading',{name:'No compositions yet'}).waitFor();
+    66	  return {screenshot:await shot(page,'library-empty'),axe:await scan(page,'library-empty'),signOutControls:await page.getByRole('button',{name:/sign out|log out/i}).count()+await page.getByRole('link',{name:/sign out|log out/i}).count()};
+    67	 });
+    68	 await step('Library loading, failure and retry states',async()=>{
+    69	  listState='loading';await page.reload({waitUntil:'domcontentloaded'});
+    70	  await page.getByText('Loading compositions...', {exact:true}).waitFor();
+    71	  const loading=await shot(page,'library-loading');
+    72	  const status=await page.evaluate(()=>[...document.querySelectorAll('[role=status],[role=alert],[aria-live]')].map(x=>({role:x.getAttribute('role'),live:x.getAttribute('aria-live'),text:x.textContent})));
+    73	  listState='error';releaseLoading?.();
+    74	  await page.getByText('Failed to load compositions',{exact:true}).waitFor();
+    75	  const error=await shot(page,'library-error');
+    76	  listState='empty';await page.getByRole('button',{name:'Retry',exact:true}).click();
+    77	  await page.getByRole('heading',{name:'No compositions yet'}).waitFor();
+    78	  return {loading,error,liveRegions:status,retryRecovered:true};
+    79	 });
+    80	 await step('Studio demo loads notes and save failure can retry',async()=>{
+    81	  await page.goto(base+'/studio',{waitUntil:'networkidle'});
+    82	  await page.getByRole('button',{name:/Ocean Horizon/}).click();
+    83	  await page.getByRole('button',{name:'Play Demo',exact:true}).click();
+    84	  await page.getByRole('button',{name:'Save to Library'}).waitFor();
+    85	  const playDemoStartsPlayback=await page.getByRole('button',{name:'⏹ Stop',exact:true}).isEnabled();
+    86	  await page.getByLabel('Title',{exact:true}).fill('QA synthetic composition');
+    87	  saveFails=true;await page.getByRole('button',{name:'Save to Library'}).click();await page.waitForTimeout(500);
+    88	  saveFails=false;await page.getByRole('button',{name:'Save to Library'}).click();await page.waitForTimeout(500);
+    89	  return {playDemoStartsPlayback,dialogs:[...dialogMessages],screenshot:await shot(page,'studio-saved')};
+    90	 });
+    91	 await step('Saved library, detail, edit and mobile reflow',async()=>{
+    92	  await page.goto(base+'/compositions',{waitUntil:'networkidle'});
+    93	  await page.getByRole('link',{name:/QA synthetic composition/}).click();
+    94	  await page.getByRole('heading',{name:'QA synthetic composition',exact:true}).waitFor();
+    95	  const detailAxe=await scan(page,'detail');
+    96	  await page.getByRole('button',{name:'Edit',exact:true}).click();
+    97	  await page.getByLabel('Title',{exact:true}).fill('QA renamed composition');
+    98	  await page.getByRole('button',{name:'Save',exact:true}).click();
+    99	  await page.getByRole('heading',{name:'QA renamed composition',exact:true}).waitFor();
+   100	  await page.setViewportSize({width:375,height:812});
+   101	  const mobile=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
+   102	  return {detailAxe,mobile,screenshot:await shot(page,'detail-mobile-375')};
+   103	 });
+   104	 await context.close();
+   105	 }catch(e){report.fatal=e.message;process.exitCode=1;}finally{if(browser)await browser.close();report.ended=new Date().toISOString();save();console.log(JSON.stringify(report.steps,null,2));}})();
+     1	/* Local-only connected browser audit. No browser launch, credentials, or product changes. */
+     2	const fs = require('node:fs');
+     3	const path = require('node:path');
+     4	const { createRequire } = require('node:module');
+     5	const req = createRequire(path.join(process.env.QA_BROWSER_TOOLS || '/private/tmp/obsong-qa-tools', 'package.json'));
+     6	const { chromium, firefox, webkit } = req('playwright');
+     7	const axePath = req.resolve('axe-core/axe.min.js');
+     8	const base = process.env.QA_BASE_URL || 'http://127.0.0.1:3000';
+     9	const out = path.resolve('docs/qa/2026-10-02/artifacts');
+    10	const report = {started: new Date().toISOString(), base, steps: [], axe: {}, console: [], pageErrors: [], failedRequests: [], blockedExternal: [], metrics: {}, browsers: []};
+    11	const safe = s => String(s).replace(/Bearer\s+[A-Za-z0-9._-]+/gi,'Bearer [REDACTED]').replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g,'[REDACTED]');
+    12	let browser;
+    13	async function step(name, run) {
+    14	  const started = new Date().toISOString();
+    15	  try { const detail = await run(); report.steps.push({name, started, outcome:'pass', detail}); }
+    16	  catch (err) { report.steps.push({name, started, outcome:'fail', error:safe(err.message).slice(0,1500)}); }
+    17	  fs.writeFileSync(path.join(out, 'ux-browser-report.json'), JSON.stringify(report, null, 2));
+    18	}
+    19	async function screenshot(page,name) { await page.screenshot({path:path.join(out, 'ux-'+name+'.png'),fullPage:true}); return 'ux-'+name+'.png'; }
+    20	async function screenshotEngine(page,name) {return screenshot(page,'studio-'+name);}
+    21	async function scan(page,name) {
+    22	 await page.evaluate(fs.readFileSync(axePath, 'utf8'));
+    23	 report.axe[name]=await page.evaluate(async()=> {
+    24	   const result=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});
+    25	   return {violations:result.violations.map(v=>({id:v.id,impact:v.impact,description:v.description,help:v.help,nodes:v.nodes.map(n=>({target:n.target,html:n.html,failureSummary:n.failureSummary}))})),passes:result.passes.length,incomplete:result.incomplete.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length}))};
+    26	 });
+    27	 return report.axe[name].violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length}));
+    28	}
+    29	(async()=>{
+    30	 try {
+    31	  browser=await chromium.connect(process.env.PW_TEST_CONNECT_WS_ENDPOINT);
+    32	  report.browsers.push({requested:'chromium',actual:browser.browserType().name(),version:browser.version()});
+    33	  const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
+    34	  await context.route('**/*', async route=>{
+    35	   const url=new URL(route.request().url());
+    36	   if(url.origin===new URL(base).origin) return route.continue();
+    37	   if(['data:','blob:'].includes(url.protocol))return route.continue();
+    38	   report.blockedExternal.push({origin:url.origin,path:url.pathname});
+    39	   return route.abort('blockedbyclient');
+    40	  });
+    41	  const page=await context.newPage(); page.setDefaultTimeout(12000); page.setDefaultNavigationTimeout(30000);
+    42	  page.on('console',m=>{if(['error','warning'].includes(m.type()))report.console.push({type:m.type(),text:safe(m.text()).slice(0,1000)});});
+    43	  page.on('pageerror',e=>report.pageErrors.push(safe(e.message).slice(0,1000)));
+    44	  page.on('requestfailed',r=>report.failedRequests.push({url:new URL(r.url()).pathname,error:r.failure()?.errorText}));
+    45	  page.on('dialog',async d=>{report.steps.push({name:'Native dialog',started:new Date().toISOString(),outcome:'observed',detail:d.message()});await d.dismiss();});
+    46	  await step('Home route, desktop screenshot, axe',async()=>{
+    47	   await page.goto(base,{waitUntil:'networkidle',timeout:90000});
+    48	   await page.getByRole('heading',{name:'Turn Images into Musical Landscapes'}).waitFor();
+    49	   report.metrics.home=await page.evaluate(()=>({navigation:performance.getEntriesByType('navigation').map(n=>({duration:n.duration,domContentLoaded:n.domContentLoadedEventEnd,transferSize:n.transferSize})),paint:performance.getEntriesByType('paint').map(p=>({name:p.name,startTime:p.startTime})),resources:performance.getEntriesByType('resource').reduce((a,r)=>({count:a.count+1,transferBytes:a.transferBytes+r.transferSize,encodedBytes:a.encodedBytes+r.encodedBodySize}),{count:0,transferBytes:0,encodedBytes:0})}));
+    50	   return {screenshot:await screenshot(page,'home-desktop'),axe:await scan(page,'home')};
+    51	  });
+    52	  await step('Home mobile 375 and 320 layout',async()=>{
+    53	   const sizes=[];
+    54	   for(const width of [375,320]){await page.setViewportSize({width,height:812});sizes.push(await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('header a')].map(e=>({text:e.textContent,rect:{x:e.getBoundingClientRect().x,right:e.getBoundingClientRect().right}}))})));await screenshot(page,'home-mobile-'+width);}
+    55	   await page.setViewportSize({width:1440,height:1000});return sizes;
+    56	  });
+    57	  await step('Landing demo keyboard semantics',async()=>{
+    58	   await page.getByRole('button',{name:'▶ Try Demo'}).first().click();
+    59	   await page.getByRole('dialog').waitFor();
+    60	   const initial=await page.evaluate(()=>({active:document.activeElement?.textContent?.trim().slice(0,80),insideDialog:!!document.activeElement?.closest('[role=dialog]')}));
+    61	   await screenshot(page,'landing-demo');
+    62	   const axe=await scan(page,'landing-demo');
+    63	   await page.keyboard.press('Escape');return {initial,axe,closed:await page.getByRole('dialog').count()===0};
+    64	  });
+    65	  await step('Studio empty state and axe',async()=>{
+    66	   await page.goto(base+'/studio',{waitUntil:'networkidle',timeout:90000});
+    67	   await page.getByRole('heading',{name:'Studio',exact:true}).waitFor();
+    68	   return {generateDisabled:await page.getByRole('button',{name:'Generate Composition'}).isDisabled(),screenshot:await screenshot(page,'studio-empty'),axe:await scan(page,'studio-empty')};
+    69	  });
+    70	  await step('Selection states are exposed semantically (UX-002 candidate)',async()=>{
+    71	   await page.getByRole('button',{name:'D',exact:true}).click();
+    72	   const key=await page.getByRole('button',{name:'D',exact:true}).evaluate(el=>({role:el.getAttribute('role'),pressed:el.getAttribute('aria-pressed'),checked:el.getAttribute('aria-checked'),class:el.className}));
+    73	   const mode=await page.getByRole('button',{name:/Linear Landscape Maps/}).evaluate(el=>({role:el.getAttribute('role'),pressed:el.getAttribute('aria-pressed'),checked:el.getAttribute('aria-checked')}));
+    74	   return {key,mode,ariaSnapshot:await page.getByRole('group',{name:'Key',exact:true}).ariaSnapshot()};
+    75	  });
+    76	  await step('Synthetic portrait upload, generate, playback and MIDI',async()=>{
+    77	   const dataUrl=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=1301;c.height=2000;const g=c.getContext('2d');const grad=g.createLinearGradient(0,0,1301,2000);grad.addColorStop(0,'#ffffff');grad.addColorStop(1,'#111111');g.fillStyle=grad;g.fillRect(0,0,1301,2000);return c.toDataURL('image/png');});
+    78	   await page.locator('input[type=file]').setInputFiles({name:'qa-portrait-1301x2000.png',mimeType:'image/png',buffer:Buffer.from(dataUrl.split(',')[1],'base64')});
+    79	   await page.getByRole('button',{name:'Generate Composition'}).waitFor();
+    80	   await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Generate Composition'&&!b.disabled),{timeout:30000});
+    81	   await page.getByRole('button',{name:'Generate Composition'}).click();
+    82	   await page.getByRole('button',{name:'Save to Library'}).waitFor();
+    83	   await screenshot(page,'studio-generated');
+    84	   const downloadPromise=page.waitForEvent('download',{timeout:20000});
+    85	   await page.getByRole('button',{name:'Export as MIDI'}).click();
+    86	   const download=await downloadPromise; await download.saveAs(path.join(out,'ux-generated.mid'));
+    87	   const buffer=fs.readFileSync(path.join(out,'ux-generated.mid'));
+    88	   await page.getByRole('button',{name:'▶ Play',exact:true}).click();
+    89	   await page.getByRole('button',{name:'⏹ Stop',exact:true}).waitFor();
+    90	   await page.getByRole('button',{name:'⏹ Stop',exact:true}).click();
+    91	   return {midiHeader:buffer.subarray(0,4).toString(),midiBytes:buffer.length,axe:await scan(page,'studio-generated')};
+    92	  });
+    93	  await step('Valid 640x480 image recovery, generation, playback, MIDI and axe',async()=>{
+    94	   await screenshot(page,'portrait-analysis-failure');
+    95	   const dataUrl=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=640;c.height=480;const g=c.getContext('2d');const grad=g.createLinearGradient(0,0,640,480);grad.addColorStop(0,'white');grad.addColorStop(1,'black');g.fillStyle=grad;g.fillRect(0,0,640,480);return c.toDataURL('image/png');});
+    96	   await page.locator('input[type=file]').setInputFiles({name:'qa-landscape-640x480.png',mimeType:'image/png',buffer:Buffer.from(dataUrl.split(',')[1],'base64')});
+    97	   await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Generate Composition'&&!b.disabled));
+    98	   await page.getByRole('button',{name:'Generate Composition'}).click();
+    99	   await page.getByRole('button',{name:'Save to Library'}).waitFor();
+   100	   const downloadPromise=page.waitForEvent('download');
+   101	   await page.getByRole('button',{name:'Export as MIDI'}).click();
+   102	   const download=await downloadPromise;await download.saveAs(path.join(out,'ux-generated.mid'));
+   103	   const midi=fs.readFileSync(path.join(out,'ux-generated.mid'));
+   104	   await page.getByRole('button',{name:'▶ Play',exact:true}).click();
+   105	   await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.includes('Stop')&&!b.disabled));
+   106	   const playing=await page.getByRole('button',{name:'▶ Playing...',exact:true}).count();
+   107	   await page.getByRole('button',{name:'⏹ Stop',exact:true}).click();
+   108	   return {playing,midiHeader:midi.subarray(0,4).toString(),midiBytes:midi.length,screenshot:await screenshot(page,'studio-generated'),axe:await scan(page,'studio-generated')};
+   109	  });
+   110	  await step('Studio mobile screenshot and reflow',async()=>{
+   111	   await page.setViewportSize({width:375,height:812});
+   112	   const result=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
+   113	   await screenshot(page,'studio-mobile-375');await page.setViewportSize({width:1440,height:1000});return result;
+   114	  });
+   115	  await step('Library anonymous state, modal focus trap/restore and axe',async()=>{
+
+Exit: 0

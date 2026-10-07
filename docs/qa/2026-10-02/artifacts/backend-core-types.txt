@@ -1,0 +1,14 @@
+UTC start: 2026-10-03T01:25:19Z
+Command: pnpm --filter @toposonics/core-image typecheck && pnpm --filter @toposonics/core-audio typecheck
+Exit: 0
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> @toposonics/core-image@0.1.0 typecheck /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image
+> tsc --noEmit
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> @toposonics/core-audio@0.1.0 typecheck /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio
+> tsc --noEmit
+

@@ -1,0 +1,11 @@
+UTC start: 2026-10-03T01:27:34Z
+Command: mkdir -p /private/tmp/obsong-qa-node20 && cd /private/tmp/obsong-qa-node20 && npm install --prefix /private/tmp/obsong-qa-node20 --cache /private/tmp/obsong-qa-npm-cache --no-audit --no-fund node@20.19.4
+
+
+added 2 packages in 2s
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   node@20.19.4 (preinstall: node installArchSpecificPackage)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+
+Exit: 0

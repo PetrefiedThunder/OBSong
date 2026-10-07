@@ -1,0 +1,14 @@
+UTC start: 2026-10-03T01:30:59Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path("docs/qa/2026-10-02/passes/FRONTEND.md")
+s=p.read_text().replace("CompositionsProvider.ts:","CompositionsProvider.tsx:").replace("CompositionDetailScreen.tsx:60-61","CompositionDetailScreen.tsx:57")
+p.write_text(s)
+p=Path("docs/qa/2026-10-02/SESSION-LOG.md")
+with p.open("a") as f:
+ f.write("\n- 2026-10-03T01:30Z: Root visually inspected ux-detail-mobile-375.png and ux-portrait-analysis-failure.png using view_image; overflow is visible and portrait leaves Generate disabled (native alert text is in browser JSON). Stopped the successful polling dev session with Ctrl-C after browser completion; runner records exit130. Independent gate report accepted QA scope; root corrected two source citations and began final production build after shutting down dev.\n")
+PY
+if [ -d .pnpm-store ]; then mv .pnpm-store /private/tmp/obsong-qa-bootstrap-store; fi
+
+
+Exit: 0

@@ -1,0 +1,106 @@
+UTC start: 2026-10-03T01:24:58Z
+Command: sed -n "990,1055p" node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/coverage.DM_a_rWm.js && sed -n "1140,1175p" /private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/binding-tzp6Hc_3.d.mts
+Exit: 0
+
+				map: null
+			};
+		}
+		if (project.isBrowserEnabled() || viteEnvironment === "__browser__") {
+			const result = await (project.browser?.vite.environments.client || project.vite.environments.client).transformRequest(url);
+			if (result) return result;
+		}
+		return project.vite.environments[viteEnvironment].transformRequest(url);
+	}
+	createUncoveredFileTransformer(ctx) {
+		const projects = new Set([...ctx.projects, ctx.getRootProject()]);
+		return async (filename) => {
+			let lastError;
+			for (const project of projects) {
+				const root = project.config.root;
+				// On Windows root doesn't start with "/" while filenames do
+				if (!filename.startsWith(root) && !filename.startsWith(`/${root}`)) continue;
+				try {
+					const environment = project.config.environment;
+					const viteEnvironment = environment === "jsdom" || environment === "happy-dom" ? "client" : "ssr";
+					return await this.transformFile(filename, project, viteEnvironment);
+				} catch (err) {
+					lastError = err;
+				}
+			}
+			// All vite servers failed to transform the file
+			throw lastError;
+		};
+	}
+}
+/**
+* Narrow down `unknown` glob thresholds to resolved ones
+*/
+function resolveGlobThresholds(thresholds) {
+	if (!thresholds || typeof thresholds !== "object") return {};
+	if (100 in thresholds && thresholds[100] === true) return {
+		lines: 100,
+		branches: 100,
+		functions: 100,
+		statements: 100
+	};
+	return {
+		lines: "lines" in thresholds && typeof thresholds.lines === "number" ? thresholds.lines : void 0,
+		branches: "branches" in thresholds && typeof thresholds.branches === "number" ? thresholds.branches : void 0,
+		functions: "functions" in thresholds && typeof thresholds.functions === "number" ? thresholds.functions : void 0,
+		statements: "statements" in thresholds && typeof thresholds.statements === "number" ? thresholds.statements : void 0
+	};
+}
+function assertConfigurationModule(config) {
+	try {
+		// @ts-expect-error -- Intentional unsafe null pointer check as wrapped in try-catch
+		if (typeof config.test.coverage.thresholds !== "object") throw new TypeError("Expected config.test.coverage.thresholds to be an object");
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`Unable to parse thresholds from configuration file: ${message}`);
+	}
+}
+function resolveConfig(configModule) {
+	const mod = configModule.exports.default;
+	try {
+		// Check for "export default { test: {...} }"
+		if (mod.$type === "object") return mod;
+		// "export default defineConfig(...)"
+		let config = resolveDefineConfig(mod);
+		if (config) return config;
+		// "export default mergeConfig(..., defineConfig(...))"
+  lang?: 'js' | 'jsx' | 'ts' | 'tsx' | 'dts';
+  /** Treat the source text as `script` or `module` code. */
+  sourceType?: 'script' | 'module' | 'commonjs' | 'unambiguous' | undefined;
+  /**
+   * The current working directory. Used to resolve relative paths in other
+   * options.
+   */
+  cwd?: string;
+  /** Set assumptions in order to produce smaller output. */
+  assumptions?: CompilerAssumptions;
+  /**
+   * Configure how TypeScript is transformed.
+   *
+   * `typescript.declaration` is evaluated before all transforms.
+   *
+   * @see {@link https://oxc.rs/docs/guide/usage/transformer/typescript}
+   */
+  typescript?: TypeScriptOptions;
+  /** Decorator plugin */
+  decorator?: DecoratorOptions;
+  /**
+   * Third-party plugins to use.
+   * @see {@link https://oxc.rs/docs/guide/usage/transformer/plugins}
+   */
+  plugins?: PluginsOptions;
+  /**
+   * Configure how TSX and JSX are transformed.
+   * @see {@link https://oxc.rs/docs/guide/usage/transformer/jsx}
+   */
+  jsx?: 'preserve' | JsxOptions;
+  /**
+   * Sets the target environment for the generated JavaScript.
+   *
+   * The lowest target is `es2015`.
+   *
+   * Example:

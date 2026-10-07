@@ -1,0 +1,6 @@
+UTC start: 2026-10-03T01:24:31Z
+Command: pkill -f "^node docs/qa/2026-10-02/tools/ux-browser.cjs$"
+Exit: 3
+
+sysmon request failed with error: sysmond service not found
+pkill: Cannot get process list

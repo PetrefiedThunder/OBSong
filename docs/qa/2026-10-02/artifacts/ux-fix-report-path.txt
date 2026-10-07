@@ -1,0 +1,11 @@
+UTC start: 2026-10-03T01:27:34Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path('docs/qa/2026-10-02/tools/ux-playwright.config.cjs');s=p.read_text().replace("outputFile:'docs/qa/2026-10-02/artifacts/ux-regression-results.json'", "outputFile:path.resolve(__dirname,'../artifacts/ux-regression-results.json')")
+p.write_text(s)
+src=Path('docs/qa/2026-10-02/tools/docs/qa/2026-10-02/artifacts/ux-regression-results.json')
+if src.exists():src.replace('docs/qa/2026-10-02/artifacts/ux-regression-initial.json')
+PY
+
+
+Exit: 0

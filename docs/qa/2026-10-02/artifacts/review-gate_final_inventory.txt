@@ -1,0 +1,26 @@
+UTC start: 2026-10-03T01:28:00Z
+Command: git diff --name-only && git ls-files --others --exclude-standard apps packages docs/qa/2026-10-02/passes && rg -n "negative|Counts:|Coverage|Before|After|expected|FE-00" docs/qa/2026-10-02/passes/FRONTEND.md && rg -n "Failed to parse|All files|Tests " docs/qa/2026-10-02/artifacts/frontend-web_coverage_before_oxc.txt docs/qa/2026-10-02/artifacts/frontend-web_coverage_after.txt
+
+apps/mobile/package.json
+apps/web/vitest.config.ts
+pnpm-lock.yaml
+apps/api/src/__tests__/qa.auth.test.ts
+apps/api/src/__tests__/qa.boundaries.test.ts
+apps/api/src/__tests__/qa.persistence.test.ts
+apps/api/src/__tests__/qa.proxy.test.ts
+apps/mobile/src/auth/__tests__/secureStorage.qa.test.ts
+apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts
+apps/web/src/lib/__tests__/imageProcessing.qa.test.ts
+docs/qa/2026-10-02/passes/BACKEND-LOG.md
+docs/qa/2026-10-02/passes/BACKEND.md
+docs/qa/2026-10-02/passes/CORE-SUPPLEMENT.md
+docs/qa/2026-10-02/passes/FRONTEND-LOG.md
+docs/qa/2026-10-02/passes/REVIEW-LOG.md
+docs/qa/2026-10-02/passes/SETUP-LOG.md
+docs/qa/2026-10-02/passes/UX-LOG.md
+docs/qa/2026-10-02/passes/UX.md
+packages/core-audio/src/__tests__/qa-invariants.test.ts
+packages/core-image/src/__tests__/qa-invariants.test.ts
+rg: docs/qa/2026-10-02/passes/FRONTEND.md: IO error for operation on docs/qa/2026-10-02/passes/FRONTEND.md: No such file or directory (os error 2)
+
+Exit: 2

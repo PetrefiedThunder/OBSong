@@ -1,0 +1,9 @@
+UTC start: 2026-10-03T01:28:02Z
+Command: cd /private/tmp/obsong-qa-node20 && npm install --prefix /private/tmp/obsong-qa-node20 --cache /private/tmp/obsong-qa-npm-cache --ignore-scripts --no-audit --no-fund node-darwin-arm64@20.19.4
+
+npm error code ETARGET
+npm error notarget No matching version found for node-darwin-arm64@20.19.4.
+npm error notarget In most cases you or one of your dependencies are requesting a package version that doesn't exist.
+npm error A complete log of this run can be found in: /private/tmp/obsong-qa-npm-cache/_logs/2026-10-03T01_28_02_172Z-debug-0.log
+
+Exit: 1

@@ -1,0 +1,62 @@
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm --filter @toposonics/web exec vitest run --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../../docs/qa/2026-10-02/artifacts/coverage-web-after
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web
+      Coverage enabled with v8
+
+ ✓ src/hooks/__tests__/useToneEngine.utils.test.ts (5 tests) 8ms
+ ✓ src/lib/__tests__/imageProcessing.qa.test.ts (11 tests) 11ms
+
+ Test Files  2 passed (2)
+      Tests  14 passed | 2 expected fail (16)
+   Start at  18:26:14
+   Duration  407ms (transform 165ms, setup 0ms, import 238ms, tests 19ms, environment 0ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     4.7 |      3.3 |    5.31 |    4.72 |                   
+ src               |       0 |        0 |       0 |       0 |                   
+  middleware.ts    |       0 |        0 |       0 |       0 | 22-74             
+ src/app           |       0 |        0 |       0 |       0 |                   
+  layout.tsx       |       0 |      100 |       0 |       0 | 10-49             
+  page.tsx         |       0 |        0 |       0 |       0 | 1-281             
+ ...p/compositions |       0 |        0 |       0 |       0 |                   
+  page.tsx         |       0 |        0 |       0 |       0 | 1-167             
+ ...positions/[id] |       0 |        0 |       0 |       0 |                   
+  page.tsx         |       0 |        0 |       0 |       0 | 1-274             
+ src/app/studio    |       0 |        0 |       0 |       0 |                   
+  page.tsx         |       0 |        0 |       0 |       0 | 1-429             
+ src/components    |       0 |        0 |       0 |       0 |                   
+  ...eUploader.tsx |       0 |        0 |       0 |       0 | 1-128             
+  ...emoPlayer.tsx |       0 |        0 |       0 |       0 | 1-264             
+  LoginModal.tsx   |       0 |        0 |       0 |       0 | 1-93              
+  ...gControls.tsx |       0 |        0 |       0 |       0 | 1-201             
+  ...kControls.tsx |       0 |        0 |       0 |       0 | 1-60              
+  ...itionCard.tsx |       0 |        0 |       0 |       0 | 1-147             
+  ...kSelector.tsx |       0 |        0 |       0 |       0 | 1-113             
+  ...isualizer.tsx |       0 |        0 |       0 |       0 | 1-164             
+ ...omponents/tour |       0 |        0 |       0 |       0 |                   
+  TourPopup.tsx    |       0 |        0 |       0 |       0 | 6-44              
+  TourProvider.tsx |       0 |        0 |       0 |       0 | 14-62             
+ src/contexts      |       0 |        0 |       0 |       0 |                   
+  AuthContext.tsx  |       0 |        0 |       0 |       0 | 1-121             
+ src/hooks         |    1.92 |     5.05 |      12 |    1.96 |                   
+  useToneEngine.ts |       0 |        0 |       0 |       0 | 1-536             
+  ...gine.utils.ts |     100 |    83.33 |     100 |     100 | 22                
+ src/lib           |   32.21 |       24 |    25.8 |   32.62 |                   
+  analytics.ts     |       0 |        0 |       0 |       0 | 16                
+  api.ts           |       0 |      100 |     100 |       0 | 11-20             
+  demoPlayback.ts  |       0 |        0 |       0 |       0 | 32-148            
+  ...Processing.ts |   48.27 |    57.14 |    62.5 |   48.27 | 88-174            
+  ...eThumbnail.ts |   95.23 |      100 |      75 |     100 |                   
+  midiExport.ts    |       0 |        0 |       0 |       0 | 5-62              
+  ...baseClient.ts |       0 |        0 |     100 |       0 | 3-10              
+-------------------|---------|----------|---------|---------|-------------------
+
+Exit: 0

@@ -1,0 +1,18 @@
+UTC start: 2026-10-03T01:22:29Z
+Command: pnpm --filter @toposonics/web exec vitest run src/lib/__tests__/imageProcessing.qa.test.ts
+Exit: 0
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web
+
+ ✓ src/lib/__tests__/imageProcessing.qa.test.ts (11 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed | 2 expected fail (11)
+   Start at  18:22:29
+   Duration  147ms (transform 30ms, setup 0ms, import 41ms, tests 9ms, environment 0ms)
+

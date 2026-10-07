@@ -1,0 +1,10 @@
+UTC start: 2026-10-03T01:20:37Z
+Command: pnpm --version; corepack --version; git worktree list; git status --short
+Exit: 0
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+8.15.0
+0.23.0
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong 371ad7e [qa/2026-10-02-sweep]
+?? .pnpm-store/
+?? docs/qa/

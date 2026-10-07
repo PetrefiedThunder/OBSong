@@ -1,0 +1,284 @@
+UTC start: 2026-10-03T01:25:36Z
+Command: nl -ba apps/mobile/src/auth/secureStorage.ts && nl -ba apps/web/src/components/LandingDemoPlayer.tsx | sed -n "90,215p" && cat .eslintrc*
+
+     1	/**
+     2	 * Secure storage adapter for Supabase authentication
+     3	 * Uses expo-secure-store to encrypt and store sensitive data (JWTs)
+     4	 * on the device's secure keychain/keystore
+     5	 */
+     6	import * as SecureStore from 'expo-secure-store';
+     7	import AsyncStorage from '@react-native-async-storage/async-storage';
+     8	import { SupportedStorage } from '@supabase/supabase-js';
+     9	
+    10	const STORAGE_KEY_PREFIX = 'supabase.auth.';
+    11	const CHUNK_SUFFIX = '.chunk.';
+    12	const CHUNK_COUNT_SUFFIX = '.chunks';
+    13	
+    14	// expo-secure-store 12.x (SDK 50) caps values at 2048 bytes, and some Android
+    15	// keystore implementations hard-fail above it. A Supabase session blob (access JWT +
+    16	// refresh token + serialized user) is routinely 3-5 KB, so values that exceed the limit
+    17	// are split across numbered SecureStore keys instead of being silently dropped/truncated.
+    18	const SECURE_STORE_VALUE_LIMIT = 2048;
+    19	
+    20	interface ChunkedRef {
+    21	  chunks: number;
+    22	}
+    23	
+    24	async function removeChunks(prefixedKey: string): Promise<void> {
+    25	  const countRaw = await AsyncStorage.getItem(prefixedKey + CHUNK_COUNT_SUFFIX);
+    26	  if (countRaw == null) return;
+    27	
+    28	  const count = Number.parseInt(countRaw, 10);
+    29	  for (let i = 0; i < count; i++) {
+    30	    try {
+    31	      await SecureStore.deleteItemAsync(prefixedKey + CHUNK_SUFFIX + i);
+    32	    } catch {
+    33	      // best-effort cleanup
+    34	    }
+    35	  }
+    36	  await AsyncStorage.removeItem(prefixedKey + CHUNK_COUNT_SUFFIX);
+    37	}
+    38	
+    39	export const secureStorage: SupportedStorage = {
+    40	  /**
+    41	   * Store a value securely in the device's encrypted storage
+    42	   */
+    43	  async setItem(key: string, value: string): Promise<void> {
+    44	    const prefixedKey = STORAGE_KEY_PREFIX + key;
+    45	    try {
+    46	      if (value.length <= SECURE_STORE_VALUE_LIMIT) {
+    47	        // Fits a single key: store directly and clear any stale chunks from a
+    48	        // previous oversized value so getItem doesn't reassemble them.
+    49	        await removeChunks(prefixedKey);
+    50	        await SecureStore.setItemAsync(prefixedKey, value);
+    51	        return;
+    52	      }
+    53	
+    54	      const chunkCount = Math.ceil(value.length / SECURE_STORE_VALUE_LIMIT);
+    55	      for (let i = 0; i < chunkCount; i++) {
+    56	        await SecureStore.setItemAsync(
+    57	          prefixedKey + CHUNK_SUFFIX + i,
+    58	          value.slice(i * SECURE_STORE_VALUE_LIMIT, (i + 1) * SECURE_STORE_VALUE_LIMIT)
+    59	        );
+    60	      }
+    61	
+    62	      // The ref goes through AsyncStorage because it is JSON (a SecureStore value is a
+    63	      // plain string, and parsing "null"/"{" is ambiguous with raw stored values).
+    64	      await AsyncStorage.setItem(
+    65	        prefixedKey + CHUNK_COUNT_SUFFIX,
+    66	        JSON.stringify({ chunks: chunkCount } satisfies ChunkedRef)
+    67	      );
+    68	      // Clear the single-key slot so an old small value can't shadow the chunks.
+    69	      await SecureStore.deleteItemAsync(prefixedKey);
+    70	    } catch (error) {
+    71	      console.error('SecureStore setItem error:', error);
+    72	      throw error;
+    73	    }
+    74	  },
+    75	
+    76	  /**
+    77	   * Retrieve a value from secure storage
+    78	   */
+    79	  async getItem(key: string): Promise<string | null> {
+    80	    const prefixedKey = STORAGE_KEY_PREFIX + key;
+    81	    try {
+    82	      const refRaw = await AsyncStorage.getItem(prefixedKey + CHUNK_COUNT_SUFFIX);
+    83	      if (refRaw == null) {
+    84	        return await SecureStore.getItemAsync(prefixedKey);
+    85	      }
+    86	
+    87	      const ref = JSON.parse(refRaw) as ChunkedRef;
+    88	      const parts: string[] = [];
+    89	      for (let i = 0; i < ref.chunks; i++) {
+    90	        const part = await SecureStore.getItemAsync(prefixedKey + CHUNK_SUFFIX + i);
+    91	        if (part == null) {
+    92	          // A chunk vanished (keystore reset, partial wipe) — the session is
+    93	          // unrecoverable; report null rather than a corrupt partial blob.
+    94	          return null;
+    95	        }
+    96	        parts.push(part);
+    97	      }
+    98	      return parts.join('');
+    99	    } catch (error) {
+   100	      console.error('SecureStore getItem error:', error);
+   101	      return null;
+   102	    }
+   103	  },
+   104	
+   105	  /**
+   106	   * Remove a value from secure storage
+   107	   */
+   108	  async removeItem(key: string): Promise<void> {
+   109	    const prefixedKey = STORAGE_KEY_PREFIX + key;
+   110	    try {
+   111	      await removeChunks(prefixedKey);
+   112	      await SecureStore.deleteItemAsync(prefixedKey);
+   113	    } catch (error) {
+   114	      console.error('SecureStore removeItem error:', error);
+   115	      throw error;
+   116	    }
+   117	  },
+   118	};
+    90	      toneRef.current = tone;
+    91	      synthRef.current = new tone.PolySynth(tone.Synth, {
+    92	        envelope: {
+    93	          attack: 0.02,
+    94	          decay: 0.1,
+    95	          sustain: 0.5,
+    96	          release: 1.0,
+    97	        },
+    98	      }).toDestination() as ToneSynth;
+    99	    });
+   100	
+   101	    return () => {
+   102	      disposed = true;
+   103	      clearStopTimer();
+   104	      // The Tone Transport is a module-level singleton shared with the studio engine;
+   105	      // stop it on unmount so a still-pending demo timer can't silence studio playback.
+   106	      if (partRef.current) {
+   107	        partRef.current.stop();
+   108	        partRef.current.dispose();
+   109	      }
+   110	      toneRef.current?.Transport.stop();
+   111	      synthRef.current?.dispose();
+   112	    };
+   113	  }, []);
+   114	
+   115	  const handlePlay = async () => {
+   116	    if (!synthRef.current || demoNotes.length === 0) return;
+   117	
+   118	    const tone = toneRef.current ?? (await loadTone());
+   119	    toneRef.current = tone;
+   120	
+   121	    await tone.start();
+   122	
+   123	    // Stop any existing playback (and cancel a pending auto-stop from a prior play)
+   124	    clearStopTimer();
+   125	    if (partRef.current) {
+   126	      partRef.current.stop();
+   127	      partRef.current.dispose();
+   128	    }
+   129	
+   130	    // NoteEvent start/duration are in beats; Tone.js reads numeric Part times as seconds,
+   131	    // so convert with the demo's tempo (otherwise a 40 BPM demo plays as if 60 BPM).
+   132	    const secondsPerBeat = 60 / tempoBpm;
+   133	
+   134	    // Create part from note events
+   135	    const events = demoNotes.map((note) => ({
+   136	      time: note.start * secondsPerBeat,
+   137	      note: note.note,
+   138	      duration: note.duration * secondsPerBeat,
+   139	      velocity: note.velocity || 0.7,
+   140	    }));
+   141	
+   142	    const part = new tone.Part((time, event) => {
+   143	      synthRef.current?.triggerAttackRelease(
+   144	        event.note,
+   145	        event.duration,
+   146	        time,
+   147	        event.velocity
+   148	      );
+   149	    }, events);
+   150	
+   151	    part.start(0);
+   152	    partRef.current = part;
+   153	
+   154	    setIsPlaying(true);
+   155	    tone.Transport.start();
+   156	
+   157	    // Calculate total duration (seconds) and stop after it elapses (+1s tail).
+   158	    const maxTimeSeconds =
+   159	      Math.max(...demoNotes.map((n) => n.start + n.duration)) * secondsPerBeat + 1;
+   160	    stopTimerRef.current = setTimeout(() => {
+   161	      stopTimerRef.current = null;
+   162	      tone.Transport.stop();
+   163	      setIsPlaying(false);
+   164	    }, maxTimeSeconds * 1000);
+   165	  };
+   166	
+   167	  useEffect(() => {
+   168	    const onKeyDown = (e: KeyboardEvent) => {
+   169	      if (e.key === 'Escape') onClose();
+   170	    };
+   171	    document.addEventListener('keydown', onKeyDown);
+   172	    return () => document.removeEventListener('keydown', onKeyDown);
+   173	  }, [onClose]);
+   174	
+   175	  const handleStop = () => {
+   176	    clearStopTimer();
+   177	    if (partRef.current) {
+   178	      partRef.current.stop();
+   179	    }
+   180	    toneRef.current?.Transport.stop();
+   181	    setIsPlaying(false);
+   182	  };
+   183	
+   184	  return (
+   185	    <div
+   186	      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+   187	      onClick={onClose}
+   188	    >
+   189	      <div
+   190	        role="dialog"
+   191	        aria-modal="true"
+   192	        aria-labelledby={titleId}
+   193	        className="bg-surface-elevated rounded-xl p-8 max-w-md w-full space-y-6 border border-gray-700"
+   194	        onClick={(e) => e.stopPropagation()}
+   195	        style={{
+   196	          borderColor: scenePack.uiThemeHints?.accentColor || '#A855F7',
+   197	        }}
+   198	      >
+   199	        <div className="flex items-start justify-between">
+   200	          <div>
+   201	            <h2 id={titleId} className="text-2xl font-bold mb-2">
+   202	              {scenePack.name}
+   203	            </h2>
+   204	            <p className="text-gray-400 text-sm">{scenePack.tagline}</p>
+   205	          </div>
+   206	          <button
+   207	            onClick={onClose}
+   208	            aria-label="Close"
+   209	            className="text-gray-400 hover:text-white transition-colors"
+   210	          >
+   211	            <svg
+   212	              className="w-6 h-6"
+   213	              fill="none"
+   214	              stroke="currentColor"
+   215	              viewBox="0 0 24 24"
+module.exports = {
+  root: true,
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+  },
+  plugins: ['@typescript-eslint', 'react-hooks'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended',
+    'prettier',
+  ],
+  env: {
+    node: true,
+    es2022: true,
+  },
+  ignorePatterns: [
+    'node_modules/',
+    'dist/',
+    'build/',
+    '.next/',
+    '.turbo/',
+    '*.config.js',
+  ],
+  rules: {
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+    ],
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+  },
+};
+
+Exit: 0

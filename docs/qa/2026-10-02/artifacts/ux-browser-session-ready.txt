@@ -1,0 +1,282 @@
+UTC start: 2026-10-03T01:26:00Z
+Command: QA_BASE_URL=http://127.0.0.1:3138 node docs/qa/2026-10-02/tools/ux-browser.cjs
+
+{
+  "steps": [
+    {
+      "name": "Home route, desktop screenshot, axe",
+      "started": "2026-10-03T01:26:00.399Z",
+      "outcome": "pass",
+      "detail": {
+        "screenshot": "ux-home-desktop.png",
+        "axe": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 13
+          }
+        ]
+      }
+    },
+    {
+      "name": "Home mobile 375 and 320 layout",
+      "started": "2026-10-03T01:26:01.388Z",
+      "outcome": "pass",
+      "detail": [
+        {
+          "width": 375,
+          "scrollWidth": 375,
+          "overflow": [
+            {
+              "text": "🎵 TopoSonics",
+              "rect": {
+                "x": 16,
+                "right": 170.3125
+              }
+            },
+            {
+              "text": "Studio",
+              "rect": {
+                "x": 192.6875,
+                "right": 238.0625
+              }
+            },
+            {
+              "text": "Compositions",
+              "rect": {
+                "x": 262.0625,
+                "right": 359
+              }
+            }
+          ]
+        },
+        {
+          "width": 320,
+          "scrollWidth": 320,
+          "overflow": [
+            {
+              "text": "🎵 TopoSonics",
+              "rect": {
+                "x": 16,
+                "right": 140.078125
+              }
+            },
+            {
+              "text": "Studio",
+              "rect": {
+                "x": 140.078125,
+                "right": 185.453125
+              }
+            },
+            {
+              "text": "Compositions",
+              "rect": {
+                "x": 209.453125,
+                "right": 306.390625
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Landing demo keyboard semantics",
+      "started": "2026-10-03T01:26:01.625Z",
+      "outcome": "pass",
+      "detail": {
+        "initial": {
+          "active": "🎵 TopoSonicsStudioCompositionsTurn Images into Musical LandscapesTopoSonics tra",
+          "insideDialog": false
+        },
+        "axe": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 19
+          }
+        ],
+        "closed": true
+      }
+    },
+    {
+      "name": "Studio empty state and axe",
+      "started": "2026-10-03T01:26:02.004Z",
+      "outcome": "pass",
+      "detail": {
+        "generateDisabled": true,
+        "screenshot": "ux-studio-empty.png",
+        "axe": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "Selection states are exposed semantically (UX-002 candidate)",
+      "started": "2026-10-03T01:26:03.379Z",
+      "outcome": "pass",
+      "detail": {
+        "key": {
+          "role": null,
+          "pressed": null,
+          "checked": null,
+          "class": "py-2 px-3 rounded-lg font-medium transition-colors bg-primary-600 text-white"
+        },
+        "mode": {
+          "role": null,
+          "pressed": null,
+          "checked": null
+        },
+        "ariaSnapshot": "- group \"Key\":\n  - button \"C\"\n  - button \"C#\"\n  - button \"D\"\n  - button \"D#\"\n  - button \"E\"\n  - button \"F\"\n  - button \"F#\"\n  - button \"G\"\n  - button \"G#\"\n  - button \"A\"\n  - button \"A#\"\n  - button \"B\""
+      }
+    },
+    {
+      "name": "Native dialog",
+      "started": "2026-10-03T01:26:03.624Z",
+      "outcome": "observed",
+      "detail": "Failed to analyze image"
+    },
+    {
+      "name": "Synthetic portrait upload, generate, playback and MIDI",
+      "started": "2026-10-03T01:26:03.420Z",
+      "outcome": "fail",
+      "error": "page.waitForFunction: Timeout 12000ms exceeded."
+    },
+    {
+      "name": "Studio mobile screenshot and reflow",
+      "started": "2026-10-03T01:26:15.639Z",
+      "outcome": "pass",
+      "detail": {
+        "width": 375,
+        "scrollWidth": 375
+      }
+    },
+    {
+      "name": "Library anonymous state, modal focus trap/restore and axe",
+      "started": "2026-10-03T01:26:15.713Z",
+      "outcome": "pass",
+      "detail": {
+        "initial": {
+          "active": "email",
+          "inDialog": true
+        },
+        "tabs": [
+          {
+            "active": "password",
+            "inDialog": true
+          },
+          {
+            "active": "Cancel",
+            "inDialog": true
+          },
+          {
+            "active": "Sign In",
+            "inDialog": true
+          },
+          {
+            "active": null,
+            "inDialog": false
+          },
+          {
+            "active": "🎵 TopoSonicsStudioCompositionsCompositionsYour library is p",
+            "inDialog": false
+          },
+          {
+            "active": "🎵 TopoSonics",
+            "inDialog": false
+          }
+        ],
+        "restored": {
+          "tag": "A",
+          "text": "🎵 TopoSonics"
+        },
+        "axe": []
+      }
+    },
+    {
+      "name": "Native dialog",
+      "started": "2026-10-03T01:26:17.308Z",
+      "outcome": "observed",
+      "detail": "Failed to analyze image"
+    },
+    {
+      "name": "Corrupt image error and retry recovery",
+      "started": "2026-10-03T01:26:16.589Z",
+      "outcome": "pass",
+      "detail": {
+        "disabled": true,
+        "screenshot": "ux-corrupt-image.png"
+      }
+    },
+    {
+      "name": "Local route missing page state",
+      "started": "2026-10-03T01:26:18.119Z",
+      "outcome": "pass",
+      "detail": {
+        "status": 404,
+        "screenshot": "ux-not-found.png",
+        "axe": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "firefox connected smoke availability",
+      "started": "2026-10-03T01:26:19.329Z",
+      "outcome": "pass",
+      "detail": {
+        "requested": "firefox",
+        "actual": "firefox",
+        "note": "Studio scene selection and demo note loading passed",
+        "screenshot": "ux-studio-firefox.png"
+      }
+    },
+    {
+      "name": "webkit connected smoke availability",
+      "started": "2026-10-03T01:26:21.062Z",
+      "outcome": "pass",
+      "detail": {
+        "requested": "webkit",
+        "actual": "webkit",
+        "note": "Studio scene selection and demo note loading passed",
+        "screenshot": "ux-studio-webkit.png"
+      }
+    }
+  ],
+  "axe": {
+    "home": [
+      {
+        "id": "color-contrast",
+        "nodes": 13
+      }
+    ],
+    "landing-demo": [
+      {
+        "id": "color-contrast",
+        "nodes": 19
+      }
+    ],
+    "studio-empty": [
+      {
+        "id": "color-contrast",
+        "nodes": 2
+      }
+    ],
+    "login-modal": [],
+    "not-found": [
+      {
+        "id": "color-contrast",
+        "nodes": 2
+      }
+    ]
+  }
+}
+
+Exit: 0

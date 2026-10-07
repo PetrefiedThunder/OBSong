@@ -1,0 +1,17 @@
+UTC start: 2026-10-03T01:24:35Z
+Command: corepack pnpm --filter @toposonics/mobile exec vitest run src/state/__tests__/CompositionsProvider.qa.test.ts
+Exit: 0
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile
+
+ ✓ src/state/__tests__/CompositionsProvider.qa.test.ts (8 tests) 18ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed | 3 expected fail (8)
+   Start at  18:24:35
+   Duration  143ms (transform 29ms, setup 0ms, import 52ms, tests 18ms, environment 0ms)
+

@@ -1,0 +1,23 @@
+UTC start: 2026-10-03T01:33:06Z
+Command: git worktree list; git branch --show-current; git diff --numstat; git diff --check; git status --short; lsof -nP -iTCP:3000 -iTCP:3137 -iTCP:3138 -sTCP:LISTEN
+
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong 371ad7e [qa/2026-10-02-sweep]
+qa/2026-10-02-sweep
+2	0	apps/mobile/package.json
+2	0	apps/web/vitest.config.ts
+26	0	pnpm-lock.yaml
+ M apps/mobile/package.json
+ M apps/web/vitest.config.ts
+ M pnpm-lock.yaml
+?? apps/api/src/__tests__/qa.auth.test.ts
+?? apps/api/src/__tests__/qa.boundaries.test.ts
+?? apps/api/src/__tests__/qa.persistence.test.ts
+?? apps/api/src/__tests__/qa.proxy.test.ts
+?? apps/mobile/src/auth/__tests__/
+?? apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts
+?? apps/web/src/lib/__tests__/
+?? docs/qa/
+?? packages/core-audio/src/__tests__/qa-invariants.test.ts
+?? packages/core-image/src/__tests__/qa-invariants.test.ts
+
+Exit: 1

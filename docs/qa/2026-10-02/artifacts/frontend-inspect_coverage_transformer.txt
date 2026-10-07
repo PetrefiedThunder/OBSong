@@ -1,0 +1,37 @@
+UTC start: 2026-10-03T01:24:52Z
+Command: rg -n "createUncoveredFileTransformer|jsx.*preserve|jsx.*automatic" node_modules/.pnpm/vitest@4.1.11*/node_modules/vitest/dist/chunks/coverage.* /private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/*.d.* | head -30 && sed -n "3269,3294p" /private/tmp/obsong-qa-tools/node_modules/vite/dist/node/index.d.ts
+Exit: 0
+
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.30/node_modules/vitest/dist/chunks/coverage.DM_a_rWm.js:999:	createUncoveredFileTransformer(ctx) {
+node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest/dist/chunks/coverage.DM_a_rWm.js:999:	createUncoveredFileTransformer(ctx) {
+/private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/define-config-kIZKjX8Q.d.mts:1917:   * - If set to `'react-jsx'`, JSX syntax will be transformed to automatic runtime React code.
+/private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/define-config-kIZKjX8Q.d.mts:1920:  jsx?: false | "react" | "react-jsx" | "preserve" | JsxOptions;
+/private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/binding-tzp6Hc_3.d.mts:1169:  jsx?: 'preserve' | JsxOptions;
+/private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/binding-tzp6Hc_3.d.mts:1596:  jsx?: 'preserve' | JsxOptions;
+/private/tmp/obsong-qa-tools/node_modules/rolldown/dist/shared/binding-tzp6Hc_3.d.mts:1858:  jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve' | 'react-native';
+interface OxcOptions extends Omit<rolldown_utils_TransformOptions, "cwd" | "sourceType" | "lang" | "sourcemap" | "helpers" | "inject" | "tsconfig" | "inputMap"> {
+  include?: string | RegExp | ReadonlyArray<string | RegExp>;
+  exclude?: string | RegExp | ReadonlyArray<string | RegExp>;
+  jsxInject?: string;
+  jsxRefreshInclude?: string | RegExp | ReadonlyArray<string | RegExp>;
+  jsxRefreshExclude?: string | RegExp | ReadonlyArray<string | RegExp>;
+}
+export declare function transformWithOxc(code: string, filename: string, options?: rolldown_utils_TransformOptions, inMap?: object, config?: ResolvedConfig, watcher?: FSWatcher): Promise<Omit<rolldown_utils_TransformResult, "errors">>;
+//#endregion
+//#region src/node/ssr/index.d.ts
+type SSRTarget = "node" | "webworker";
+type SsrDepOptimizationConfig = DepOptimizationConfig;
+interface SSROptions {
+  noExternal?: string | RegExp | (string | RegExp)[] | true;
+  external?: string[] | true;
+  /**
+   * Define the target for the ssr build. The browser field in package.json
+   * is ignored for node but used if webworker is the target
+   * This option will be removed in a future major version
+   * @default 'node'
+   */
+  target?: SSRTarget;
+  /**
+   * Control over which dependencies are optimized during SSR and esbuild options
+   * During build:
+   *   no external CJS dependencies are optimized by default

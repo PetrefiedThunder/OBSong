@@ -1,0 +1,10 @@
+UTC start: 2026-10-03T01:28:21Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path('docs/qa/2026-10-02/tools/ux-regression.spec.cjs')
+s=p.read_text()+'''\ntest('UX-003 home controls meet WCAG AA text contrast',async({page})=>{\n await page.goto('/');\n await expect(page.getByRole('heading',{name:'Turn Images into Musical Landscapes'})).toBeVisible();\n await page.evaluate(require('node:fs').readFileSync(req.resolve('axe-core/axe.min.js'),'utf8'));\n const violations=await page.evaluate(async()=>(await axe.run(document,{runOnly:['color-contrast']})).violations);\n test.fail(true,'UX-003: accent buttons and badges have insufficient text contrast.');\n expect(violations).toEqual([]);\n});\ntest('UX-006 Play Demo begins playback',async({page})=>{\n await page.goto('/studio');\n await page.getByRole('button',{name:/Ocean Horizon/}).click();\n await page.getByRole('button',{name:'Play Demo',exact:true}).click();\n await expect(page.getByRole('button',{name:'Save to Library'})).toBeVisible();\n test.fail(true,'UX-006: Play Demo loads notes but does not start playback.');\n await expect(page.getByRole('button',{name:'⏹ Stop',exact:true})).toBeEnabled();\n});\n'''
+p.write_text(s)
+PY
+
+
+Exit: 0

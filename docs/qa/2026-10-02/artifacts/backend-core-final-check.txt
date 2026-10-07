@@ -1,0 +1,22 @@
+UTC start: 2026-10-03T01:26:00Z
+Command: git diff --check && git status --short -- packages/core-image/src/__tests__/qa-invariants.test.ts packages/core-audio/src/__tests__/qa-invariants.test.ts docs/qa/2026-10-02/passes/CORE-SUPPLEMENT.md && cd packages/core-audio && pnpm exec vitest run src/__tests__/qa-invariants.test.ts -t BE-101
+
+?? docs/qa/2026-10-02/passes/CORE-SUPPLEMENT.md
+?? packages/core-audio/src/__tests__/qa-invariants.test.ts
+?? packages/core-image/src/__tests__/qa-invariants.test.ts
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio
+
+ ✓ src/__tests__/qa-invariants.test.ts (31 tests | 30 skipped) 6ms
+
+ Test Files  1 passed (1)
+      Tests  1 expected fail | 30 skipped (31)
+   Start at  18:26:01
+   Duration  118ms (transform 31ms, setup 0ms, import 42ms, tests 6ms, environment 0ms)
+
+
+Exit: 0

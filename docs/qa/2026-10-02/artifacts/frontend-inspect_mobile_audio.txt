@@ -1,0 +1,493 @@
+UTC start: 2026-10-03T01:25:25Z
+Command: nl -ba apps/mobile/src/services/audioPlayer.ts && nl -ba apps/mobile/src/services/imageProcessing.ts && nl -ba apps/mobile/src/services/apiClient.ts && cat apps/mobile/src/services/__tests__/playbackRate.test.ts
+Exit: 0
+
+     1	import { createAudioPlayer, preload, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+     2	import { noteToFrequency } from '@toposonics/core-audio';
+     3	import type { NoteEvent } from '@toposonics/types';
+     4	import { computePlaybackRate } from './playbackRate';
+     5	
+     6	export { computePlaybackRate } from './playbackRate';
+     7	
+     8	export interface PlaybackOptions {
+     9	  tempo?: number;
+    10	  onProgress?: (current: number, total: number) => void;
+    11	}
+    12	
+    13	/**
+    14	 * Handle for an in-flight playback. `done` resolves when playback finishes (or is
+    15	 * cancelled); `cancel()` stops audio and short-circuits the note loop so callers can
+    16	 * abort on unmount / navigation.
+    17	 */
+    18	export interface PlaybackController {
+    19	  cancel(): void;
+    20	  done: Promise<void>;
+    21	}
+    22	
+    23	// Every voice is the same beep sample pitch-shifted per note; a single AudioPlayer can only
+    24	// play one source at a time, so overlapping notes (e.g. a pad chord) need distinct instances.
+    25	// A small round-robin pool provides that polyphony without allocating one player per note.
+    26	// (The sample lives in an object literal because RN assets need require(), and a bare
+    27	// `const x = require(...)` trips @typescript-eslint/no-var-requires.)
+    28	const samples = {
+    29	  beep: require('../../assets/audio/beep.wav'),
+    30	} as const;
+    31	const VOICE_POOL_SIZE = 8;
+    32	
+    33	export function playNoteEvents(
+    34	  events: NoteEvent[],
+    35	  options: PlaybackOptions = {}
+    36	): PlaybackController {
+    37	  let cancelled = false;
+    38	  let wake: (() => void) | null = null;
+    39	  const timers: Array<ReturnType<typeof setTimeout>> = [];
+    40	
+    41	  const clearTimers = () => {
+    42	    for (const timer of timers) clearTimeout(timer);
+    43	    timers.length = 0;
+    44	  };
+    45	
+    46	  const cancel = () => {
+    47	    cancelled = true;
+    48	    clearTimers();
+    49	    if (wake) {
+    50	      const resolve = wake;
+    51	      wake = null;
+    52	      resolve();
+    53	    }
+    54	  };
+    55	
+    56	  const done = (async () => {
+    57	    if (events.length === 0) return;
+    58	
+    59	    await setAudioModeAsync({
+    60	      // expo-av's playsInSilentModeIOS equivalent; recording stays off by default and the
+    61	      // session ends with playback, matching the previous staysActiveInBackground: false.
+    62	      playsInSilentMode: true,
+    63	      interruptionMode: 'mixWithOthers',
+    64	    });
+    65	
+    66	    const tempo = options.tempo ?? 90;
+    67	    const beatDurationMs = (60 / tempo) * 1000;
+    68	
+    69	    const pool: AudioPlayer[] = [];
+    70	    let nextVoice = 0;
+    71	
+    72	    // Trigger one note on the next free pool voice (round-robin), so simultaneous notes play
+    73	    // concurrently instead of cutting each other off on a shared instance. Errors are
+    74	    // swallowed so a mid-playback reuse can't reject the whole session.
+    75	    const triggerNote = async (event: NoteEvent) => {
+    76	      if (cancelled || pool.length === 0) return;
+    77	      const player = pool[nextVoice % pool.length];
+    78	      nextVoice += 1;
+    79	
+    80	      const frequency = noteToFrequency(event.note);
+    81	      // Octave-folded into the usable rate window so bass/treble notes outside it
+    82	      // stay distinct pitches instead of all clamping to a monotone at the boundary.
+    83	      const playbackRate = computePlaybackRate(frequency);
+    84	
+    85	      const volume = event.velocity ?? 0.8;
+    86	      // Use != null (not truthiness) so filterCutoff === 0 (a fully dark pixel) applies
+    87	      // the intended 0.5x attenuation instead of falling through to full volume.
+    88	      const finalVolume =
+    89	        event.effects?.filterCutoff != null
+    90	          ? volume * (0.5 + event.effects.filterCutoff * 0.5)
+    91	          : volume;
+    92	
+    93	      try {
+    94	        await player.seekTo(0);
+    95	        // shouldCorrectPitch MUST be false: the whole pitch mechanism is varying the
+    96	        // playback rate of a single beep. Pitch correction would time-stretch while
+    97	        // preserving pitch, flattening every note to the sample's native pitch.
+    98	        player.shouldCorrectPitch = false;
+    99	        player.setPlaybackRate(playbackRate);
+   100	        player.volume = Math.min(1, finalVolume);
+   101	        player.play();
+   102	      } catch {
+   103	        // ignore — transient error (e.g. player retriggered while still playing)
+   104	      }
+   105	    };
+   106	
+   107	    try {
+   108	      // Preload the sample once, then build the voice pool. createAudioPlayer is
+   109	      // synchronous; preloading first means every pool player is ready to fire.
+   110	      await preload(samples.beep);
+   111	      for (let i = 0; i < VOICE_POOL_SIZE; i++) {
+   112	        if (cancelled) return;
+   113	        pool.push(createAudioPlayer(samples.beep));
+   114	      }
+   115	
+   116	      if (cancelled) return;
+   117	
+   118	      // Notes carry a `start` (beats) and overlap across voices, so schedule each to fire
+   119	      // at its own offset from playback start rather than playing them back-to-back.
+   120	      // Playback ends once the last-finishing note's tail has elapsed.
+   121	      const ordered = [...events].sort((a, b) => a.start - b.start);
+   122	      const endOfLastMs =
+   123	        ordered.reduce((max, e) => Math.max(max, (e.start ?? 0) + (e.duration ?? 0.5)), 0) *
+   124	        beatDurationMs;
+   125	
+   126	      let played = 0;
+   127	
+   128	      await new Promise<void>((resolve) => {
+   129	        if (cancelled) {
+   130	          resolve();
+   131	          return;
+   132	        }
+   133	
+   134	        // cancel() clears the timers and calls wake() to resolve this promise early.
+   135	        wake = resolve;
+   136	
+   137	        for (const event of ordered) {
+   138	          const fireAt = Math.max(0, (event.start ?? 0) * beatDurationMs);
+   139	          timers.push(
+   140	            setTimeout(() => {
+   141	              if (cancelled) return;
+   142	              void triggerNote(event);
+   143	              played += 1;
+   144	              options.onProgress?.(played, ordered.length);
+   145	            }, fireAt)
+   146	          );
+   147	        }
+   148	
+   149	        // Resolve once the last note has had time to ring out (250 ms tail). Calling an
+   150	        // already-settled Promise resolve again (via cancel) is a safe no-op.
+   151	        timers.push(setTimeout(resolve, endOfLastMs + 250));
+   152	      });
+   153	    } finally {
+   154	      wake = null;
+   155	      clearTimers();
+   156	      // Pause + release every pooled voice, isolating per-player failures so one rejection
+   157	      // doesn't leak the remaining native AudioPlayer instances.
+   158	      for (const player of pool) {
+   159	        try {
+   160	          player.pause();
+   161	        } catch {
+   162	          // ignore — player may already be stopped/released
+   163	        }
+   164	        try {
+   165	          player.remove();
+   166	        } catch {
+   167	          // ignore — best-effort cleanup
+   168	        }
+   169	      }
+   170	    }
+   171	  })();
+   172	
+   173	  return { cancel, done };
+   174	}
+   175	
+   176	/**
+   177	 * Total composition length in seconds. Notes overlap (multi-voice) and are positioned by
+   178	 * `start`, so the length is the end of the last-finishing note — max(start + duration) —
+   179	 * not the sum of every note's duration (which over-counts overlapping voices). Matches the
+   180	 * web Tone engine's duration math.
+   181	 */
+   182	export function formatNoteEventsDuration(events: NoteEvent[], tempo = 90): number {
+   183	  if (events.length === 0) return 0;
+   184	  const beats = events.reduce(
+   185	    (max, event) => Math.max(max, (event.start ?? 0) + (event.duration ?? 0.5)),
+   186	    0
+   187	  );
+   188	  return beats * (60 / tempo);
+   189	}
+     1	import type {
+     2	  ImageAnalysisResult,
+     3	  NoteEvent,
+     4	  KeyType,
+     5	  ScaleType,
+     6	  MappingMode,
+     7	} from '@toposonics/types';
+     8	import { Platform } from 'react-native';
+     9	import {
+    10	  analyzeImageForLinearLandscape,
+    11	  analyzeImageForDepthRidge,
+    12	  analyzeImageForMultiVoice,
+    13	} from '@toposonics/core-image';
+    14	import {
+    15	  mapLinearLandscape,
+    16	  mapDepthRidge,
+    17	  mapImageToMultiVoiceComposition,
+    18	} from '@toposonics/core-audio';
+    19	
+    20	export interface PixelExtractionResult {
+    21	  pixels: Uint8ClampedArray;
+    22	  width: number;
+    23	  height: number;
+    24	  ridgeStrength?: Uint8ClampedArray;
+    25	  ridgeWidth?: number;
+    26	  ridgeHeight?: number;
+    27	}
+    28	
+    29	export async function extractPixelsFromImage(
+    30	  uri: string,
+    31	  options: { targetWidth?: number; includeRidgeStrength?: boolean } = {}
+    32	): Promise<PixelExtractionResult> {
+    33	  // Ridge strength runs a native Sobel pass over the full frame, so only request it when
+    34	  // the caller (the DEPTH_RIDGE mode) will actually consume it.
+    35	  const { targetWidth = 640, includeRidgeStrength = false } = options;
+    36	  const { processImage } = await import('@toposonics/native-image-processing');
+    37	
+    38	  const nativeResult = await processImage({ uri, targetWidth, includeRidgeStrength });
+    39	  const pixels = new Uint8ClampedArray(nativeResult.pixels);
+    40	
+    41	  return {
+    42	    pixels,
+    43	    width: nativeResult.width,
+    44	    height: nativeResult.height,
+    45	    ...(nativeResult.ridgeStrength && {
+    46	      ridgeStrength: new Uint8ClampedArray(nativeResult.ridgeStrength),
+    47	      ridgeWidth: nativeResult.ridgeWidth,
+    48	      ridgeHeight: nativeResult.ridgeHeight,
+    49	    }),
+    50	  };
+    51	}
+    52	
+    53	export interface CompositionGenerationResult {
+    54	  analysis: ImageAnalysisResult;
+    55	  noteEvents: NoteEvent[];
+    56	  metadata: {
+    57	    key: KeyType;
+    58	    scale: ScaleType;
+    59	    mappingMode: MappingMode;
+    60	  };
+    61	  sourceUri: string;
+    62	}
+    63	
+    64	export async function generateCompositionFromImage(
+    65	  uri: string,
+    66	  options: {
+    67	    key: KeyType;
+    68	    scale: ScaleType;
+    69	    mode?: MappingMode;
+    70	    maxNotes?: number;
+    71	  }
+    72	): Promise<CompositionGenerationResult> {
+    73	  if (Platform.OS === 'ios') {
+    74	    throw new Error('On-device image generation is currently available on Android only.');
+    75	  }
+    76	
+    77	  const mode = options.mode ?? 'LINEAR_LANDSCAPE';
+    78	  const { pixels, width, height, ridgeStrength, ridgeWidth, ridgeHeight } =
+    79	    await extractPixelsFromImage(uri, { includeRidgeStrength: mode === 'DEPTH_RIDGE' });
+    80	
+    81	  let analysis: ImageAnalysisResult;
+    82	  let noteEvents: NoteEvent[];
+    83	
+    84	  switch (mode) {
+    85	    case 'DEPTH_RIDGE': {
+    86	      // Reuse the native Sobel pass when its dimensions match the decoded frame; the
+    87	      // analyzer safely recomputes edges in JS when it is omitted.
+    88	      const precomputedEdgeMagnitudes =
+    89	        ridgeStrength && ridgeWidth != null && ridgeHeight != null && ridgeWidth * ridgeHeight === width * height
+    90	          ? ridgeStrength
+    91	          : undefined;
+    92	      analysis = analyzeImageForDepthRidge(pixels, width, height, {
+    93	        ...(precomputedEdgeMagnitudes && { precomputedEdgeMagnitudes }),
+    94	      });
+    95	      noteEvents = mapDepthRidge(analysis, {
+    96	        key: options.key,
+    97	        scale: options.scale,
+    98	        maxNotes: options.maxNotes ?? 96,
+    99	        noteDurationBeats: 0.35,
+   100	        ridgeThreshold: 0.35,
+   101	        depthToReverb: true,
+   102	      });
+   103	      break;
+   104	    }
+   105	    case 'MULTI_VOICE': {
+   106	      analysis = analyzeImageForMultiVoice(pixels, width, height);
+   107	      noteEvents = mapImageToMultiVoiceComposition(analysis, {
+   108	        key: options.key,
+   109	        scale: options.scale,
+   110	      });
+   111	      break;
+   112	    }
+   113	    case 'LINEAR_LANDSCAPE':
+   114	    default: {
+   115	      analysis = analyzeImageForLinearLandscape(pixels, width, height, {
+   116	        averageRows: true,
+   117	        rowsToAverage: 7,
+   118	      });
+   119	      noteEvents = mapLinearLandscape(analysis, {
+   120	        key: options.key,
+   121	        scale: options.scale,
+   122	        maxNotes: options.maxNotes ?? 96,
+   123	        noteDurationBeats: 0.35,
+   124	      });
+   125	      break;
+   126	    }
+   127	  }
+   128	
+   129	  return {
+   130	    analysis,
+   131	    noteEvents,
+   132	    metadata: {
+   133	      key: options.key,
+   134	      scale: options.scale,
+   135	      mappingMode: mode,
+   136	    },
+   137	    sourceUri: uri,
+   138	  };
+   139	}
+     1	/**
+     2	 * API client for mobile application
+     3	 * Uses the shared API client with mobile-specific configuration
+     4	 * Automatically injects authentication tokens from Supabase session
+     5	 */
+     6	
+     7	import { createApiClient } from '@toposonics/shared';
+     8	import type {
+     9	  CreateCompositionDTO,
+    10	  UpdateCompositionDTO,
+    11	  Composition,
+    12	  CompositionSummary,
+    13	} from '@toposonics/types';
+    14	import { API_URL } from '../config';
+    15	import { supabase } from '../auth/supabaseClient';
+    16	
+    17	/**
+    18	 * Get the current authentication token from Supabase session
+    19	 * Returns null if the user is not authenticated
+    20	 */
+    21	async function getAuthToken(): Promise<string | null> {
+    22	  const { data: { session } } = await supabase.auth.getSession();
+    23	  return session?.access_token ?? null;
+    24	}
+    25	
+    26	/**
+    27	 * Base API client instance
+    28	 */
+    29	const baseClient = createApiClient({ baseUrl: API_URL });
+    30	
+    31	/**
+    32	 * Mobile API client with automatic token injection
+    33	 * All methods automatically retrieve and attach the current user's auth token
+    34	 */
+    35	export const apiClient = {
+    36	  /**
+    37	   * Fetch the user's composition summaries (paginated; no noteEvents/imageData blobs)
+    38	   * Automatically attaches auth token if user is signed in
+    39	   */
+    40	  async fetchCompositions(): Promise<CompositionSummary[]> {
+    41	    const token = await getAuthToken();
+    42	    return baseClient.fetchCompositions(token);
+    43	  },
+    44	
+    45	  /**
+    46	   * Fetch the entire composition library, paging past the server's page cap so
+    47	   * libraries larger than one page don't lose older saves from the list.
+    48	   */
+    49	  async fetchAllCompositions(): Promise<CompositionSummary[]> {
+    50	    const token = await getAuthToken();
+    51	    return baseClient.fetchAllCompositions(token);
+    52	  },
+    53	
+    54	  /**
+    55	   * Fetch a single composition by ID
+    56	   * Automatically attaches auth token if user is signed in
+    57	   */
+    58	  async fetchComposition(id: string): Promise<Composition> {
+    59	    const token = await getAuthToken();
+    60	    return baseClient.fetchComposition(id, token);
+    61	  },
+    62	
+    63	  /**
+    64	   * Create a new composition
+    65	   * Requires authentication - throws error if user is not signed in
+    66	   */
+    67	  async createComposition(payload: Omit<CreateCompositionDTO, 'userId'>): Promise<Composition> {
+    68	    const token = await getAuthToken();
+    69	    if (!token) {
+    70	      throw new Error('Authentication required to create compositions');
+    71	    }
+    72	    return baseClient.createComposition(payload, token);
+    73	  },
+    74	
+    75	  /**
+    76	   * Update a composition
+    77	   * Requires authentication - throws error if user is not signed in
+    78	   */
+    79	  async updateComposition(id: string, updates: UpdateCompositionDTO): Promise<Composition> {
+    80	    const token = await getAuthToken();
+    81	    if (!token) {
+    82	      throw new Error('Authentication required to update compositions');
+    83	    }
+    84	    return baseClient.updateComposition(id, updates, token);
+    85	  },
+    86	
+    87	  /**
+    88	   * Delete a composition
+    89	   * Requires authentication - throws error if user is not signed in
+    90	   */
+    91	  async deleteComposition(id: string): Promise<void> {
+    92	    const token = await getAuthToken();
+    93	    if (!token) {
+    94	      throw new Error('Authentication required to delete compositions');
+    95	    }
+    96	    return baseClient.deleteComposition(id, token);
+    97	  },
+    98	};
+    99	
+   100	// Export individual methods for convenience
+   101	export const {
+   102	  fetchCompositions,
+   103	  fetchAllCompositions,
+   104	  fetchComposition,
+   105	  createComposition,
+   106	  updateComposition,
+   107	  deleteComposition,
+   108	} = apiClient;
+import { describe, expect, it } from 'vitest';
+import { computePlaybackRate } from '../playbackRate';
+
+/** Standard 12-TET frequency for a MIDI note number (A4 = 69 = 440 Hz). */
+const midiToFrequency = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
+
+describe('computePlaybackRate', () => {
+  it('maps A4 (440 Hz) to a playback rate of 1', () => {
+    expect(computePlaybackRate(440)).toBeCloseTo(1, 10);
+  });
+
+  it('maps all 12 semitones of octave 2 to distinct in-range rates', () => {
+    // The old flat clamp collapsed everything below 220 Hz to rate 0.5, so C2..B2 were
+    // all the same pitch. Octave folding must keep each pitch class distinct.
+    const rates = [];
+    for (let midi = 36; midi <= 47; midi++) {
+      rates.push(computePlaybackRate(midiToFrequency(midi)));
+    }
+    for (const rate of rates) {
+      expect(rate).toBeGreaterThanOrEqual(0.5);
+      expect(rate).toBeLessThanOrEqual(2.5);
+    }
+    expect(new Set(rates).size).toBe(12);
+  });
+
+  it('preserves pitch class by octave-folding (C2 and C3 share a rate)', () => {
+    expect(computePlaybackRate(65.41)).toBeCloseTo(computePlaybackRate(130.81), 3);
+  });
+
+  it('stays within [0.5, 2.5] for MIDI 24 through 96', () => {
+    for (let midi = 24; midi <= 96; midi++) {
+      const rate = computePlaybackRate(midiToFrequency(midi));
+      expect(rate).toBeGreaterThanOrEqual(0.5);
+      expect(rate).toBeLessThanOrEqual(2.5);
+    }
+  });
+
+  it('returns 1 for non-finite or non-positive input', () => {
+    expect(computePlaybackRate(0)).toBe(1);
+    expect(computePlaybackRate(-440)).toBe(1);
+    expect(computePlaybackRate(Number.NaN)).toBe(1);
+    expect(computePlaybackRate(Number.POSITIVE_INFINITY)).toBe(1);
+    expect(computePlaybackRate(440, 0)).toBe(1);
+    expect(computePlaybackRate(440, Number.NaN)).toBe(1);
+  });
+
+  it('returns 1 when the ratio itself underflows or overflows (no infinite folding)', () => {
+    // Both inputs are finite and positive, but the ratio is 0 / Infinity — without a
+    // ratio guard the folding loops would never terminate.
+    expect(computePlaybackRate(Number.MIN_VALUE, Number.MAX_VALUE)).toBe(1);
+    expect(computePlaybackRate(Number.MAX_VALUE, Number.MIN_VALUE)).toBe(1);
+  });
+});

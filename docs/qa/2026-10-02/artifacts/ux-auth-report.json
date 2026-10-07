@@ -1,0 +1,144 @@
+{
+  "started": "2026-10-03T01:26:05.423Z",
+  "steps": [
+    {
+      "name": "Invalid sign-in preserves input and displays error",
+      "utc": "2026-10-03T01:26:05.535Z",
+      "outcome": "pass",
+      "detail": {
+        "dialogs": [
+          "Login failed"
+        ],
+        "modalRemains": true
+      }
+    },
+    {
+      "name": "Successful stub sign-in and private empty library",
+      "utc": "2026-10-03T01:26:07.065Z",
+      "outcome": "pass",
+      "detail": {
+        "screenshot": "ux-library-empty.png",
+        "axe": [],
+        "signOutControls": 0
+      }
+    },
+    {
+      "name": "Library loading, failure and retry states",
+      "utc": "2026-10-03T01:26:07.221Z",
+      "outcome": "pass",
+      "detail": {
+        "loading": "ux-library-loading.png",
+        "error": "ux-library-error.png",
+        "liveRegions": [],
+        "retryRecovered": true
+      }
+    },
+    {
+      "name": "Studio demo loads notes and save failure can retry",
+      "utc": "2026-10-03T01:26:07.696Z",
+      "outcome": "pass",
+      "detail": {
+        "playDemoStartsPlayback": false,
+        "dialogs": [
+          "Login failed",
+          "Failed to save composition",
+          "Composition saved!"
+        ],
+        "screenshot": "ux-studio-saved.png"
+      }
+    },
+    {
+      "name": "Saved library, detail, edit and mobile reflow",
+      "utc": "2026-10-03T01:26:09.603Z",
+      "outcome": "pass",
+      "detail": {
+        "detailAxe": [],
+        "mobile": {
+          "width": 375,
+          "scrollWidth": 466
+        },
+        "screenshot": "ux-detail-mobile-375.png"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "service": "auth-stub",
+      "method": "POST",
+      "path": "/auth/v1/token"
+    },
+    {
+      "service": "auth-stub",
+      "method": "POST",
+      "path": "/auth/v1/token"
+    },
+    {
+      "service": "api-stub",
+      "method": "GET",
+      "path": "/compositions",
+      "state": "empty"
+    },
+    {
+      "service": "api-stub",
+      "method": "GET",
+      "path": "/compositions",
+      "state": "loading"
+    },
+    {
+      "service": "api-stub",
+      "method": "GET",
+      "path": "/compositions",
+      "state": "empty"
+    },
+    {
+      "service": "api-stub",
+      "method": "POST",
+      "path": "/compositions",
+      "state": "empty"
+    },
+    {
+      "service": "api-stub",
+      "method": "POST",
+      "path": "/compositions",
+      "state": "empty"
+    },
+    {
+      "service": "api-stub",
+      "method": "GET",
+      "path": "/compositions",
+      "state": "items"
+    },
+    {
+      "service": "api-stub",
+      "method": "GET",
+      "path": "/compositions/00000000-0000-4000-8000-000000000002",
+      "state": "items"
+    },
+    {
+      "service": "api-stub",
+      "method": "GET",
+      "path": "/compositions/00000000-0000-4000-8000-000000000002",
+      "state": "items"
+    },
+    {
+      "service": "api-stub",
+      "method": "PUT",
+      "path": "/compositions/00000000-0000-4000-8000-000000000002",
+      "state": "items"
+    }
+  ],
+  "console": [
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to sign in for compositions library: AuthApiError: Invalid login credentials\n    at handleError (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@supabase+auth-js@2.86.2/node_modules/@supabase/auth-js/dist/module/lib/fetch.js:71:11)\n    at async _handleRequest (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@supabase+auth-js@2.86.2/node_modules/@supabase/auth-js/dist/module/lib/fetch.js:114:9)\n    at async _request (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@supabase+auth-js@2.86.2/node_modules/@supabase/auth-js/dist/module/lib/fetch.js:96:18)\n    at async SupabaseAuthClient.signInWithPassword (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@supabase+auth-js@2.86.2/node_modules/@supabase/auth-js/dist/module/",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load compositions: Error: Synthetic library unavailable\n    at eval (webpack-internal:///(app-pages-browser)/../../packages/shared/src/apiClient.ts:184:31)\n    at step (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs:183:21)\n    at Object.eval [as next] (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs:164:51)\n    at asyncGeneratorStep (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@swc+helpers@0.5.15/node_modules/@swc/helpers/esm/_async_to_generator.js:7:28)\n    at _next (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@swc+helpers@0.5.15/node_modules/@swc/helpers/esm/_async_to_generator.js:24:17)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to save composition: Error: Synthetic save unavailable\n    at eval (webpack-internal:///(app-pages-browser)/../../packages/shared/src/apiClient.ts:97:31)\n    at step (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs:183:21)\n    at Object.eval [as next] (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.es6.mjs:164:51)\n    at asyncGeneratorStep (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@swc+helpers@0.5.15/node_modules/@swc/helpers/esm/_async_to_generator.js:7:28)\n    at _next (webpack-internal:///(app-pages-browser)/../../node_modules/.pnpm/@swc+helpers@0.5.15/node_modules/@swc/helpers/esm/_async_to_generator.js:24:17)"
+  ],
+  "blockedExternal": [],
+  "axe": {
+    "library-empty": [],
+    "detail": []
+  },
+  "ended": "2026-10-03T01:26:11.381Z"
+}

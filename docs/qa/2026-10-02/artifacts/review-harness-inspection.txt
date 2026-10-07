@@ -1,0 +1,154 @@
+UTC start: 2026-10-03T01:30:46Z
+Command: head -55 docs/qa/2026-10-02/tools/ux-browser.cjs; head -45 docs/qa/2026-10-02/tools/ux-auth.cjs; head -40 docs/qa/2026-10-02/tools/ux-performance.cjs; cat docs/qa/2026-10-02/passes/GATE.md; rg --files docs/qa/2026-10-02/tools
+
+/* Local-only connected browser audit. No browser launch, credentials, or product changes. */
+const fs = require('node:fs');
+const path = require('node:path');
+const { createRequire } = require('node:module');
+const req = createRequire(path.join(process.env.QA_BROWSER_TOOLS || '/private/tmp/obsong-qa-tools', 'package.json'));
+const { chromium, firefox, webkit } = req('playwright');
+const axePath = req.resolve('axe-core/axe.min.js');
+const base = process.env.QA_BASE_URL || 'http://127.0.0.1:3000';
+const out = path.resolve('docs/qa/2026-10-02/artifacts');
+const report = {started: new Date().toISOString(), base, steps: [], axe: {}, console: [], pageErrors: [], failedRequests: [], blockedExternal: [], metrics: {}, browsers: []};
+const safe = s => String(s).replace(/Bearer\s+[A-Za-z0-9._-]+/gi,'Bearer [REDACTED]').replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g,'[REDACTED]');
+let browser;
+async function step(name, run) {
+  const started = new Date().toISOString();
+  try { const detail = await run(); report.steps.push({name, started, outcome:'pass', detail}); }
+  catch (err) { report.steps.push({name, started, outcome:'fail', error:safe(err.message).slice(0,1500)}); }
+  fs.writeFileSync(path.join(out, 'ux-browser-report.json'), JSON.stringify(report, null, 2));
+}
+async function screenshot(page,name) { await page.screenshot({path:path.join(out, 'ux-'+name+'.png'),fullPage:true}); return 'ux-'+name+'.png'; }
+async function screenshotEngine(page,name) {return screenshot(page,'studio-'+name);}
+async function scan(page,name) {
+ await page.evaluate(fs.readFileSync(axePath, 'utf8'));
+ report.axe[name]=await page.evaluate(async()=> {
+   const result=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});
+   return {violations:result.violations.map(v=>({id:v.id,impact:v.impact,description:v.description,help:v.help,nodes:v.nodes.map(n=>({target:n.target,html:n.html,failureSummary:n.failureSummary}))})),passes:result.passes.length,incomplete:result.incomplete.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length}))};
+ });
+ return report.axe[name].violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length}));
+}
+(async()=>{
+ try {
+  browser=await chromium.connect(process.env.PW_TEST_CONNECT_WS_ENDPOINT);
+  report.browsers.push({requested:'chromium',actual:browser.browserType().name(),version:browser.version()});
+  const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
+  await context.route('**/*', async route=>{
+   const url=new URL(route.request().url());
+   if(url.origin===new URL(base).origin) return route.continue();
+   if(['data:','blob:'].includes(url.protocol))return route.continue();
+   report.blockedExternal.push({origin:url.origin,path:url.pathname});
+   return route.abort('blockedbyclient');
+  });
+  const page=await context.newPage(); page.setDefaultTimeout(12000); page.setDefaultNavigationTimeout(30000);
+  page.on('console',m=>{if(['error','warning'].includes(m.type()))report.console.push({type:m.type(),text:safe(m.text()).slice(0,1000)});});
+  page.on('pageerror',e=>report.pageErrors.push(safe(e.message).slice(0,1000)));
+  page.on('requestfailed',r=>report.failedRequests.push({url:new URL(r.url()).pathname,error:r.failure()?.errorText}));
+  page.on('dialog',async d=>{report.steps.push({name:'Native dialog',started:new Date().toISOString(),outcome:'observed',detail:d.message()});await d.dismiss();});
+  await step('Home route, desktop screenshot, axe',async()=>{
+   await page.goto(base,{waitUntil:'networkidle',timeout:90000});
+   await page.getByRole('heading',{name:'Turn Images into Musical Landscapes'}).waitFor();
+   report.metrics.home=await page.evaluate(()=>({navigation:performance.getEntriesByType('navigation').map(n=>({duration:n.duration,domContentLoaded:n.domContentLoadedEventEnd,transferSize:n.transferSize})),paint:performance.getEntriesByType('paint').map(p=>({name:p.name,startTime:p.startTime})),resources:performance.getEntriesByType('resource').reduce((a,r)=>({count:a.count+1,transferBytes:a.transferBytes+r.transferSize,encodedBytes:a.encodedBytes+r.encodedBodySize}),{count:0,transferBytes:0,encodedBytes:0})}));
+   return {screenshot:await screenshot(page,'home-desktop'),axe:await scan(page,'home')};
+  });
+  await step('Home mobile 375 and 320 layout',async()=>{
+   const sizes=[];
+   for(const width of [375,320]){await page.setViewportSize({width,height:812});sizes.push(await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('header a')].map(e=>({text:e.textContent,rect:{x:e.getBoundingClientRect().x,right:e.getBoundingClientRect().right}}))})));await screenshot(page,'home-mobile-'+width);}
+   await page.setViewportSize({width:1440,height:1000});return sizes;
+/* Auth/API are entirely synthetic and intercepted; no backend service receives requests. */
+const fs=require('node:fs'),path=require('node:path'),{createRequire}=require('node:module');
+const req=createRequire(path.join(process.env.QA_BROWSER_TOOLS||'/private/tmp/obsong-qa-tools','package.json'));
+const {chromium}=req('playwright'),axeSource=fs.readFileSync(req.resolve('axe-core/axe.min.js'),'utf8');
+const base=process.env.QA_BASE_URL||'http://127.0.0.1:3000',out=path.resolve('docs/qa/2026-10-02/artifacts');
+const report={started:new Date().toISOString(),steps:[],requests:[],console:[],blockedExternal:[],axe:{}};
+const user={id:'00000000-0000-4000-8000-000000000001',email:'qa@example.test',aud:'authenticated',role:'authenticated',created_at:'2026-10-02T00:00:00Z',user_metadata:{}};
+let composition={id:'00000000-0000-4000-8000-000000000002',userId:user.id,title:'QA synthetic composition',description:'Local browser fixture',key:'C',scale:'C_MAJOR',mappingMode:'LINEAR_LANDSCAPE',presetId:'sine-soft',tempo:90,createdAt:'2026-10-02T00:00:00Z',updatedAt:'2026-10-02T00:00:00Z',noteEvents:[{note:'C4',start:0,duration:1,velocity:0.7}],metadata:{duration:2},noteCount:1};
+let listState='empty',saveFails=false,authFails=true,releaseLoading,dialogMessages=[];
+const save=()=>fs.writeFileSync(path.join(out,'ux-auth-report.json'),JSON.stringify(report,null,2));
+async function step(name,fn){try{report.steps.push({name,utc:new Date().toISOString(),outcome:'pass',detail:await fn()});}catch(e){report.steps.push({name,utc:new Date().toISOString(),outcome:'fail',error:e.message.slice(0,1300)});}save();}
+async function shot(page,name){await page.screenshot({path:path.join(out,'ux-'+name+'.png'),fullPage:true});return 'ux-'+name+'.png';}
+async function scan(page,name){await page.evaluate(axeSource);const r=await page.evaluate(async()=>{const a=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return a.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,failureSummary:n.failureSummary}))}));});report.axe[name]=r;return r;}
+(async()=>{let browser;try{
+ browser=await chromium.connect(process.env.PW_TEST_CONNECT_WS_ENDPOINT);
+ const context=await browser.newContext({viewport:{width:1440,height:1000}});
+ await context.route('**/*',async route=>{
+  const u=new URL(route.request().url());
+  if(u.origin===new URL(base).origin)return route.continue();
+  const method=route.request().method();
+  const json=(data,status=200)=>route.fulfill({status,contentType:'application/json',headers:{'access-control-allow-origin':base,'access-control-allow-headers':'*','access-control-allow-methods':'*'},body:JSON.stringify(data)});
+  if(u.origin==='http://127.0.0.1:3999'){
+   report.requests.push({service:'auth-stub',method,path:u.pathname});
+   if(method==='OPTIONS')return json({});
+   if(u.pathname==='/auth/v1/token'){
+    if(authFails)return json({error:'invalid_grant',error_description:'Invalid login credentials'},400);
+    const payload={sub:user.id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'};
+    const accessToken=[Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),Buffer.from(JSON.stringify(payload)).toString('base64url'),'local-fixture'].join('.');
+    return json({access_token:accessToken,token_type:'bearer',expires_in:3600,refresh_token:'local-fixture',user});
+   } return json(user);
+  }
+  if(u.origin==='http://127.0.0.1:3998'){
+   report.requests.push({service:'api-stub',method,path:u.pathname,state:listState});
+   if(method==='OPTIONS')return json({});
+   if(method==='POST'){
+    if(saveFails)return json({success:false,error:{message:'Synthetic save unavailable'}},503);
+    composition={...composition,...JSON.parse(route.request().postData()||'{}')};listState='items';return json({success:true,data:composition},201);
+   }
+   if(method==='PUT'){composition={...composition,...JSON.parse(route.request().postData()||'{}')};return json({success:true,data:composition});}
+   if(method==='DELETE'){listState='empty';return route.fulfill({status:204,headers:{'access-control-allow-origin':base},body:''});}
+   if(u.pathname==='/compositions'){
+    if(listState==='loading')await new Promise(r=>releaseLoading=r);
+    if(listState==='error')return json({success:false,error:{message:'Synthetic library unavailable'}},503);
+    return json({success:true,data:listState==='items'?[composition]:[]});
+   }
+head: docs/qa/2026-10-02/tools/ux-performance.cjs: No such file or directory
+# Independent QA gate review
+
+PR: opened by orchestrator
+
+CI status: pending at time of writing
+
+## Decision
+
+Reviewed QA-only scope is acceptable. No product behavior changes or unrelated modifications were found. The reported BE-001, BE-002, BE-003, BE-101, FE-001, FE-002 and FE-003 failures agree with the current implementation and represent real defects. This review does not certify a release; final workspace validation and final document assembly are owned by the coordinating pass.
+
+The reviewer verified checkout /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong, branch qa/2026-10-02-sweep, origin https://github.com/PetrefiedThunder/OBSong.git, HEAD 371ad7e. Source/test review was read-only. Only this gate report was authored by this reviewer; the shared command runner also appended its audit log and evidence files.
+
+## Evidence reviewed
+
+- API schemas/auth/service tests and matching source. BE-001's five cases fail at the 400-versus-201 assertion (apps/api/src/__tests__/qa.boundaries.test.ts:87); BE-002 fails at the final merged-document assertion (qa.persistence.test.ts:110); BE-003 fails at the one-hop IP assertion (qa.proxy.test.ts:33). These exact negative-control failures are captured in artifacts/backend-negative-control.txt. The provider is mocked and no database was contacted, as the report states.
+- Shared image/audio property corpora and MIDI round trips. BE-101 fails because changing the final texture sample does not change the output (packages/core-audio/src/__tests__/qa-invariants.test.ts:98), matching floor-division segmentation at packages/core-audio/src/mappers.ts:545. Its normal-test negative control is captured in artifacts/backend-core-pad-negative-control.txt.
+- Web image boundaries. FE-001 matches fractional dimensions returned from apps/web/src/lib/imageProcessing.ts:74 after canvas truncation. The 1301x2000 portrait case also failed in the real connected-browser session (artifacts/ux-browser-report.json), independently supporting the canvas model used in the unit test.
+- Mobile account isolation. FE-002's delayed cache hydration writes state without rechecking active identity (apps/mobile/src/state/CompositionsProvider.tsx:89); delayed deletion combines the next account's shared ref with the old callback's cache key (:220 and :228); detail reads return old-account data despite skipping provider-state updates (:156). apps/mobile/src/screens/CompositionDetailScreen.tsx:57 consumes that return value. The tests model these awaits with controlled promises and switch the actual provider's auth context.
+- Secure storage lifecycle. FE-003 matches parsing JSON metadata with Number.parseInt (apps/mobile/src/auth/secureStorage.ts:28), yielding NaN and skipping the chunk deletion loop. Independent round-trip tests establish that the fake stores implement the expected storage boundary; no device keychain was accessed. The evidence proves orphaned encrypted chunks, not successful use of revoked credentials.
+- Expected failures carry finding IDs. Existing assertions were not weakened. Passing cases cover ordinary behavior around the negative paths. No tests, schemas, migrations, deployment settings or source behavior were modified by this reviewer.
+- Added runtime test renderer exactly matches installed React 19.2.3. Added types match the repository's existing React 18 type family. Local web/mobile typechecks and focused ESLint succeeded according to artifacts/frontend-tests_typecheck.txt and artifacts/frontend-added_tests_lint.txt; the root pass is additionally validating the CI Node version.
+- The browser regression config requires the orchestrator WebSocket endpoint and does not directly launch browsers. The scripts intercept external requests and use synthetic auth/API data. Native audio fidelity, provider behavior and real device semantics remain outside the evidence.
+
+## Coverage assessment
+
+Use artifacts/coverage-web-before-oxc/coverage-summary.json for the web baseline, not the misleadingly named coverage-web-before-valid directory: that intermediate attempt contains TSX parse exclusions. The repaired before/after reports both contain 26 web source files and 1,058 executable lines; mobile reports both contain 16 source files and 648 executable lines. Broad source scopes include zero-covered screens and bootstrap code. Backend and core reports explicitly separate coverage from behavioral correctness and include expected-failure execution in their after numbers. No universal or whole-app confidence should be inferred from the improved percentages.
+
+## Closeout conditions and residual limits
+
+FRONTEND.md and artifacts/frontend-negative_controls_pipeline_options.txt were reviewed in a closeout read. All seven frontend negative controls failed at the intended product assertions, with 20 positive controls passing and the expected-failure test bytes restored. The portrait test now explicitly uses the averageRows/rowsToAverage options from the real pipeline, reproducing RangeError. Backend and core controls also remain valid. Two report citation corrections were sent to the root: CompositionsProvider.ts must be CompositionsProvider.tsx, and CompositionDetailScreen.tsx consumes detail at line 57, not lines 60-61. Final consolidated docs and expanded UX regression results remain owned by the root pass. Final CI status must remain pending, because no remote PR/CI was contacted.
+
+No additional targeted rerun was necessary for the source-backed findings; the final workspace test/typecheck/lint pass is coordinated by the root to avoid concurrent mutations. Cross-browser sessions, native rendering, real database isolation and a live vulnerability advisory audit are distinct evidence categories; tests with mocks do not establish those results.
+
+The review-pr and code-review skill guidance informed this review. CodeRabbit remote execution was excluded by the orchestrator's restriction on third-party service access; no authentication or external review API was used.
+
+## Command accounting
+
+Every executed shell command used the shared UTC logger and appears in [REVIEW-LOG.md](REVIEW-LOG.md) and [SESSION-LOG.md](../SESSION-LOG.md). Dead ends were retained: gate_reports exited 1 because no AGENTS.md file matched, and gate_final_inventory exited 2 because FRONTEND.md was not yet present. Subsequent explicit reads covered the available files. A first gate_write_report invocation failed shell parsing before the runner started (zsh unmatched quote); no command or file mutation ran. This retry records that failed invocation. Evidence is stored under artifacts/review-gate_*.
+docs/qa/2026-10-02/tools/ux-perf.cjs
+docs/qa/2026-10-02/tools/ux-playwright.config.cjs
+docs/qa/2026-10-02/tools/scan-code.py
+docs/qa/2026-10-02/tools/font-mock.cjs
+docs/qa/2026-10-02/tools/ux-auth.cjs
+docs/qa/2026-10-02/tools/frontend-negative-controls.py
+docs/qa/2026-10-02/tools/consolidate.py
+docs/qa/2026-10-02/tools/ux-regression.spec.cjs
+docs/qa/2026-10-02/tools/ux-browser.cjs
+docs/qa/2026-10-02/tools/run.py
+
+Exit: 0

@@ -1,0 +1,66 @@
+UTC start: 2026-10-03T01:26:05Z
+Command: QA_BASE_URL=http://127.0.0.1:3138 node docs/qa/2026-10-02/tools/ux-auth.cjs
+
+[
+  {
+    "name": "Invalid sign-in preserves input and displays error",
+    "utc": "2026-10-03T01:26:05.535Z",
+    "outcome": "pass",
+    "detail": {
+      "dialogs": [
+        "Login failed"
+      ],
+      "modalRemains": true
+    }
+  },
+  {
+    "name": "Successful stub sign-in and private empty library",
+    "utc": "2026-10-03T01:26:07.065Z",
+    "outcome": "pass",
+    "detail": {
+      "screenshot": "ux-library-empty.png",
+      "axe": [],
+      "signOutControls": 0
+    }
+  },
+  {
+    "name": "Library loading, failure and retry states",
+    "utc": "2026-10-03T01:26:07.221Z",
+    "outcome": "pass",
+    "detail": {
+      "loading": "ux-library-loading.png",
+      "error": "ux-library-error.png",
+      "liveRegions": [],
+      "retryRecovered": true
+    }
+  },
+  {
+    "name": "Studio demo loads notes and save failure can retry",
+    "utc": "2026-10-03T01:26:07.696Z",
+    "outcome": "pass",
+    "detail": {
+      "playDemoStartsPlayback": false,
+      "dialogs": [
+        "Login failed",
+        "Failed to save composition",
+        "Composition saved!"
+      ],
+      "screenshot": "ux-studio-saved.png"
+    }
+  },
+  {
+    "name": "Saved library, detail, edit and mobile reflow",
+    "utc": "2026-10-03T01:26:09.603Z",
+    "outcome": "pass",
+    "detail": {
+      "detailAxe": [],
+      "mobile": {
+        "width": 375,
+        "scrollWidth": 466
+      },
+      "screenshot": "ux-detail-mobile-375.png"
+    }
+  }
+]
+
+Exit: 0

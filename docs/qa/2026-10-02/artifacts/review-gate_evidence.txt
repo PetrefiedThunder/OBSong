@@ -1,0 +1,259 @@
+UTC start: 2026-10-03T01:27:09Z
+Command: rg --files docs/qa/2026-10-02/artifacts | sort && cat docs/qa/2026-10-02/tools/ux-playwright.config.cjs && cat docs/qa/2026-10-02/tools/ux-regression.spec.cjs && cat apps/web/vitest.config.ts packages/core-audio/vitest.config.ts packages/core-image/vitest.config.ts apps/api/vitest.config.ts && git diff --stat
+
+docs/qa/2026-10-02/artifacts/backend-added-test-first-run.txt
+docs/qa/2026-10-02/artifacts/backend-after-coverage.txt
+docs/qa/2026-10-02/artifacts/backend-audio-contract.txt
+docs/qa/2026-10-02/artifacts/backend-baseline-coverage.txt
+docs/qa/2026-10-02/artifacts/backend-charter-closeout.txt
+docs/qa/2026-10-02/artifacts/backend-contracts-read.txt
+docs/qa/2026-10-02/artifacts/backend-core-add-tests.txt
+docs/qa/2026-10-02/artifacts/backend-core-audio-after.txt
+docs/qa/2026-10-02/artifacts/backend-core-baseline.txt
+docs/qa/2026-10-02/artifacts/backend-core-contracts.txt
+docs/qa/2026-10-02/artifacts/backend-core-evidence.txt
+docs/qa/2026-10-02/artifacts/backend-core-final-check.txt
+docs/qa/2026-10-02/artifacts/backend-core-focused-contracts.txt
+docs/qa/2026-10-02/artifacts/backend-core-identity.txt
+docs/qa/2026-10-02/artifacts/backend-core-image-after.txt
+docs/qa/2026-10-02/artifacts/backend-core-pad-negative-control.txt
+docs/qa/2026-10-02/artifacts/backend-core-report.txt
+docs/qa/2026-10-02/artifacts/backend-core-source.txt
+docs/qa/2026-10-02/artifacts/backend-core-types.txt
+docs/qa/2026-10-02/artifacts/backend-coverage-after/coverage-final.json
+docs/qa/2026-10-02/artifacts/backend-coverage-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/backend-coverage-before/coverage-final.json
+docs/qa/2026-10-02/artifacts/backend-coverage-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/backend-dependency-inventory.txt
+docs/qa/2026-10-02/artifacts/backend-domain-source.txt
+docs/qa/2026-10-02/artifacts/backend-evidence-lines.txt
+docs/qa/2026-10-02/artifacts/backend-final-file-check.txt
+docs/qa/2026-10-02/artifacts/backend-focused-read.txt
+docs/qa/2026-10-02/artifacts/backend-identity.txt
+docs/qa/2026-10-02/artifacts/backend-inventory.txt
+docs/qa/2026-10-02/artifacts/backend-negative-control-location.txt
+docs/qa/2026-10-02/artifacts/backend-negative-control-prep.txt
+docs/qa/2026-10-02/artifacts/backend-negative-control.txt
+docs/qa/2026-10-02/artifacts/backend-offline-secret-scan.txt
+docs/qa/2026-10-02/artifacts/backend-source-read.txt
+docs/qa/2026-10-02/artifacts/code-secret-scan.json
+docs/qa/2026-10-02/artifacts/core-audio-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/core-audio-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/core-image-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/core-image-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-mobile-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-mobile-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-after/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-before-oxc/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-before-valid/coverage-summary.json
+docs/qa/2026-10-02/artifacts/coverage-web-before/coverage-summary.json
+docs/qa/2026-10-02/artifacts/dependency-inventory.json
+docs/qa/2026-10-02/artifacts/frontend-added_tests_lint.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-build.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-lint.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-typecheck.txt
+docs/qa/2026-10-02/artifacts/frontend-baseline-workspace-tests.txt
+docs/qa/2026-10-02/artifacts/frontend-charter.txt
+docs/qa/2026-10-02/artifacts/frontend-charter_start.txt
+docs/qa/2026-10-02/artifacts/frontend-coverage_totals.txt
+docs/qa/2026-10-02/artifacts/frontend-dev-server-stream.txt
+docs/qa/2026-10-02/artifacts/frontend-direct-server-log.txt
+docs/qa/2026-10-02/artifacts/frontend-evidence_line_numbers.txt
+docs/qa/2026-10-02/artifacts/frontend-identity.txt
+docs/qa/2026-10-02/artifacts/frontend-image_tests.txt
+docs/qa/2026-10-02/artifacts/frontend-image_tests_source.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_coverage_transform.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_coverage_transformer.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_mobile_audio.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_renderer.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_sources.txt
+docs/qa/2026-10-02/artifacts/frontend-inspect_vite_transform.txt
+docs/qa/2026-10-02/artifacts/frontend-install_mobile_renderer.txt
+docs/qa/2026-10-02/artifacts/frontend-install_mobile_renderer_store.txt
+docs/qa/2026-10-02/artifacts/frontend-local-web-polling.txt
+docs/qa/2026-10-02/artifacts/frontend-mobile_coverage_after.txt
+docs/qa/2026-10-02/artifacts/frontend-mobile_coverage_before.txt
+docs/qa/2026-10-02/artifacts/frontend-mobile_provider_regressions.txt
+docs/qa/2026-10-02/artifacts/frontend-polling-readiness.txt
+docs/qa/2026-10-02/artifacts/frontend-provider_test_added.txt
+docs/qa/2026-10-02/artifacts/frontend-read_coverage_transformer.txt
+docs/qa/2026-10-02/artifacts/frontend-read_image_contract.txt
+docs/qa/2026-10-02/artifacts/frontend-read_mobile_secure_storage.txt
+docs/qa/2026-10-02/artifacts/frontend-read_mobile_shared.txt
+docs/qa/2026-10-02/artifacts/frontend-read_provider_audio.txt
+docs/qa/2026-10-02/artifacts/frontend-read_web_logic.txt
+docs/qa/2026-10-02/artifacts/frontend-readiness-investigate.txt
+docs/qa/2026-10-02/artifacts/frontend-secure_storage_lifecycle.txt
+docs/qa/2026-10-02/artifacts/frontend-server-readiness.txt
+docs/qa/2026-10-02/artifacts/frontend-server-stream-read.txt
+docs/qa/2026-10-02/artifacts/frontend-stop-dev-investigate.txt
+docs/qa/2026-10-02/artifacts/frontend-test_toolchain_versions.txt
+docs/qa/2026-10-02/artifacts/frontend-tests_typecheck.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_after.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_before.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_before_oxc.txt
+docs/qa/2026-10-02/artifacts/frontend-web_coverage_before_valid.txt
+docs/qa/2026-10-02/artifacts/review-gate_api_tests.txt
+docs/qa/2026-10-02/artifacts/review-gate_core_tests.txt
+docs/qa/2026-10-02/artifacts/review-gate_evidence.txt
+docs/qa/2026-10-02/artifacts/review-gate_identity.txt
+docs/qa/2026-10-02/artifacts/review-gate_inventory.txt
+docs/qa/2026-10-02/artifacts/review-gate_reports.txt
+docs/qa/2026-10-02/artifacts/review-gate_reports_retry.txt
+docs/qa/2026-10-02/artifacts/review-gate_ui_source.txt
+docs/qa/2026-10-02/artifacts/review-gate_ui_tests.txt
+docs/qa/2026-10-02/artifacts/setup-evidence-inventory.txt
+docs/qa/2026-10-02/artifacts/setup-font-hook-location.txt
+docs/qa/2026-10-02/artifacts/setup-font-hook.txt
+docs/qa/2026-10-02/artifacts/setup-font-mock-inspect.txt
+docs/qa/2026-10-02/artifacts/setup-inspect-config.txt
+docs/qa/2026-10-02/artifacts/setup-install.txt
+docs/qa/2026-10-02/artifacts/setup-log-repair.txt
+docs/qa/2026-10-02/artifacts/setup-plan-record.txt
+docs/qa/2026-10-02/artifacts/setup-read-handoffs.txt
+docs/qa/2026-10-02/artifacts/setup-scan-help.txt
+docs/qa/2026-10-02/artifacts/setup-test-provider.txt
+docs/qa/2026-10-02/artifacts/setup-tooling-install.txt
+docs/qa/2026-10-02/artifacts/setup-versions.txt
+docs/qa/2026-10-02/artifacts/ux-add-cross-engine-smoke.txt
+docs/qa/2026-10-02/artifacts/ux-auth-report.json
+docs/qa/2026-10-02/artifacts/ux-auth-session-ready.txt
+docs/qa/2026-10-02/artifacts/ux-auth-static.txt
+docs/qa/2026-10-02/artifacts/ux-browser-engine-probe.txt
+docs/qa/2026-10-02/artifacts/ux-browser-regressions.txt
+docs/qa/2026-10-02/artifacts/ux-browser-report.json
+docs/qa/2026-10-02/artifacts/ux-browser-session-ready.txt
+docs/qa/2026-10-02/artifacts/ux-contrast-and-console-details.txt
+docs/qa/2026-10-02/artifacts/ux-corrupt-image.png
+docs/qa/2026-10-02/artifacts/ux-detail-mobile-375.png
+docs/qa/2026-10-02/artifacts/ux-home-desktop.png
+docs/qa/2026-10-02/artifacts/ux-home-mobile-320.png
+docs/qa/2026-10-02/artifacts/ux-home-mobile-375.png
+docs/qa/2026-10-02/artifacts/ux-identity.txt
+docs/qa/2026-10-02/artifacts/ux-inspect-browser-progress.txt
+docs/qa/2026-10-02/artifacts/ux-inspect.txt
+docs/qa/2026-10-02/artifacts/ux-interim-browser-results.txt
+docs/qa/2026-10-02/artifacts/ux-landing-demo.png
+docs/qa/2026-10-02/artifacts/ux-landing-inspect.txt
+docs/qa/2026-10-02/artifacts/ux-library-empty.png
+docs/qa/2026-10-02/artifacts/ux-library-error.png
+docs/qa/2026-10-02/artifacts/ux-library-loading.png
+docs/qa/2026-10-02/artifacts/ux-login-modal.png
+docs/qa/2026-10-02/artifacts/ux-mobile-and-tour-semantics.txt
+docs/qa/2026-10-02/artifacts/ux-not-found.png
+docs/qa/2026-10-02/artifacts/ux-prepare-axe.txt
+docs/qa/2026-10-02/artifacts/ux-record-cancel.txt
+docs/qa/2026-10-02/artifacts/ux-remaining-ui.txt
+docs/qa/2026-10-02/artifacts/ux-static-flows.txt
+docs/qa/2026-10-02/artifacts/ux-static-ui.txt
+docs/qa/2026-10-02/artifacts/ux-stop-premature-browser.txt
+docs/qa/2026-10-02/artifacts/ux-studio-empty.png
+docs/qa/2026-10-02/artifacts/ux-studio-firefox.png
+docs/qa/2026-10-02/artifacts/ux-studio-mobile-375.png
+docs/qa/2026-10-02/artifacts/ux-studio-saved.png
+docs/qa/2026-10-02/artifacts/ux-studio-webkit.png
+docs/qa/2026-10-02/artifacts/ux-syntax-check.txt
+docs/qa/2026-10-02/artifacts/ux-write-auth-script.txt
+docs/qa/2026-10-02/artifacts/ux-write-browser-script.txt
+docs/qa/2026-10-02/artifacts/ux-write-charter.txt
+docs/qa/2026-10-02/artifacts/ux-write-regression-tests.txt
+const path=require('node:path');
+const {createRequire}=require('node:module');
+const req=createRequire(path.join(process.env.QA_BROWSER_TOOLS||'/private/tmp/obsong-qa-tools','package.json'));
+const {defineConfig}=req('@playwright/test');
+if(!process.env.PW_TEST_CONNECT_WS_ENDPOINT)throw new Error('Connect to the orchestrator browser server; direct browser launch is forbidden.');
+module.exports=defineConfig({
+ testDir:__dirname,testMatch:'ux-regression.spec.cjs',timeout:30000,workers:1,
+ reporter:[['list'],['json',{outputFile:'docs/qa/2026-10-02/artifacts/ux-regression-results.json'}]],
+ outputDir:'/private/tmp/obsong-qa-browser-results',
+ use:{baseURL:process.env.QA_BASE_URL||'http://127.0.0.1:3000',
+ connectOptions:{wsEndpoint:process.env.PW_TEST_CONNECT_WS_ENDPOINT},serviceWorkers:'block'},
+ projects:[{name:'chromium',use:{browserName:'chromium'}}]
+});
+const path=require('node:path'),{createRequire}=require('node:module');
+const req=createRequire(path.join(process.env.QA_BROWSER_TOOLS||'/private/tmp/obsong-qa-tools','package.json'));
+const {test,expect}=req('@playwright/test');
+test.beforeEach(async({context,baseURL})=>{
+ await context.route('**/*',r=>new URL(r.request().url()).origin===new URL(baseURL).origin?r.continue():r.abort('blockedbyclient'));
+});
+test('empty studio cannot generate notes before an image is analyzed',async({page})=>{
+ await page.goto('/studio');
+ await expect(page.getByRole('heading',{name:'Studio',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Generate Composition'})).toBeDisabled();
+});
+test('scene demo loads locally and enables MIDI export',async({page})=>{
+ await page.goto('/studio');
+ await page.getByRole('button',{name:/Ocean Horizon/}).click();
+ await page.getByRole('button',{name:'Play Demo',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Save to Library'})).toBeVisible();
+ const downloaded=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Export as MIDI'}).click();
+ const file=await downloaded;
+ expect(file.suggestedFilename()).toMatch(/\.mid$/);
+});
+test('UX-001 sign-in dialog keeps keyboard focus inside',async({page})=>{
+ test.fail(true,'UX-001: modal has no focus containment.');
+ await page.goto('/compositions');
+ await page.getByRole('button',{name:'Sign In',exact:true}).click();
+ await expect(page.getByRole('dialog')).toBeVisible();
+ await page.getByRole('dialog').getByRole('button',{name:'Sign In',exact:true}).focus();
+ await page.keyboard.press('Tab');
+ expect(await page.evaluate(()=>!!document.activeElement.closest('[role=dialog]'))).toBe(true);
+});
+test('UX-002 selected musical key exposes pressed state',async({page})=>{
+ test.fail(true,'UX-002: selection is represented by CSS color only.');
+ await page.goto('/studio');
+ await page.getByRole('button',{name:'D',exact:true}).click();
+ await expect(page.getByRole('button',{name:'D',exact:true})).toHaveAttribute('aria-pressed','true');
+});
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  // Next preserves JSX for its own compiler; Vitest must transform TSX for coverage.
+  oxc: { jsx: { runtime: 'automatic' } },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    exclude: ['.next/**', 'node_modules/**'],
+  },
+});
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    exclude: ["dist/**", "node_modules/**"],
+  },
+});
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    exclude: ["dist/**", "node_modules/**"],
+  },
+});
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    // Dummy Supabase env so src/supabase.ts (which throws if unset) can be imported;
+    // the client is never actually used against the network in tests (services/auth are mocked).
+    env: {
+      SUPABASE_URL: 'http://localhost:54321',
+      SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+      NODE_ENV: 'test',
+    },
+    exclude: ['dist/**', 'node_modules/**'],
+  },
+});
+ apps/mobile/package.json  |  2 ++
+ apps/web/vitest.config.ts |  2 ++
+ pnpm-lock.yaml            | 26 ++++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+)
+
+Exit: 0

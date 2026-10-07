@@ -1,0 +1,323 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/26.7.0/bin/node",
+      "/private/tmp/obsong-qa-tools/node_modules/@playwright/test/cli.js",
+      "test",
+      "--config",
+      "docs/qa/2026-10-02/tools/ux-playwright.config.cjs"
+    ],
+    "configFile": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-playwright.config.cjs",
+    "rootDir": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/obsong-qa-browser-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools",
+        "testIgnore": [],
+        "testMatch": [
+          "ux-regression.spec.cjs"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "docs/qa/2026-10-02/artifacts/ux-regression-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "ux-regression.spec.cjs",
+      "file": "ux-regression.spec.cjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "empty studio cannot generate notes before an image is analyzed",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 706,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T01:26:13.798Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a7372e8326da45ea4729-827dae999ae5a1f9db98",
+          "file": "ux-regression.spec.cjs",
+          "line": 7,
+          "column": 1
+        },
+        {
+          "title": "scene demo loads locally and enables MIDI export",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 568,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T01:26:14.661Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a7372e8326da45ea4729-faf199bf5fa90d85f5cd",
+          "file": "ux-regression.spec.cjs",
+          "line": 12,
+          "column": 1
+        },
+        {
+          "title": "UX-001 sign-in dialog keeps keyboard focus inside",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "fail",
+                  "description": "UX-001: modal has no focus containment.",
+                  "location": {
+                    "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                    "line": 23,
+                    "column": 7
+                  }
+                }
+              ],
+              "expectedStatus": "failed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 465,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs:29:85",
+                    "location": {
+                      "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                      "column": 85,
+                      "line": 29
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 27 |\u001b[39m  \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'dialog'\u001b[39m)\u001b[33m.\u001b[39mgetByRole(\u001b[32m'button'\u001b[39m\u001b[33m,\u001b[39m{name\u001b[33m:\u001b[39m\u001b[32m'Sign In'\u001b[39m\u001b[33m,\u001b[39mexact\u001b[33m:\u001b[39m\u001b[36mtrue\u001b[39m})\u001b[33m.\u001b[39mfocus()\u001b[33m;\u001b[39m\n \u001b[90m 28 |\u001b[39m  \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Tab'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 29 |\u001b[39m  expect(\u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mevaluate(()\u001b[33m=>\u001b[39m\u001b[33m!\u001b[39m\u001b[33m!\u001b[39mdocument\u001b[33m.\u001b[39mactiveElement\u001b[33m.\u001b[39mclosest(\u001b[32m'[role=dialog]'\u001b[39m)))\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                                                     \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 30 |\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m 31 |\u001b[39m test(\u001b[32m'UX-002 selected musical key exposes pressed state'\u001b[39m\u001b[33m,\u001b[39m\u001b[36masync\u001b[39m({page})\u001b[33m=>\u001b[39m{\n \u001b[90m 32 |\u001b[39m  test\u001b[33m.\u001b[39mfail(\u001b[36mtrue\u001b[39m\u001b[33m,\u001b[39m\u001b[32m'UX-002: selection is represented by CSS color only.'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                        "column": 85,
+                        "line": 29
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  27 |  await page.getByRole('dialog').getByRole('button',{name:'Sign In',exact:true}).focus();\n  28 |  await page.keyboard.press('Tab');\n> 29 |  expect(await page.evaluate(()=>!!document.activeElement.closest('[role=dialog]'))).toBe(true);\n     |                                                                                     ^\n  30 | });\n  31 | test('UX-002 selected musical key exposes pressed state',async({page})=>{\n  32 |  test.fail(true,'UX-002: selection is represented by CSS color only.');\n    at /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs:29:85"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T01:26:15.237Z",
+                  "annotations": [
+                    {
+                      "type": "fail",
+                      "description": "UX-001: modal has no focus containment.",
+                      "location": {
+                        "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                        "line": 23,
+                        "column": 7
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/obsong-qa-browser-results/ux-regression-UX-001-sign--a0538-keeps-keyboard-focus-inside-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                    "column": 85,
+                    "line": 29
+                  }
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a7372e8326da45ea4729-5c8aa53dcfb575a2e311",
+          "file": "ux-regression.spec.cjs",
+          "line": 22,
+          "column": 1
+        },
+        {
+          "title": "UX-002 selected musical key exposes pressed state",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "fail",
+                  "description": "UX-002: selection is represented by CSS color only.",
+                  "location": {
+                    "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                    "line": 32,
+                    "column": 7
+                  }
+                }
+              ],
+              "expectedStatus": "failed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5455,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveAttribute\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('button', { name: 'D', exact: true })\nExpected: \u001b[32m\"true\"\u001b[39m\nReceived: \u001b[31m\"\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveAttribute\" getByRole('button', { name: 'D', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'D', exact: true })\u001b[22m\n\u001b[2m    14 × locator resolved to <button class=\"py-2 px-3 rounded-lg font-medium transition-colors bg-primary-600 text-white\">D</button>\u001b[22m\n\u001b[2m       - unexpected value \"null\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveAttribute\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('button', { name: 'D', exact: true })\nExpected: \u001b[32m\"true\"\u001b[39m\nReceived: \u001b[31m\"\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveAttribute\" getByRole('button', { name: 'D', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'D', exact: true })\u001b[22m\n\u001b[2m    14 × locator resolved to <button class=\"py-2 px-3 rounded-lg font-medium transition-colors bg-primary-600 text-white\">D</button>\u001b[22m\n\u001b[2m       - unexpected value \"null\"\u001b[22m\n\n    at /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs:35:63",
+                    "location": {
+                      "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                      "column": 63,
+                      "line": 35
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 33 |\u001b[39m  \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/studio'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 34 |\u001b[39m  \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'button'\u001b[39m\u001b[33m,\u001b[39m{name\u001b[33m:\u001b[39m\u001b[32m'D'\u001b[39m\u001b[33m,\u001b[39mexact\u001b[33m:\u001b[39m\u001b[36mtrue\u001b[39m})\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 35 |\u001b[39m  \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'button'\u001b[39m\u001b[33m,\u001b[39m{name\u001b[33m:\u001b[39m\u001b[32m'D'\u001b[39m\u001b[33m,\u001b[39mexact\u001b[33m:\u001b[39m\u001b[36mtrue\u001b[39m}))\u001b[33m.\u001b[39mtoHaveAttribute(\u001b[32m'aria-pressed'\u001b[39m\u001b[33m,\u001b[39m\u001b[32m'true'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 36 |\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m 37 |\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                        "column": 63,
+                        "line": 35
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveAttribute\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('button', { name: 'D', exact: true })\nExpected: \u001b[32m\"true\"\u001b[39m\nReceived: \u001b[31m\"\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveAttribute\" getByRole('button', { name: 'D', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'D', exact: true })\u001b[22m\n\u001b[2m    14 × locator resolved to <button class=\"py-2 px-3 rounded-lg font-medium transition-colors bg-primary-600 text-white\">D</button>\u001b[22m\n\u001b[2m       - unexpected value \"null\"\u001b[22m\n\n\n  33 |  await page.goto('/studio');\n  34 |  await page.getByRole('button',{name:'D',exact:true}).click();\n> 35 |  await expect(page.getByRole('button',{name:'D',exact:true})).toHaveAttribute('aria-pressed','true');\n     |                                                               ^\n  36 | });\n  37 |\n    at /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs:35:63"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T01:26:15.710Z",
+                  "annotations": [
+                    {
+                      "type": "fail",
+                      "description": "UX-002: selection is represented by CSS color only.",
+                      "location": {
+                        "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                        "line": 32,
+                        "column": 7
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/obsong-qa-browser-results/ux-regression-UX-002-selec-18761-l-key-exposes-pressed-state-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/docs/qa/2026-10-02/tools/ux-regression.spec.cjs",
+                    "column": 63,
+                    "line": 35
+                  }
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a7372e8326da45ea4729-9fd799f73d7bdf96c81c",
+          "file": "ux-regression.spec.cjs",
+          "line": 31,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-03T01:26:13.545Z",
+    "duration": 7638.308,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

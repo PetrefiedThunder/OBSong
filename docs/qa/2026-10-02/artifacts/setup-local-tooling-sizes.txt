@@ -1,0 +1,36 @@
+UTC start: 2026-10-03T01:27:35Z
+Command: du -sh docs/qa/2026-10-02/artifacts; cat docs/qa/2026-10-02/tools/ux-playwright.config.cjs; cat docs/qa/2026-10-02/passes/UX.md; git diff --check
+
+5.1M	docs/qa/2026-10-02/artifacts
+const path=require('node:path');
+const {createRequire}=require('node:module');
+const req=createRequire(path.join(process.env.QA_BROWSER_TOOLS||'/private/tmp/obsong-qa-tools','package.json'));
+const {defineConfig}=req('@playwright/test');
+if(!process.env.PW_TEST_CONNECT_WS_ENDPOINT)throw new Error('Connect to the orchestrator browser server; direct browser launch is forbidden.');
+module.exports=defineConfig({
+ testDir:__dirname,testMatch:'ux-regression.spec.cjs',timeout:30000,workers:1,
+ reporter:[['list'],['json',{outputFile:path.resolve(__dirname,'../artifacts/ux-regression-results.json')}]],
+ outputDir:'/private/tmp/obsong-qa-browser-results',
+ use:{baseURL:process.env.QA_BASE_URL||'http://127.0.0.1:3000',
+ connectOptions:{wsEndpoint:process.env.PW_TEST_CONNECT_WS_ENDPOINT},serviceWorkers:'block'},
+ projects:[{name:'chromium',use:{browserName:'chromium'}}]
+});
+# UX QA pass
+
+Status: active. Identity verified: OBSong at `/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong`, branch `qa/2026-10-02-sweep`, origin `PetrefiedThunder/OBSong`.
+
+## Charter and method
+
+Timebox: 20 minutes of browser exploration after the local server is ready, preceded by source review. Test a new visitor finding the studio, uploading a local synthetic image, generating and playing notes, exporting MIDI, signing in with a stubbed provider, saving to a stubbed API, and recovering from failure. Inspect desktop and narrow mobile layouts. Axe WCAG 2.2 AA plus keyboard traversal and DOM/ARIA inspection provide complementary accessibility evidence; this does not claim a physical screen-reader or native mobile audit. Nielsen heuristics guide clarity, status, recovery, consistency, and error prevention checks.
+
+Use a connected latest Playwright browser and intercept every request before navigation. Only the local app origin is allowed; synthetic auth/API hosts are stubbed and all other URLs are aborted. Use fake data only. Native iOS/Android/device audio and real provider integration are out of scope. Browser audio state is observable; audible fidelity is not.
+
+## Execution log
+
+Every command and its UTC outcome is in [UX-LOG.md](UX-LOG.md) and the aggregate [SESSION-LOG.md](../SESSION-LOG.md). Browser session steps will be recorded in the JSON report.
+
+## Results
+
+Pending connected-browser evidence.
+
+Exit: 0

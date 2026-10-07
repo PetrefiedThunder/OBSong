@@ -1,0 +1,13 @@
+UTC start: 2026-10-03T01:29:11Z
+Command: python3 - <<'PY'
+from pathlib import Path
+p=Path("docs/qa/2026-10-02/passes/GATE.md")
+s=p.read_text()
+s=s.replace("At this review snapshot, FRONTEND.md and the final consolidated findings/coverage/summary were still being written. The frontend lane was actively producing assertion-level negative controls for its seven expected failures, and the UX lane was correcting the location of the Playwright JSON report. These must be incorporated by the root pass before final handoff. Backend and core negative controls were already inspected and valid. Final CI status must remain pending, because no remote PR/CI was contacted.", "FRONTEND.md and artifacts/frontend-negative_controls_pipeline_options.txt were reviewed in a closeout read. All seven frontend negative controls failed at the intended product assertions, with 20 positive controls passing and the expected-failure test bytes restored. The portrait test now explicitly uses the averageRows/rowsToAverage options from the real pipeline, reproducing RangeError. Backend and core controls also remain valid. Two report citation corrections were sent to the root: CompositionsProvider.ts must be CompositionsProvider.tsx, and CompositionDetailScreen.tsx consumes detail at line 57, not lines 60-61. Final consolidated docs and expanded UX regression results remain owned by the root pass. Final CI status must remain pending, because no remote PR/CI was contacted.")
+p.write_text(s)
+print("Updated gate with reviewed frontend normal-test negative controls; all 15 unit expected failures have assertion evidence.")
+PY
+
+Updated gate with reviewed frontend normal-test negative controls; all 15 unit expected failures have assertion evidence.
+
+Exit: 0

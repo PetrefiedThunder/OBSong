@@ -1,0 +1,67 @@
+# Frontend QA pass
+
+PR: opened by orchestrator
+
+CI status: pending at time of writing
+
+Scope: Next.js web client, React Native mobile client, their shared API contract usage, image-to-composition input boundary, mobile private-library state, and synthetic secure-storage lifecycle. Checkout identity was verified before editing: `qa/2026-10-02-sweep`, HEAD `371ad7e`, origin `https://github.com/PetrefiedThunder/OBSong.git`, worktree `/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong`.
+
+## Plan and methods
+
+| Area | Impact × likelihood (1–5) | Why this method |
+| --- | --- | --- |
+| Photo upload and analysis | 4 × 5 = 20 | The primary creation flow accepts arbitrary image dimensions. Boundary/equivalence tests cover 1px, 1200px limit, exact and fractional resize ratios, decoding errors, and object-URL cleanup; browser confirmation is provided by the UX pass. |
+| Account switching and private mobile cache | 5 × 3 = 15 | Privacy defects can survive happy-path auth tests. Real React renders with deferred fake network/storage promises expose state races; positive controls check ordinary offline use, guarded responses, concurrent saves, and deletion. |
+| Sign-out and encrypted-storage cleanup | 4 × 3 = 12 | Session chunking has separate read/write/delete formats. In-memory native-module substitutes exercise 1/2048/2049/5000-character boundaries, missing chunks, replacement, and removal without reading any credentials or device storage. |
+| Playback, save, library, exports | 4 × 3 = 12 | Existing pure playback tests and static code review are supplemented by the local-only UX browser pass. Native audio and actual identity-provider integration remain untested. |
+
+The test pyramid favors cheap deterministic unit and provider integration tests, then a small real-browser layer shared with UX. Property-testing libraries were unnecessary for the highest-risk reproduced bugs: exact boundary and interleaving cases give direct, repeatable evidence. No product behavior was changed.
+
+The exploratory charter was timeboxed to 20 minutes, starting at **2026-10-03T01:22:16Z** (the wrapper timestamp is authoritative; the initial printed charter text rounded the start incorrectly to 01:23). It investigated dimension conversion, private-cache ownership during asynchronous work, and playback cancellation. It ended early after the three concrete findings and their regression controls were complete; the closing entry is in [FRONTEND-LOG.md](FRONTEND-LOG.md). Playback cancellation was reviewed statically but not promoted to a verified finding. The secure-storage cleanup probe was added after inspecting the native auth adapter.
+
+All commands, failed attempts, outputs, dependency setup, and negative controls are recorded in [FRONTEND-LOG.md](FRONTEND-LOG.md) and the combined [SESSION-LOG.md](../SESSION-LOG.md).
+
+## Findings
+
+Counts for this code-level pass: Critical=0 High=2 Medium=1 Low=0. Browser-only FE-101+ findings are owned by the UX pass and must be counted separately.
+
+| ID | Severity | Group | Title | Exact reproduction | Expected vs actual | Evidence | Suggested fix |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| FE-001 | High | Frontend | Resized portrait images fail the primary creation flow | Open local `/studio`; upload a generated PNG with dimensions 1301×2000; leave linear mapping selected. For the unit repro run `corepack pnpm --filter @toposonics/web exec vitest run src/lib/__tests__/imageProcessing.qa.test.ts`. | Expected: resize to integer dimensions and enable Generate after successful analysis. Actual: adapter returns width 780.6 although Canvas produces an integer-width buffer; the actual average-rows analyzer throws `RangeError: Invalid array length`. Browser shows `Failed to analyze image` and Generate remains disabled. A 1×3000 image also produces width below one pixel. | `apps/web/src/lib/imageProcessing.ts:55-75`; `imageProcessing.qa.test.ts`, both FE-001 tests; [negative-control output](../artifacts/frontend-negative_controls_pipeline_options.txt); UX [browser report](../artifacts/ux-browser-report.json). | Round and clamp both dimensions to positive integers before setting Canvas size, drawing, reading pixels, and returning metadata; consistently use those actual dimensions across all analysis modes. |
+| FE-002 | High | Frontend | Mobile account-switch races expose another account's compositions | Run the provider regression suite. Case A: start user A's offline refresh, delay AsyncStorage read, switch to B and complete B's refresh, then resolve A's cache. Case B: start A's delete, switch to B, then resolve A's delete. Case C: start A's detail request, switch to B, then resolve A's detail request. | Expected: prior-session asynchronous work cannot publish data into B's state or write B's records under A's cache key, and stale detail loads return no record. Actual: case A replaces B's library with A's cached records; case B writes B's library under A's persistent key; case C returns A's detail to the screen caller despite the provider map guard. These are local state/cache isolation failures, not a demonstrated server authorization bypass. | `apps/mobile/src/state/CompositionsProvider.tsx:78-95`, `:141-166`, `:212-237`; screen consumes returned detail at `apps/mobile/src/screens/CompositionDetailScreen.tsx:57`; all three FE-002 renderer tests; [negative-control output](../artifacts/frontend-negative_controls_pipeline_options.txt). | Apply a consistent session/request generation guard after every awaited operation and before every state/cache write or returned detail; cancel or ignore stale screen loads. Do not mix a current list ref with a previous account's cache closure. |
+| FE-003 | Medium | Frontend | Sign-out leaves chunked session values in encrypted storage | With mocked SecureStore/AsyncStorage, call `secureStorage.setItem('qa-fixture', 'x'.repeat(5000))`, then `secureStorage.removeItem('qa-fixture')`; repeat with a short replacement value instead of removal. No actual session data is used. | Expected: all three previous encrypted chunks are removed. Actual: all three remain because cleanup parses the JSON reference with `Number.parseInt`; it obtains NaN and skips deletion. Ordinary reads return null after reference removal, but credential fragments remain at predictable storage keys. | `apps/mobile/src/auth/secureStorage.ts:24-36` versus reference writer `:64-67`; both FE-003 lifecycle tests; [negative-control output](../artifacts/frontend-negative_controls_pipeline_options.txt). | Read and validate the same JSON `{chunks}` schema written by setItem, remove every old chunk, and cover long-to-short and long-to-shorter replacement paths. |
+
+## Validation and coverage
+
+Added **27 tests: 20 pass and 7 expected failures**, with findings identified in each `it.fails` title. Negative-control runs temporarily removed only those markers and restored the original test bytes in a `finally` block. They produced exactly seven assertion failures; positive controls continued to pass. The final files retain expected-failure markers so known product defects do not turn the ordinary suite red.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Existing web suite | 5 passed | [valid baseline](../artifacts/frontend-web_coverage_before_oxc.txt) |
+| Final web suite with coverage | 14 passed, 2 expected failures | [web after](../artifacts/frontend-web_coverage_after.txt) |
+| Existing mobile suite | 9 passed | [mobile before](../artifacts/frontend-mobile_coverage_before.txt) |
+| Final mobile suite with coverage | 20 passed, 5 expected failures | [mobile after](../artifacts/frontend-mobile_coverage_after.txt) |
+| Web and mobile TypeScript | Both pass after workspace libraries were built | [typecheck](../artifacts/frontend-tests_typecheck.txt) |
+| New test files and test config ESLint | Exit 0; existing Next pages-directory warning | [lint](../artifacts/frontend-added_tests_lint.txt) |
+| Assertion-level bug proofs | 7 deliberate failures, 20 positive controls pass; expected-failure markers restored | [negative controls](../artifacts/frontend-negative_controls_pipeline_options.txt) |
+| Web production build / overall lint | Coordinated by root; see SUMMARY and session log | Root artifacts |
+| Browser main flows, console/network, performance, accessibility, responsive evidence | Coordinated as the separate UX pass | [UX report](UX.md), [browser report](../artifacts/ux-browser-report.json) |
+
+Coverage includes **all `src/**/*.{ts,tsx}`** per application, excludes `src/**/__tests__/**`, and uses the same source denominator before and after. Browser exploration is not included in these instrumentation numbers. Expected-failure executions count as executed coverage; coverage therefore measures exercised code, not defect-free behavior.
+
+| Scope | Source files | Lines before → after | Statements before → after | Branches before → after | Functions before → after |
+| --- | ---: | --- | --- | --- | --- |
+| Web | 26 | 4/1058 (0.37%) → 50/1058 (4.72%) | 4/1105 (0.36%) → 52/1105 (4.70%) | 5/515 (0.97%) → 17/515 (3.30%) | 3/207 (1.44%) → 11/207 (5.31%) |
+| Mobile | 16 | 14/648 (2.16%) → 147/648 (22.68%) | 16/683 (2.34%) → 156/683 (22.84%) | 13/308 (4.22%) → 40/308 (12.98%) | 4/120 (3.33%) → 25/120 (20.83%) |
+
+Machine-readable evidence: [web before](../artifacts/coverage-web-before-oxc/coverage-summary.json), [web after](../artifacts/coverage-web-after/coverage-summary.json), [mobile before](../artifacts/coverage-mobile-before/coverage-summary.json), [mobile after](../artifacts/coverage-mobile-after/coverage-summary.json). Mobile provider line coverage is 88.78%; mobile secure-storage line coverage is 82.60%; web thumbnail line coverage is 100%.
+
+Earlier web baseline artifacts are retained as failed measurement attempts: the existing Next JSX-preserve setting caused TSX files to be excluded from V8 coverage even though the command returned zero. An esbuild setting was ignored by Vite 8. The final test-only `oxc.jsx.runtime = 'automatic'` configuration produces the complete 26-file denominator; `coverage-web-before-oxc` is the valid comparison baseline. The initial image test also encountered missing generated package artifacts, so it now aliases the actual core-image source only within that test. Initial renderer installation used the wrong pnpm store and failed; retrying with the already-established temporary store succeeded.
+
+## Changes and limits
+
+Changes are three added test files, a web test-only JSX transform setting, and exact mobile devDependencies (`react-test-renderer@19.2.3`, with renderer type definitions matching the repository's React 18 type package). These dependencies are needed to reproduce real React effect/render ordering without native emulators. The lockfile changed only for these test packages. A QA-only negative-control script records failing assertions and restores expected-failure markers. No product fix was applied.
+
+Native Android/iOS app builds, physical-device image decoding, native audio fidelity, Keychain/Keystore behavior, actual sign-in, real save/edit/delete persistence, and screen-reader application output were not executed. All provider/storage tests use in-memory substitutes and fake accounts. Web React pages, authentication providers, MIDI download, and full Tone engine still have no direct unit coverage; browser coverage is reported separately. The repository's existing mobile `build` script merely prints that EAS is required, so it cannot prove a native build.
+
+Recommended fix order for this pass: FE-002 account isolation, FE-001 primary image creation, FE-003 encrypted session cleanup. Verify the fixes by converting the corresponding expected-failure markers back to ordinary tests, then add native-device and authenticated-browser confirmation using isolated nonproduction fixtures.

@@ -1,0 +1,125 @@
+{
+  "scope": "Warm local dev server, mock font, no CPU/network throttling, no Lighthouse score or INP",
+  "reports": [
+    {
+      "route": "/",
+      "utc": "2026-10-03T01:28:04.824Z",
+      "observer": {
+        "lcp": 52,
+        "cls": 0,
+        "longTasks": [
+          99
+        ]
+      },
+      "navigation": [
+        {
+          "ttfb": 23.9000000001397,
+          "domContentLoaded": 47.0999999998603,
+          "load": 247.19999999995343
+        }
+      ],
+      "paints": [
+        {
+          "name": "first-paint",
+          "ms": 52
+        },
+        {
+          "name": "first-contentful-paint",
+          "ms": 52
+        }
+      ],
+      "resources": [
+        {
+          "path": "/_next/static/css/app/layout.css",
+          "transferSize": 8823,
+          "encodedBodySize": 8523
+        },
+        {
+          "path": "/_next/static/chunks/webpack.js",
+          "transferSize": 28211,
+          "encodedBodySize": 27911
+        },
+        {
+          "path": "/_next/static/chunks/app-pages-internals.js",
+          "transferSize": 64973,
+          "encodedBodySize": 64673
+        },
+        {
+          "path": "/_next/static/chunks/app/page.js",
+          "transferSize": 239610,
+          "encodedBodySize": 239310
+        },
+        {
+          "path": "/_next/static/chunks/app/layout.js",
+          "transferSize": 484511,
+          "encodedBodySize": 484211
+        },
+        {
+          "path": "/_next/static/chunks/main-app.js",
+          "transferSize": 1815259,
+          "encodedBodySize": 1814959
+        }
+      ]
+    },
+    {
+      "route": "/studio",
+      "utc": "2026-10-03T01:28:06.519Z",
+      "observer": {
+        "lcp": 296,
+        "cls": 0.09583333333333334,
+        "longTasks": [
+          99
+        ]
+      },
+      "navigation": [
+        {
+          "ttfb": 25.5,
+          "domContentLoaded": 40.10000000009313,
+          "load": 253.30000000004657
+        }
+      ],
+      "paints": [
+        {
+          "name": "first-paint",
+          "ms": 44
+        },
+        {
+          "name": "first-contentful-paint",
+          "ms": 44
+        }
+      ],
+      "resources": [
+        {
+          "path": "/_next/static/css/app/layout.css",
+          "transferSize": 8823,
+          "encodedBodySize": 8523
+        },
+        {
+          "path": "/_next/static/chunks/webpack.js",
+          "transferSize": 28211,
+          "encodedBodySize": 27911
+        },
+        {
+          "path": "/_next/static/chunks/app-pages-internals.js",
+          "transferSize": 64973,
+          "encodedBodySize": 64673
+        },
+        {
+          "path": "/_next/static/chunks/app/layout.js",
+          "transferSize": 484511,
+          "encodedBodySize": 484211
+        },
+        {
+          "path": "/_next/static/chunks/app/studio/page.js",
+          "transferSize": 694281,
+          "encodedBodySize": 693981
+        },
+        {
+          "path": "/_next/static/chunks/main-app.js",
+          "transferSize": 1815259,
+          "encodedBodySize": 1814959
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+UTC start: 2026-10-03T01:24:54Z
+Command: node - <<'JS'
+const { chromium, firefox, webkit }=require('/private/tmp/obsong-qa-tools/node_modules/playwright');
+(async()=>{for(const [name,type] of Object.entries({chromium,firefox,webkit})){let b;try{b=await type.connect(process.env.PW_TEST_CONNECT_WS_ENDPOINT,{timeout:8000});console.log(JSON.stringify({requested:name,actual:b.browserType().name(),version:b.version()}));}catch(e){console.log(JSON.stringify({requested:name,error:e.message.slice(0,800)}));}finally{await b?.close();}}})();
+JS
+Exit: 0
+
+{"requested":"chromium","actual":"chromium","version":"153.0.8010.12"}
+{"requested":"firefox","actual":"firefox","version":"155.0"}
+{"requested":"webkit","actual":"webkit","version":"26.6"}

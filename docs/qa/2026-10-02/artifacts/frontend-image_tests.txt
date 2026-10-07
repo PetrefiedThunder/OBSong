@@ -1,0 +1,35 @@
+UTC start: 2026-10-03T01:22:21Z
+Command: pnpm --filter @toposonics/web exec vitest run src/lib/__tests__/imageProcessing.qa.test.ts
+Exit: 1
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web
+
+ ❯ src/lib/__tests__/imageProcessing.qa.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/imageProcessing.qa.test.ts [ src/lib/__tests__/imageProcessing.qa.test.ts ]
+Error: Failed to resolve entry for package "@toposonics/core-image". The package may have incorrect main/module/exports specified in its package.json.
+ ❯ src/lib/__tests__/imageProcessing.qa.test.ts:2:1
+      1| import { afterEach, describe, expect, it, vi } from 'vitest';
+      2| import { analyzeImageForLinearLandscape } from '@toposonics/core-image…
+       | ^
+      3| import { extractPixelData, loadImageFromFile } from '../imageProcessin…
+      4| import { generateImageThumbnail } from '../imageThumbnail';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  18:22:21
+   Duration  186ms (transform 12ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
+undefined
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run src/lib/__tests__/imageProcessing.qa.test.ts

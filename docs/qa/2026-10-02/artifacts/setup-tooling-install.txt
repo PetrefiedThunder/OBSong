@@ -1,0 +1,6 @@
+UTC start: 2026-10-03T01:21:22Z
+Command: mkdir -p /private/tmp/obsong-qa-tools && cd /private/tmp/obsong-qa-tools && npm install --prefix /private/tmp/obsong-qa-tools --cache /private/tmp/obsong-qa-npm-cache --ignore-scripts --no-audit --no-fund @playwright/test@latest @axe-core/playwright@latest @vitest/coverage-v8@4.1.11
+Exit: 0
+
+
+added 69 packages in 9s

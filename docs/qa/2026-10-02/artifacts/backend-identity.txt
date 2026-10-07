@@ -1,0 +1,10 @@
+UTC start: 2026-10-03T01:20:58Z
+Command: pwd && git worktree list && git branch --show-current && git remote get-url origin && git status --short
+Exit: 0
+
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong 371ad7e [qa/2026-10-02-sweep]
+qa/2026-10-02-sweep
+https://github.com/PetrefiedThunder/OBSong.git
+?? .pnpm-store/
+?? docs/qa/

@@ -1,0 +1,31 @@
+UTC start: 2026-10-03T01:31:29Z
+Command: head -12 docs/qa/2026-10-02/tools/ux-perf.cjs; python3 docs/qa/2026-10-02/tools/consolidate.py; git status --short
+
+const fs=require('node:fs'),{chromium}=require('/private/tmp/obsong-qa-tools/node_modules/playwright');
+(async()=>{const b=await chromium.connect(process.env.PW_TEST_CONNECT_WS_ENDPOINT);const reports=[];try{for(const route of ['/','/studio']){
+ const c=await b.newContext();
+ const base=process.env.QA_BASE_URL||'http://127.0.0.1:3138';
+ await c.route('**/*',r=>new URL(r.request().url()).origin===base?r.continue():r.abort());
+ await c.addInitScript(()=>{
+  window.__qaPerf={lcp:null,cls:0,longTasks:[]};
+  for(const type of ['largest-contentful-paint','layout-shift','longtask']){
+   try{new PerformanceObserver(list=>{for(const e of list.getEntries()){
+    if(type==='largest-contentful-paint')window.__qaPerf.lcp=e.startTime;
+    if(type==='layout-shift'&&!e.hadRecentInput)window.__qaPerf.cls+=e.value;
+    if(type==='longtask')window.__qaPerf.longTasks.push(e.duration);
+Consolidated 13 findings: {'Medium': 9, 'High': 3, 'Low': 1} {'Backend': 4, 'Frontend': 3, 'UX': 6}
+ M apps/mobile/package.json
+ M apps/web/vitest.config.ts
+ M pnpm-lock.yaml
+?? apps/api/src/__tests__/qa.auth.test.ts
+?? apps/api/src/__tests__/qa.boundaries.test.ts
+?? apps/api/src/__tests__/qa.persistence.test.ts
+?? apps/api/src/__tests__/qa.proxy.test.ts
+?? apps/mobile/src/auth/__tests__/
+?? apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts
+?? apps/web/src/lib/__tests__/
+?? docs/qa/
+?? packages/core-audio/src/__tests__/qa-invariants.test.ts
+?? packages/core-image/src/__tests__/qa-invariants.test.ts
+
+Exit: 0

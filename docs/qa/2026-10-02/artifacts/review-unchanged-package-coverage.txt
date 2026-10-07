@@ -1,0 +1,106 @@
+UTC start: 2026-10-03T01:28:25Z
+Command: for package in shared types ui native-image-processing; do corepack pnpm --filter "@toposonics/$package" exec vitest run --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory="../../docs/qa/2026-10-02/artifacts/coverage-$package-unchanged" || exit; done
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/shared
+      Coverage enabled with v8
+
+ ✓ src/__tests__/apiClient.test.ts (16 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  18:28:26
+   Duration  195ms (transform 27ms, setup 0ms, import 44ms, tests 6ms, environment 0ms)
+
+ % Coverage report from v8
+--------------|---------|----------|---------|---------|------------------------
+File          | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s      
+--------------|---------|----------|---------|---------|------------------------
+All files     |   70.11 |    62.96 |   54.54 |   68.67 |                        
+ apiClient.ts |    78.2 |    72.85 |      60 |   77.02 | ...153,157-159,256-295 
+ config.ts    |       0 |        0 |     100 |       0 | 2-19                   
+ demo-data.ts |       0 |      100 |     100 |       0 | 8-29                   
+ index.ts     |       0 |        0 |       0 |       0 |                        
+ logging.ts   |       0 |        0 |       0 |       0 | 12                     
+--------------|---------|----------|---------|---------|------------------------
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types
+      Coverage enabled with v8
+
+ ✓ src/__tests__/index.test.ts (11 tests) 66ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  18:28:27
+   Duration  203ms (transform 66ms, setup 0ms, import 24ms, tests 66ms, environment 0ms)
+
+ % Coverage report from v8
+----------------|---------|----------|---------|---------|-------------------
+File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------------|---------|----------|---------|---------|-------------------
+All files       |       0 |        0 |       0 |       0 |                   
+ api.ts         |       0 |        0 |       0 |       0 |                   
+ audio.ts       |       0 |        0 |       0 |       0 |                   
+ composition.ts |       0 |        0 |       0 |       0 |                   
+ image.ts       |       0 |        0 |       0 |       0 |                   
+ index.ts       |       0 |        0 |       0 |       0 |                   
+ mapping.ts     |       0 |        0 |       0 |       0 |                   
+ user.ts        |       0 |        0 |       0 |       0 |                   
+----------------|---------|----------|---------|---------|-------------------
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/ui
+      Coverage enabled with v8
+
+ ✓ src/__tests__/components.test.ts (4 tests) 3ms
+ ✓ src/__tests__/theme.test.ts (4 tests) 3ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  18:28:28
+   Duration  245ms (transform 84ms, setup 0ms, import 122ms, tests 6ms, environment 0ms)
+
+ % Coverage report from v8
+----------------|---------|----------|---------|---------|-------------------
+File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------------|---------|----------|---------|---------|-------------------
+All files       |      15 |        0 |       0 |      15 |                   
+ src            |     100 |      100 |     100 |     100 |                   
+  index.ts      |       0 |        0 |       0 |       0 |                   
+  theme.ts      |     100 |      100 |     100 |     100 |                   
+ src/components |   10.52 |        0 |       0 |   10.52 |                   
+  Button.tsx    |    12.5 |        0 |       0 |    12.5 | 61-133            
+  Card.tsx      |    9.09 |        0 |       0 |    9.09 | 49-111            
+  index.ts      |       0 |        0 |       0 |       0 |                   
+----------------|---------|----------|---------|---------|-------------------
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/native-image-processing
+      Coverage enabled with v8
+
+ ✓ src/__tests__/index.test.ts (5 tests) 16ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:28:29
+   Duration  140ms (transform 17ms, setup 0ms, import 21ms, tests 16ms, environment 0ms)
+
+ % Coverage report from v8
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |   76.92 |       75 |     100 |   76.92 |                   
+ index.ts |   76.92 |       75 |     100 |   76.92 | 61-63             
+----------|---------|----------|---------|---------|-------------------
+
+Exit: 0

@@ -1,0 +1,5 @@
+UTC start: 2026-10-03T01:26:39Z
+Command: rg --files -g AGENTS.md -g "!node_modules" -g "!.pnpm-store" && cat docs/qa/2026-10-02/passes/BACKEND.md docs/qa/2026-10-02/passes/CORE-SUPPLEMENT.md docs/qa/2026-10-02/passes/UX.md && git diff -- apps/mobile/package.json apps/web/vitest.config.ts && cat package.json
+
+
+Exit: 1

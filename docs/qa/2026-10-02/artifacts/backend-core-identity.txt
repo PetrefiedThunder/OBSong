@@ -1,0 +1,69 @@
+UTC start: 2026-10-03T01:23:50Z
+Command: pwd && git branch --show-current && git remote get-url origin && git worktree list && rg --files -g AGENTS.md -g package.json -g "*test*" packages/core-image packages/core-audio && cat packages/core-image/package.json packages/core-audio/package.json
+Exit: 0
+
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong
+qa/2026-10-02-sweep
+https://github.com/PetrefiedThunder/OBSong.git
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong 371ad7e [qa/2026-10-02-sweep]
+packages/core-audio/src/__tests__/mappers.test.ts
+packages/core-audio/src/__tests__/sanity.test.ts
+packages/core-audio/vitest.config.ts
+packages/core-audio/package.json
+packages/core-image/src/__tests__/analysis.test.ts
+packages/core-image/vitest.config.ts
+packages/core-image/package.json
+packages/core-image/src/__tests__/analyzer.test.ts
+packages/core-image/src/__tests__/sanity.test.ts
+{
+  "name": "@toposonics/core-image",
+  "version": "0.1.0",
+  "description": "Image analysis utilities for TopoSonics - environment agnostic",
+  "main": "dist/index.js",
+  "react-native": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@toposonics/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+{
+  "name": "@toposonics/core-audio",
+  "version": "0.1.0",
+  "description": "Audio mapping utilities for TopoSonics - converts image features to musical events",
+  "main": "dist/index.js",
+  "react-native": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsc -p . --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "@toposonics/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}

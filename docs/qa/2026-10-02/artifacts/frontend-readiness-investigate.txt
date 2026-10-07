@@ -1,0 +1,19 @@
+UTC start: 2026-10-03T01:23:59Z
+Command: curl --max-time 10 -sS -I http://127.0.0.1:3000; lsof -nP -iTCP:3000 -sTCP:LISTEN
+Exit: 0
+
+HTTP/1.1 404 Not Found
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+Cache-Control: no-store, must-revalidate
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+X-Powered-By: Next.js
+Content-Type: text/html; charset=utf-8
+Date: Sat, 03 Oct 2026 01:23:59 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+COMMAND   PID    USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    46597 sellers   13u  IPv4 0xaec453b294841e07      0t0  TCP 127.0.0.1:3000 (LISTEN)

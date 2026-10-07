@@ -1,0 +1,785 @@
+[
+  {
+    "name": "toposonics",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong",
+    "private": true,
+    "devDependencies": {
+      "@typescript-eslint/eslint-plugin": {
+        "from": "@typescript-eslint/eslint-plugin",
+        "version": "6.21.0",
+        "resolved": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-6.21.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+eslint-plugin@6.21.0_@typescript-eslint+parser@6.21.0_eslint@8.57.1_typescript@5.9.3/node_modules/@typescript-eslint/eslint-plugin"
+      },
+      "@typescript-eslint/parser": {
+        "from": "@typescript-eslint/parser",
+        "version": "6.21.0",
+        "resolved": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-6.21.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+parser@6.21.0_eslint@8.57.1_typescript@5.9.3/node_modules/@typescript-eslint/parser"
+      },
+      "eslint": {
+        "from": "eslint",
+        "version": "8.57.1",
+        "resolved": "https://registry.npmjs.org/eslint/-/eslint-8.57.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint@8.57.1/node_modules/eslint"
+      },
+      "eslint-config-prettier": {
+        "from": "eslint-config-prettier",
+        "version": "9.1.2",
+        "resolved": "https://registry.npmjs.org/eslint-config-prettier/-/eslint-config-prettier-9.1.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-config-prettier@9.1.2_eslint@8.57.1/node_modules/eslint-config-prettier"
+      },
+      "eslint-plugin-react-hooks": {
+        "from": "eslint-plugin-react-hooks",
+        "version": "5.2.0",
+        "resolved": "https://registry.npmjs.org/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-5.2.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-plugin-react-hooks@5.2.0_eslint@8.57.1/node_modules/eslint-plugin-react-hooks"
+      },
+      "prettier": {
+        "from": "prettier",
+        "version": "3.7.4",
+        "resolved": "https://registry.npmjs.org/prettier/-/prettier-3.7.4.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/prettier@3.7.4/node_modules/prettier"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      }
+    },
+    "unsavedDependencies": {
+      "eslint-config-next": {
+        "from": "eslint-config-next",
+        "version": "link:node_modules/.pnpm/eslint-config-next@15.5.18_eslint@8.57.1_typescript@5.9.3/node_modules/eslint-config-next",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-config-next@15.5.18_eslint@8.57.1_typescript@5.9.3/node_modules/eslint-config-next"
+      },
+      "eslint-import-resolver-node": {
+        "from": "eslint-import-resolver-node",
+        "version": "link:node_modules/.pnpm/eslint-import-resolver-node@0.3.9/node_modules/eslint-import-resolver-node",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-import-resolver-node@0.3.9/node_modules/eslint-import-resolver-node"
+      },
+      "eslint-import-resolver-typescript": {
+        "from": "eslint-import-resolver-typescript",
+        "version": "link:node_modules/.pnpm/eslint-import-resolver-typescript@3.10.1_eslint-plugin-import@2.32.0_eslint@8.57.1/node_modules/eslint-import-resolver-typescript",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-import-resolver-typescript@3.10.1_eslint-plugin-import@2.32.0_eslint@8.57.1/node_modules/eslint-import-resolver-typescript"
+      },
+      "eslint-module-utils": {
+        "from": "eslint-module-utils",
+        "version": "link:node_modules/.pnpm/eslint-module-utils@2.12.1_@typescript-eslint+parser@6.21.0_eslint-import-resolver-node@0.3.9_5re4sdu5dxklrkqjhl4kblqr4y/node_modules/eslint-module-utils",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-module-utils@2.12.1_@typescript-eslint+parser@6.21.0_eslint-import-resolver-node@0.3.9_5re4sdu5dxklrkqjhl4kblqr4y/node_modules/eslint-module-utils"
+      },
+      "eslint-plugin-import": {
+        "from": "eslint-plugin-import",
+        "version": "link:node_modules/.pnpm/eslint-plugin-import@2.32.0_@typescript-eslint+parser@6.21.0_eslint-import-resolver-typescript@3.10.1_eslint@8.57.1/node_modules/eslint-plugin-import",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-plugin-import@2.32.0_@typescript-eslint+parser@6.21.0_eslint-import-resolver-typescript@3.10.1_eslint@8.57.1/node_modules/eslint-plugin-import"
+      },
+      "eslint-plugin-jsx-a11y": {
+        "from": "eslint-plugin-jsx-a11y",
+        "version": "link:node_modules/.pnpm/eslint-plugin-jsx-a11y@6.10.2_eslint@8.57.1/node_modules/eslint-plugin-jsx-a11y",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-plugin-jsx-a11y@6.10.2_eslint@8.57.1/node_modules/eslint-plugin-jsx-a11y"
+      },
+      "eslint-plugin-react": {
+        "from": "eslint-plugin-react",
+        "version": "link:node_modules/.pnpm/eslint-plugin-react@7.37.5_eslint@8.57.1/node_modules/eslint-plugin-react",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-plugin-react@7.37.5_eslint@8.57.1/node_modules/eslint-plugin-react"
+      },
+      "eslint-scope": {
+        "from": "eslint-scope",
+        "version": "link:node_modules/.pnpm/eslint-scope@7.2.2/node_modules/eslint-scope",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-scope@7.2.2/node_modules/eslint-scope"
+      },
+      "eslint-visitor-keys": {
+        "from": "eslint-visitor-keys",
+        "version": "link:node_modules/.pnpm/eslint-visitor-keys@3.4.3/node_modules/eslint-visitor-keys",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-visitor-keys@3.4.3/node_modules/eslint-visitor-keys"
+      },
+      "@eslint/js": {
+        "from": "@eslint/js",
+        "version": "link:node_modules/.pnpm/@eslint+js@8.57.1/node_modules/@eslint/js",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@eslint+js@8.57.1/node_modules/@eslint/js"
+      },
+      "@eslint/eslintrc": {
+        "from": "@eslint/eslintrc",
+        "version": "link:node_modules/.pnpm/@eslint+eslintrc@2.1.4/node_modules/@eslint/eslintrc",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@eslint+eslintrc@2.1.4/node_modules/@eslint/eslintrc"
+      },
+      "@eslint-community/eslint-utils": {
+        "from": "@eslint-community/eslint-utils",
+        "version": "link:node_modules/.pnpm/@eslint-community+eslint-utils@4.9.0_eslint@8.57.1/node_modules/@eslint-community/eslint-utils",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@eslint-community+eslint-utils@4.9.0_eslint@8.57.1/node_modules/@eslint-community/eslint-utils"
+      },
+      "@eslint-community/regexpp": {
+        "from": "@eslint-community/regexpp",
+        "version": "link:node_modules/.pnpm/@eslint-community+regexpp@4.12.2/node_modules/@eslint-community/regexpp",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@eslint-community+regexpp@4.12.2/node_modules/@eslint-community/regexpp"
+      },
+      "@rushstack/eslint-patch": {
+        "from": "@rushstack/eslint-patch",
+        "version": "link:node_modules/.pnpm/@rushstack+eslint-patch@1.15.0/node_modules/@rushstack/eslint-patch",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@rushstack+eslint-patch@1.15.0/node_modules/@rushstack/eslint-patch"
+      },
+      "@next/eslint-plugin-next": {
+        "from": "@next/eslint-plugin-next",
+        "version": "link:node_modules/.pnpm/@next+eslint-plugin-next@15.5.18/node_modules/@next/eslint-plugin-next",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@next+eslint-plugin-next@15.5.18/node_modules/@next/eslint-plugin-next"
+      },
+      "@typescript-eslint/scope-manager": {
+        "from": "@typescript-eslint/scope-manager",
+        "version": "link:node_modules/.pnpm/@typescript-eslint+scope-manager@6.21.0/node_modules/@typescript-eslint/scope-manager",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+scope-manager@6.21.0/node_modules/@typescript-eslint/scope-manager"
+      },
+      "@typescript-eslint/type-utils": {
+        "from": "@typescript-eslint/type-utils",
+        "version": "link:node_modules/.pnpm/@typescript-eslint+type-utils@6.21.0_eslint@8.57.1_typescript@5.9.3/node_modules/@typescript-eslint/type-utils",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+type-utils@6.21.0_eslint@8.57.1_typescript@5.9.3/node_modules/@typescript-eslint/type-utils"
+      },
+      "@typescript-eslint/types": {
+        "from": "@typescript-eslint/types",
+        "version": "link:node_modules/.pnpm/@typescript-eslint+types@6.21.0/node_modules/@typescript-eslint/types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+types@6.21.0/node_modules/@typescript-eslint/types"
+      },
+      "@typescript-eslint/typescript-estree": {
+        "from": "@typescript-eslint/typescript-estree",
+        "version": "link:node_modules/.pnpm/@typescript-eslint+typescript-estree@6.21.0_typescript@5.9.3/node_modules/@typescript-eslint/typescript-estree",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+typescript-estree@6.21.0_typescript@5.9.3/node_modules/@typescript-eslint/typescript-estree"
+      },
+      "@typescript-eslint/utils": {
+        "from": "@typescript-eslint/utils",
+        "version": "link:node_modules/.pnpm/@typescript-eslint+utils@6.21.0_eslint@8.57.1_typescript@5.9.3/node_modules/@typescript-eslint/utils",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+utils@6.21.0_eslint@8.57.1_typescript@5.9.3/node_modules/@typescript-eslint/utils"
+      },
+      "@typescript-eslint/visitor-keys": {
+        "from": "@typescript-eslint/visitor-keys",
+        "version": "link:node_modules/.pnpm/@typescript-eslint+visitor-keys@6.21.0/node_modules/@typescript-eslint/visitor-keys",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@typescript-eslint+visitor-keys@6.21.0/node_modules/@typescript-eslint/visitor-keys"
+      },
+      "@vitest/coverage-v8": {
+        "from": "@vitest/coverage-v8",
+        "version": "link:../../../../../private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8",
+        "path": "/private/tmp/obsong-qa-tools/node_modules/@vitest/coverage-v8"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/api",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api",
+    "private": true,
+    "dependencies": {
+      "@fastify/cors": {
+        "from": "@fastify/cors",
+        "version": "10.1.0",
+        "resolved": "https://registry.npmjs.org/@fastify/cors/-/cors-10.1.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@fastify+cors@10.1.0/node_modules/@fastify/cors"
+      },
+      "@fastify/helmet": {
+        "from": "@fastify/helmet",
+        "version": "12.0.1",
+        "resolved": "https://registry.npmjs.org/@fastify/helmet/-/helmet-12.0.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@fastify+helmet@12.0.1/node_modules/@fastify/helmet"
+      },
+      "@fastify/rate-limit": {
+        "from": "@fastify/rate-limit",
+        "version": "10.3.0",
+        "resolved": "https://registry.npmjs.org/@fastify/rate-limit/-/rate-limit-10.3.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@fastify+rate-limit@10.3.0/node_modules/@fastify/rate-limit"
+      },
+      "@fastify/under-pressure": {
+        "from": "@fastify/under-pressure",
+        "version": "9.1.0",
+        "resolved": "https://registry.npmjs.org/@fastify/under-pressure/-/under-pressure-9.1.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@fastify+under-pressure@9.1.0/node_modules/@fastify/under-pressure"
+      },
+      "@supabase/supabase-js": {
+        "from": "@supabase/supabase-js",
+        "version": "2.86.2",
+        "resolved": "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.86.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@supabase+supabase-js@2.86.2/node_modules/@supabase/supabase-js"
+      },
+      "@toposonics/types": {
+        "from": "@toposonics/types",
+        "version": "link:../../packages/types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types"
+      },
+      "dotenv": {
+        "from": "dotenv",
+        "version": "16.6.1",
+        "resolved": "https://registry.npmjs.org/dotenv/-/dotenv-16.6.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv"
+      },
+      "fastify": {
+        "from": "fastify",
+        "version": "5.12.3",
+        "resolved": "https://registry.npmjs.org/fastify/-/fastify-5.12.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/fastify@5.12.3/node_modules/fastify"
+      }
+    },
+    "devDependencies": {
+      "@types/node": {
+        "from": "@types/node",
+        "version": "20.19.25",
+        "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.25.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+node@20.19.25/node_modules/@types/node"
+      },
+      "pino-pretty": {
+        "from": "pino-pretty",
+        "version": "11.3.0",
+        "resolved": "https://registry.npmjs.org/pino-pretty/-/pino-pretty-11.3.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/pino-pretty@11.3.0/node_modules/pino-pretty"
+      },
+      "tsx": {
+        "from": "tsx",
+        "version": "4.21.0",
+        "resolved": "https://registry.npmjs.org/tsx/-/tsx-4.21.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/mobile",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile",
+    "private": true,
+    "dependencies": {
+      "@babel/runtime": {
+        "from": "@babel/runtime",
+        "version": "7.28.4",
+        "resolved": "https://registry.npmjs.org/@babel/runtime/-/runtime-7.28.4.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@babel+runtime@7.28.4/node_modules/@babel/runtime"
+      },
+      "@expo/vector-icons": {
+        "from": "@expo/vector-icons",
+        "version": "15.1.1",
+        "resolved": "https://registry.npmjs.org/@expo/vector-icons/-/vector-icons-15.1.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@expo+vector-icons@15.1.1_expo-font@57.0.3_react-native@0.86.2_react@19.2.3/node_modules/@expo/vector-icons"
+      },
+      "@react-native-async-storage/async-storage": {
+        "from": "@react-native-async-storage/async-storage",
+        "version": "2.2.0",
+        "resolved": "https://registry.npmjs.org/@react-native-async-storage/async-storage/-/async-storage-2.2.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.86.2/node_modules/@react-native-async-storage/async-storage"
+      },
+      "@react-navigation/native": {
+        "from": "@react-navigation/native",
+        "version": "6.1.18",
+        "resolved": "https://registry.npmjs.org/@react-navigation/native/-/native-6.1.18.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@react-navigation+native@6.1.18_react-native@0.86.2_react@19.2.3/node_modules/@react-navigation/native"
+      },
+      "@react-navigation/native-stack": {
+        "from": "@react-navigation/native-stack",
+        "version": "6.11.0",
+        "resolved": "https://registry.npmjs.org/@react-navigation/native-stack/-/native-stack-6.11.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@react-navigation+native-stack@6.11.0_@react-navigation+native@6.1.18_react-native-safe-area-_yynmhjh23363frpdct6vpjwtta/node_modules/@react-navigation/native-stack"
+      },
+      "@sentry/react-native": {
+        "from": "@sentry/react-native",
+        "version": "7.13.0",
+        "resolved": "https://registry.npmjs.org/@sentry/react-native/-/react-native-7.13.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@sentry+react-native@7.13.0_expo@57.0.21_react-native@0.86.2_react@19.2.3/node_modules/@sentry/react-native"
+      },
+      "@supabase/supabase-js": {
+        "from": "@supabase/supabase-js",
+        "version": "2.86.2",
+        "resolved": "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.86.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@supabase+supabase-js@2.86.2/node_modules/@supabase/supabase-js"
+      },
+      "@toposonics/core-audio": {
+        "from": "@toposonics/core-audio",
+        "version": "link:../../packages/core-audio",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio"
+      },
+      "@toposonics/core-image": {
+        "from": "@toposonics/core-image",
+        "version": "link:../../packages/core-image",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image"
+      },
+      "@toposonics/native-image-processing": {
+        "from": "@toposonics/native-image-processing",
+        "version": "link:../../packages/native-image-processing",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/native-image-processing"
+      },
+      "@toposonics/shared": {
+        "from": "@toposonics/shared",
+        "version": "link:../../packages/shared",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/shared"
+      },
+      "@toposonics/types": {
+        "from": "@toposonics/types",
+        "version": "link:../../packages/types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types"
+      },
+      "@toposonics/ui": {
+        "from": "@toposonics/ui",
+        "version": "link:../../packages/ui",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/ui"
+      },
+      "expo": {
+        "from": "expo",
+        "version": "57.0.21",
+        "resolved": "https://registry.npmjs.org/expo/-/expo-57.0.21.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo@57.0.21_@babel+core@7.29.7_react-native@0.86.2_react@19.2.3_typescript@5.9.3/node_modules/expo"
+      },
+      "expo-apple-authentication": {
+        "from": "expo-apple-authentication",
+        "version": "57.0.1",
+        "resolved": "https://registry.npmjs.org/expo-apple-authentication/-/expo-apple-authentication-57.0.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-apple-authentication@57.0.1_expo@57.0.21_react-native@0.86.2_react@19.2.3/node_modules/expo-apple-authentication"
+      },
+      "expo-application": {
+        "from": "expo-application",
+        "version": "57.0.2",
+        "resolved": "https://registry.npmjs.org/expo-application/-/expo-application-57.0.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-application@57.0.2_expo@57.0.21/node_modules/expo-application"
+      },
+      "expo-asset": {
+        "from": "expo-asset",
+        "version": "57.0.16",
+        "resolved": "https://registry.npmjs.org/expo-asset/-/expo-asset-57.0.16.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-asset@57.0.16_expo@57.0.21_react-native@0.86.2_react@19.2.3_typescript@5.9.3/node_modules/expo-asset"
+      },
+      "expo-audio": {
+        "from": "expo-audio",
+        "version": "57.0.4",
+        "resolved": "https://registry.npmjs.org/expo-audio/-/expo-audio-57.0.4.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-audio@57.0.4_expo-asset@57.0.16_expo@57.0.21_react-native@0.86.2_react@19.2.3/node_modules/expo-audio"
+      },
+      "expo-file-system": {
+        "from": "expo-file-system",
+        "version": "57.0.6",
+        "resolved": "https://registry.npmjs.org/expo-file-system/-/expo-file-system-57.0.6.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-file-system@57.0.6_expo@57.0.21_react-native@0.86.2/node_modules/expo-file-system"
+      },
+      "expo-font": {
+        "from": "expo-font",
+        "version": "57.0.3",
+        "resolved": "https://registry.npmjs.org/expo-font/-/expo-font-57.0.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-font@57.0.3_expo@57.0.21_react-native@0.86.2_react@19.2.3/node_modules/expo-font"
+      },
+      "expo-image-picker": {
+        "from": "expo-image-picker",
+        "version": "57.0.16",
+        "resolved": "https://registry.npmjs.org/expo-image-picker/-/expo-image-picker-57.0.16.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-image-picker@57.0.16_expo@57.0.21/node_modules/expo-image-picker"
+      },
+      "expo-secure-store": {
+        "from": "expo-secure-store",
+        "version": "57.0.3",
+        "resolved": "https://registry.npmjs.org/expo-secure-store/-/expo-secure-store-57.0.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-secure-store@57.0.3_expo@57.0.21/node_modules/expo-secure-store"
+      },
+      "expo-splash-screen": {
+        "from": "expo-splash-screen",
+        "version": "57.0.8",
+        "resolved": "https://registry.npmjs.org/expo-splash-screen/-/expo-splash-screen-57.0.8.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-splash-screen@57.0.8_expo@57.0.21_typescript@5.9.3/node_modules/expo-splash-screen"
+      },
+      "expo-status-bar": {
+        "from": "expo-status-bar",
+        "version": "57.0.1",
+        "resolved": "https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-57.0.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-status-bar@57.0.1_expo@57.0.21_react-native@0.86.2_react@19.2.3/node_modules/expo-status-bar"
+      },
+      "react": {
+        "from": "react",
+        "version": "19.2.3",
+        "resolved": "https://registry.npmjs.org/react/-/react-19.2.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react@19.2.3/node_modules/react"
+      },
+      "react-native": {
+        "from": "react-native",
+        "version": "0.86.2",
+        "resolved": "https://registry.npmjs.org/react-native/-/react-native-0.86.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react-native@0.86.2_@babel+core@7.29.7_@types+react@18.2.48_react@19.2.3/node_modules/react-native"
+      },
+      "react-native-safe-area-context": {
+        "from": "react-native-safe-area-context",
+        "version": "5.7.0",
+        "resolved": "https://registry.npmjs.org/react-native-safe-area-context/-/react-native-safe-area-context-5.7.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react-native-safe-area-context@5.7.0_react-native@0.86.2_react@19.2.3/node_modules/react-native-safe-area-context"
+      },
+      "react-native-screens": {
+        "from": "react-native-screens",
+        "version": "4.26.2",
+        "resolved": "https://registry.npmjs.org/react-native-screens/-/react-native-screens-4.26.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react-native-screens@4.26.2_react-native@0.86.2_react@19.2.3/node_modules/react-native-screens"
+      },
+      "react-native-url-polyfill": {
+        "from": "react-native-url-polyfill",
+        "version": "2.0.0",
+        "resolved": "https://registry.npmjs.org/react-native-url-polyfill/-/react-native-url-polyfill-2.0.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react-native-url-polyfill@2.0.0_react-native@0.86.2/node_modules/react-native-url-polyfill"
+      }
+    },
+    "devDependencies": {
+      "@babel/core": {
+        "from": "@babel/core",
+        "version": "7.29.7",
+        "resolved": "https://registry.npmjs.org/@babel/core/-/core-7.29.7.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@babel+core@7.29.7/node_modules/@babel/core"
+      },
+      "@types/react": {
+        "from": "@types/react",
+        "version": "18.2.48",
+        "resolved": "https://registry.npmjs.org/@types/react/-/react-18.2.48.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+react@18.2.48/node_modules/@types/react"
+      },
+      "@types/react-test-renderer": {
+        "from": "@types/react-test-renderer",
+        "version": "18.3.1",
+        "resolved": "https://registry.npmjs.org/@types/react-test-renderer/-/react-test-renderer-18.3.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+react-test-renderer@18.3.1/node_modules/@types/react-test-renderer"
+      },
+      "babel-preset-expo": {
+        "from": "babel-preset-expo",
+        "version": "10.0.2",
+        "resolved": "https://registry.npmjs.org/babel-preset-expo/-/babel-preset-expo-10.0.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/babel-preset-expo@10.0.2_@babel+core@7.29.7/node_modules/babel-preset-expo"
+      },
+      "dotenv": {
+        "from": "dotenv",
+        "version": "16.6.1",
+        "resolved": "https://registry.npmjs.org/dotenv/-/dotenv-16.6.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv"
+      },
+      "eslint": {
+        "from": "eslint",
+        "version": "8.57.1",
+        "resolved": "https://registry.npmjs.org/eslint/-/eslint-8.57.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint@8.57.1/node_modules/eslint"
+      },
+      "react-test-renderer": {
+        "from": "react-test-renderer",
+        "version": "19.2.3",
+        "resolved": "https://registry.npmjs.org/react-test-renderer/-/react-test-renderer-19.2.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react-test-renderer@19.2.3_react@19.2.3/node_modules/react-test-renderer"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/web",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/web",
+    "private": true,
+    "dependencies": {
+      "@supabase/supabase-js": {
+        "from": "@supabase/supabase-js",
+        "version": "2.86.2",
+        "resolved": "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.86.2.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@supabase+supabase-js@2.86.2/node_modules/@supabase/supabase-js"
+      },
+      "@toposonics/core-audio": {
+        "from": "@toposonics/core-audio",
+        "version": "link:../../packages/core-audio",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio"
+      },
+      "@toposonics/core-image": {
+        "from": "@toposonics/core-image",
+        "version": "link:../../packages/core-image",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image"
+      },
+      "@toposonics/shared": {
+        "from": "@toposonics/shared",
+        "version": "link:../../packages/shared",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/shared"
+      },
+      "@toposonics/types": {
+        "from": "@toposonics/types",
+        "version": "link:../../packages/types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types"
+      },
+      "@toposonics/ui": {
+        "from": "@toposonics/ui",
+        "version": "link:../../packages/ui",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/ui"
+      },
+      "next": {
+        "from": "next",
+        "version": "15.5.24",
+        "resolved": "https://registry.npmjs.org/next/-/next-15.5.24.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/next@15.5.24_@types+node@20.19.25_react-dom@18.3.1_react@18.3.1/node_modules/next"
+      },
+      "react": {
+        "from": "react",
+        "version": "18.3.1",
+        "resolved": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react@18.3.1/node_modules/react"
+      },
+      "react-dom": {
+        "from": "react-dom",
+        "version": "18.3.1",
+        "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-18.3.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom"
+      },
+      "tone": {
+        "from": "tone",
+        "version": "14.9.17",
+        "resolved": "https://registry.npmjs.org/tone/-/tone-14.9.17.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/tone@14.9.17/node_modules/tone"
+      }
+    },
+    "devDependencies": {
+      "@types/node": {
+        "from": "@types/node",
+        "version": "20.19.25",
+        "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.25.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+node@20.19.25/node_modules/@types/node"
+      },
+      "@types/react": {
+        "from": "@types/react",
+        "version": "18.2.48",
+        "resolved": "https://registry.npmjs.org/@types/react/-/react-18.2.48.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+react@18.2.48/node_modules/@types/react"
+      },
+      "@types/react-dom": {
+        "from": "@types/react-dom",
+        "version": "18.2.18",
+        "resolved": "https://registry.npmjs.org/@types/react-dom/-/react-dom-18.2.18.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+react-dom@18.2.18/node_modules/@types/react-dom"
+      },
+      "autoprefixer": {
+        "from": "autoprefixer",
+        "version": "10.4.22",
+        "resolved": "https://registry.npmjs.org/autoprefixer/-/autoprefixer-10.4.22.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/autoprefixer@10.4.22_postcss@8.5.28/node_modules/autoprefixer"
+      },
+      "eslint": {
+        "from": "eslint",
+        "version": "8.57.1",
+        "resolved": "https://registry.npmjs.org/eslint/-/eslint-8.57.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint@8.57.1/node_modules/eslint"
+      },
+      "eslint-config-next": {
+        "from": "eslint-config-next",
+        "version": "15.5.18",
+        "resolved": "https://registry.npmjs.org/eslint-config-next/-/eslint-config-next-15.5.18.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-config-next@15.5.18_eslint@8.57.1_typescript@5.9.3/node_modules/eslint-config-next"
+      },
+      "eslint-plugin-react-hooks": {
+        "from": "eslint-plugin-react-hooks",
+        "version": "5.2.0",
+        "resolved": "https://registry.npmjs.org/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-5.2.0.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/eslint-plugin-react-hooks@5.2.0_eslint@8.57.1/node_modules/eslint-plugin-react-hooks"
+      },
+      "postcss": {
+        "from": "postcss",
+        "version": "8.5.28",
+        "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.28.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/postcss@8.5.28/node_modules/postcss"
+      },
+      "tailwindcss": {
+        "from": "tailwindcss",
+        "version": "3.4.18",
+        "resolved": "https://registry.npmjs.org/tailwindcss/-/tailwindcss-3.4.18.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/tailwindcss@3.4.18/node_modules/tailwindcss"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/core-audio",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio",
+    "private": false,
+    "dependencies": {
+      "@tonejs/midi": {
+        "from": "@tonejs/midi",
+        "version": "2.0.28",
+        "resolved": "https://registry.npmjs.org/@tonejs/midi/-/midi-2.0.28.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@tonejs+midi@2.0.28/node_modules/@tonejs/midi"
+      },
+      "@toposonics/types": {
+        "from": "@toposonics/types",
+        "version": "link:../types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types"
+      }
+    },
+    "devDependencies": {
+      "@types/node": {
+        "from": "@types/node",
+        "version": "20.19.30",
+        "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.30.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+node@20.19.30/node_modules/@types/node"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.30/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/core-image",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-image",
+    "private": false,
+    "dependencies": {
+      "@toposonics/types": {
+        "from": "@toposonics/types",
+        "version": "link:../types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types"
+      }
+    },
+    "devDependencies": {
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/native-image-processing",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/native-image-processing",
+    "private": true,
+    "devDependencies": {
+      "expo-modules-core": {
+        "from": "expo-modules-core",
+        "version": "57.0.17",
+        "resolved": "https://registry.npmjs.org/expo-modules-core/-/expo-modules-core-57.0.17.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/expo-modules-core@57.0.17_react-native@0.86.2_react@19.2.3/node_modules/expo-modules-core"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/shared",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/shared",
+    "private": true,
+    "dependencies": {
+      "@toposonics/types": {
+        "from": "@toposonics/types",
+        "version": "link:../types",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types"
+      }
+    },
+    "devDependencies": {
+      "@types/node": {
+        "from": "@types/node",
+        "version": "20.19.30",
+        "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.30.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+node@20.19.30/node_modules/@types/node"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.30/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/types",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/types",
+    "private": false,
+    "devDependencies": {
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  },
+  {
+    "name": "@toposonics/ui",
+    "version": "0.1.0",
+    "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/ui",
+    "private": false,
+    "devDependencies": {
+      "@types/react": {
+        "from": "@types/react",
+        "version": "18.2.48",
+        "resolved": "https://registry.npmjs.org/@types/react/-/react-18.2.48.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/@types+react@18.2.48/node_modules/@types/react"
+      },
+      "react": {
+        "from": "react",
+        "version": "18.3.1",
+        "resolved": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/react@18.3.1/node_modules/react"
+      },
+      "typescript": {
+        "from": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      "vitest": {
+        "from": "vitest",
+        "version": "4.1.11",
+        "resolved": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz",
+        "path": "/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/node_modules/.pnpm/vitest@4.1.11_@types+node@20.19.25_tsx@4.21.0/node_modules/vitest"
+      }
+    }
+  }
+]

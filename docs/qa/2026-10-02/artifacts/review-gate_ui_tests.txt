@@ -1,0 +1,419 @@
+UTC start: 2026-10-03T01:26:49Z
+Command: nl -ba apps/mobile/src/auth/__tests__/secureStorage.qa.test.ts && nl -ba apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts && nl -ba apps/web/src/lib/__tests__/imageProcessing.qa.test.ts && cat apps/mobile/vitest.config.ts apps/mobile/package.json
+
+     1	import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+     2	import { secureStorage } from '../secureStorage';
+     3	
+     4	// Synthetic noncredential strings only. Never load the device keychain or AsyncStorage.
+     5	const stores = vi.hoisted(() => ({ secure: new Map<string, string>(), refs: new Map<string, string>() }));
+     6	vi.mock('expo-secure-store', () => ({
+     7	  setItemAsync: vi.fn(async (key: string, value: string) => { stores.secure.set(key, value); }),
+     8	  getItemAsync: vi.fn(async (key: string) => stores.secure.get(key) ?? null),
+     9	  deleteItemAsync: vi.fn(async (key: string) => { stores.secure.delete(key); }),
+    10	}));
+    11	vi.mock('@react-native-async-storage/async-storage', () => ({
+    12	  default: {
+    13	    setItem: vi.fn(async (key: string, value: string) => { stores.refs.set(key, value); }),
+    14	    getItem: vi.fn(async (key: string) => stores.refs.get(key) ?? null),
+    15	    removeItem: vi.fn(async (key: string) => { stores.refs.delete(key); }),
+    16	  },
+    17	}));
+    18	
+    19	beforeEach(() => { stores.secure.clear(); stores.refs.clear(); });
+    20	afterEach(() => { vi.restoreAllMocks(); });
+    21	
+    22	describe('QA encrypted session storage lifecycle', () => {
+    23	  it.each([1, 2048, 2049, 5000])('round-trips a synthetic %i-character value', async (length) => {
+    24	    const value = 'x'.repeat(length);
+    25	    await secureStorage.setItem('qa-fixture', value);
+    26	    expect(await secureStorage.getItem('qa-fixture')).toBe(value);
+    27	    // The public reference store must never hold any segment of the value.
+    28	    for (const reference of stores.refs.values()) {
+    29	      expect(JSON.parse(reference)).toEqual({ chunks: Math.ceil(length / 2048) });
+    30	    }
+    31	  });
+    32	
+    33	  it('returns null if an encrypted chunk is missing', async () => {
+    34	    await secureStorage.setItem('qa-fixture', 'x'.repeat(5000));
+    35	    stores.secure.delete('supabase.auth.qa-fixture.chunk.1');
+    36	    expect(await secureStorage.getItem('qa-fixture')).toBeNull();
+    37	  });
+    38	
+    39	  it('removes a short unchunked value', async () => {
+    40	    await secureStorage.setItem('qa-fixture', 'synthetic');
+    41	    await secureStorage.removeItem('qa-fixture');
+    42	    expect(stores.secure.size).toBe(0);
+    43	    expect(await secureStorage.getItem('qa-fixture')).toBeNull();
+    44	  });
+    45	
+    46	  it.fails('FE-003: sign-out removes every encrypted chunk of a long session', async () => {
+    47	    await secureStorage.setItem('qa-fixture', 'x'.repeat(5000));
+    48	    expect(stores.secure.size).toBe(3);
+    49	    await secureStorage.removeItem('qa-fixture');
+    50	    expect(stores.secure.size).toBe(0);
+    51	  });
+    52	
+    53	  it.fails('FE-003: overwriting a long session with a short one removes its old chunks', async () => {
+    54	    await secureStorage.setItem('qa-fixture', 'x'.repeat(5000));
+    55	    await secureStorage.setItem('qa-fixture', 'replacement');
+    56	    expect(await secureStorage.getItem('qa-fixture')).toBe('replacement');
+    57	    expect([...stores.secure.keys()]).toEqual(['supabase.auth.qa-fixture']);
+    58	  });
+    59	});
+     1	import React from 'react';
+     2	import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+     3	import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+     4	import type { Composition, CompositionSummary } from '@toposonics/types';
+     5	import { CompositionsProvider, useCompositions } from '../CompositionsProvider';
+     6	import { getCompositionListCacheKey } from '../compositionCache';
+     7	
+     8	const mocks = vi.hoisted(() => ({
+     9	  auth: { token: 'qa-session-a', user: { id: 'qa-user-a' } } as {
+    10	    token: string | null; user: { id: string } | null;
+    11	  },
+    12	  storage: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() },
+    13	  api: {
+    14	    fetchComposition: vi.fn(), fetchAllCompositions: vi.fn(),
+    15	    createComposition: vi.fn(), deleteComposition: vi.fn(),
+    16	  },
+    17	}));
+    18	
+    19	vi.mock('@react-native-async-storage/async-storage', () => ({ default: mocks.storage }));
+    20	vi.mock('../../auth/AuthProvider', () => ({ useAuth: () => mocks.auth }));
+    21	vi.mock('../../services/apiClient', () => mocks.api);
+    22	
+    23	function deferred<T>() {
+    24	  let resolve!: (value: T) => void;
+    25	  let reject!: (reason: Error) => void;
+    26	  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+    27	  return { promise, resolve, reject };
+    28	}
+    29	
+    30	function composition(id: string, userId = 'qa-user-a'): Composition {
+    31	  return {
+    32	    id, userId, title: id, mappingMode: 'LINEAR_LANDSCAPE', key: 'C', scale: 'C_MAJOR',
+    33	    createdAt: new Date('2026-10-02T00:00:00Z'), updatedAt: new Date('2026-10-02T00:00:00Z'),
+    34	    noteEvents: [],
+    35	  };
+    36	}
+    37	
+    38	let renderer: ReactTestRenderer | undefined;
+    39	let current: ReturnType<typeof useCompositions>;
+    40	function Probe() { current = useCompositions(); return null; }
+    41	const tree = () => React.createElement(CompositionsProvider, null, React.createElement(Probe));
+    42	
+    43	async function mount() {
+    44	  await act(async () => { renderer = create(tree()); });
+    45	}
+    46	
+    47	async function switchAccount(userId: string | null) {
+    48	  mocks.auth = { user: userId ? { id: userId } : null, token: userId ? 'qa-session-b' : null };
+    49	  await act(async () => { renderer!.update(tree()); });
+    50	}
+    51	
+    52	beforeEach(() => {
+    53	  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    54	  vi.clearAllMocks();
+    55	  mocks.auth = { token: 'qa-session-a', user: { id: 'qa-user-a' } };
+    56	  mocks.storage.getItem.mockResolvedValue(null);
+    57	  mocks.storage.setItem.mockResolvedValue(undefined);
+    58	  mocks.storage.removeItem.mockResolvedValue(undefined);
+    59	  mocks.api.fetchAllCompositions.mockResolvedValue([]);
+    60	  // Expected network failures are exercised without printing payloads or user information.
+    61	  vi.spyOn(console, 'warn').mockImplementation(() => {});
+    62	  vi.spyOn(console, 'error').mockImplementation(() => {});
+    63	});
+    64	
+    65	afterEach(async () => {
+    66	  if (renderer) await act(async () => { renderer!.unmount(); });
+    67	  renderer = undefined;
+    68	  vi.restoreAllMocks();
+    69	  vi.unstubAllGlobals();
+    70	});
+    71	
+    72	describe('QA private mobile library state', () => {
+    73	  it('does not fetch or hydrate cache while signed out', async () => {
+    74	    mocks.auth = { token: null, user: null };
+    75	    await mount();
+    76	    expect(current.compositions).toEqual([]);
+    77	    expect(current.loading).toBe(false);
+    78	    expect(mocks.api.fetchAllCompositions).not.toHaveBeenCalled();
+    79	    expect(mocks.storage.getItem).not.toHaveBeenCalled();
+    80	  });
+    81	
+    82	  it('discards a delayed successful list response after account switch', async () => {
+    83	    const oldRequest = deferred<CompositionSummary[]>();
+    84	    mocks.api.fetchAllCompositions.mockReturnValueOnce(oldRequest.promise);
+    85	    await mount();
+    86	    const other = composition('b-private', 'qa-user-b');
+    87	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([other]);
+    88	    await switchAccount('qa-user-b');
+    89	    await act(async () => { oldRequest.resolve([composition('a-private')]); });
+    90	    expect(current.compositions).toEqual([other]);
+    91	  });
+    92	
+    93	  it('loads only the active user cache during an ordinary offline refresh', async () => {
+    94	    const item = composition('a-offline');
+    95	    mocks.api.fetchAllCompositions.mockRejectedValueOnce(new Error('Offline fixture'));
+    96	    mocks.storage.getItem.mockResolvedValueOnce(JSON.stringify({ items: [item] }));
+    97	    await mount();
+    98	    expect(mocks.storage.getItem).toHaveBeenCalledExactlyOnceWith(getCompositionListCacheKey('qa-user-a'));
+    99	    expect(current.compositions[0].id).toBe('a-offline');
+   100	    expect(current.usingCache).toBe(true);
+   101	  });
+   102	
+   103	  it('retains both saves that complete before React commits their state updates', async () => {
+   104	    await mount();
+   105	    mocks.api.createComposition
+   106	      .mockResolvedValueOnce(composition('first'))
+   107	      .mockResolvedValueOnce(composition('second'));
+   108	    await act(async () => {
+   109	      await Promise.all([
+   110	        current.saveComposition(composition('first')),
+   111	        current.saveComposition(composition('second')),
+   112	      ]);
+   113	    });
+   114	    expect(current.compositions.map((item) => item.id)).toEqual(['second', 'first']);
+   115	    const listWrites = mocks.storage.setItem.mock.calls.filter(
+   116	      ([key]) => key === getCompositionListCacheKey('qa-user-a')
+   117	    );
+   118	    const persisted = JSON.parse(listWrites.at(-1)![1]);
+   119	    expect(persisted.items.map((item: CompositionSummary) => item.id)).toEqual(['second', 'first']);
+   120	    expect(persisted.items[0]).not.toHaveProperty('noteEvents');
+   121	  });
+   122	
+   123	  it('evicts a deleted composition from state and both cache surfaces', async () => {
+   124	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('deleted')]);
+   125	    mocks.api.deleteComposition.mockResolvedValueOnce(undefined);
+   126	    await mount();
+   127	    await act(async () => { await current.removeComposition('deleted'); });
+   128	    expect(current.compositions).toEqual([]);
+   129	    expect(mocks.storage.removeItem).toHaveBeenCalledExactlyOnceWith(
+   130	      '@toposonics:compositions:qa-user-a:deleted'
+   131	    );
+   132	    const lastList = mocks.storage.setItem.mock.calls.at(-1)!;
+   133	    expect(JSON.parse(lastList[1]).items).toEqual([]);
+   134	  });
+   135	
+   136	  it.fails('FE-002: discards delayed cache hydration after switching accounts', async () => {
+   137	    const oldCacheRead = deferred<string>();
+   138	    mocks.api.fetchAllCompositions.mockRejectedValueOnce(new Error('Offline fixture'));
+   139	    mocks.storage.getItem.mockReturnValueOnce(oldCacheRead.promise);
+   140	    await mount();
+   141	    expect(mocks.storage.getItem).toHaveBeenCalledWith(getCompositionListCacheKey('qa-user-a'));
+   142	    const other = composition('b-private', 'qa-user-b');
+   143	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([other]);
+   144	    await switchAccount('qa-user-b');
+   145	    await act(async () => {
+   146	      oldCacheRead.resolve(JSON.stringify({ items: [composition('a-private')] }));
+   147	    });
+   148	    expect(current.compositions).toEqual([other]);
+   149	  });
+   150	
+   151	  it.fails('FE-002: a prior-account delete cannot persist the next account library under the old key', async () => {
+   152	    const deletion = deferred<void>();
+   153	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('a-private')]);
+   154	    mocks.api.deleteComposition.mockReturnValueOnce(deletion.promise);
+   155	    await mount();
+   156	    const remove = current.removeComposition('a-private');
+   157	    mocks.api.fetchAllCompositions.mockResolvedValueOnce([composition('b-private', 'qa-user-b')]);
+   158	    await switchAccount('qa-user-b');
+   159	    mocks.storage.setItem.mockClear();
+   160	    await act(async () => { deletion.resolve(); await remove; });
+   161	    const writesToOldAccount = mocks.storage.setItem.mock.calls.filter(
+   162	      ([key]) => key === getCompositionListCacheKey('qa-user-a')
+   163	    );
+   164	    expect(writesToOldAccount).toEqual([]);
+   165	  });
+   166	
+   167	  it.fails('FE-002: detail reads cannot return prior-account data after the account changes', async () => {
+   168	    const detail = deferred<Composition>();
+   169	    mocks.api.fetchComposition.mockReturnValueOnce(detail.promise);
+   170	    await mount();
+   171	    const load = current.loadComposition('a-private');
+   172	    await switchAccount('qa-user-b');
+   173	    let received: Composition | null = null;
+   174	    await act(async () => { detail.resolve(composition('a-private')); received = await load; });
+   175	    // CompositionDetailScreen consumes this returned value directly into screen state.
+   176	    expect(received).toBeNull();
+   177	    expect(current.compositionsById).toEqual({});
+   178	  });
+   179	});
+     1	import { afterEach, describe, expect, it, vi } from 'vitest';
+     2	import { analyzeImageForLinearLandscape } from '@toposonics/core-image';
+     3	import { extractPixelData, loadImageFromFile } from '../imageProcessing';
+     4	import { generateImageThumbnail } from '../imageThumbnail';
+     5	
+     6	// Exercise the real workspace analyzer without requiring generated dist artifacts.
+     7	vi.mock('@toposonics/core-image', () => import('../../../../../packages/core-image/src'));
+     8	
+     9	/** Model the integer bitmap dimensions and getImageData conversion in a real canvas. */
+    10	function stubCanvas() {
+    11	  const context = {
+    12	    drawImage: vi.fn(),
+    13	    getImageData: vi.fn((_x: number, _y: number, width: number, height: number) => ({
+    14	      data: new Uint8ClampedArray(Math.trunc(width) * Math.trunc(height) * 4).fill(128),
+    15	    })),
+    16	  };
+    17	  const canvas = {
+    18	    width: 0,
+    19	    height: 0,
+    20	    getContext: vi.fn(() => context),
+    21	    toDataURL: vi.fn(() => 'data:image/jpeg;base64,cWE='),
+    22	  };
+    23	  vi.stubGlobal('document', { createElement: vi.fn(() => canvas) });
+    24	  return { canvas, context };
+    25	}
+    26	
+    27	afterEach(() => {
+    28	  vi.unstubAllGlobals();
+    29	  vi.restoreAllMocks();
+    30	});
+    31	
+    32	describe('QA image input boundaries', () => {
+    33	  it.each([[1, 1], [1200, 1200], [2400, 1600], [1600, 2400]])(
+    34	    'returns a consistent pixel buffer for %ix%i integer-aspect input',
+    35	    (width, height) => {
+    36	      stubCanvas();
+    37	      const result = extractPixelData({ width, height } as HTMLImageElement);
+    38	      expect(result.pixels.length).toBe(result.width * result.height * 4);
+    39	      expect(Math.max(result.width, result.height)).toBeLessThanOrEqual(1200);
+    40	      const analysis = analyzeImageForLinearLandscape(result.pixels, result.width, result.height);
+    41	      expect(analysis.brightnessProfile.every(Number.isFinite)).toBe(true);
+    42	    }
+    43	  );
+    44	
+    45	  it.fails('FE-001: resized portrait dimensions remain integers accepted by the analyzer', () => {
+    46	    stubCanvas();
+    47	    const result = extractPixelData({ width: 1301, height: 2000 } as HTMLImageElement);
+    48	    // Real canvas getImageData returns 780 * 1200 pixels, but the adapter returns width=780.6.
+    49	    expect(() => analyzeImageForLinearLandscape(result.pixels, result.width, result.height))
+    50	      .not.toThrow();
+    51	    expect(Number.isInteger(result.width)).toBe(true);
+    52	    expect(result.pixels.length).toBe(result.width * result.height * 4);
+    53	  });
+    54	
+    55	  it.fails('FE-001: a very thin image keeps both resized dimensions at least one pixel', () => {
+    56	    stubCanvas();
+    57	    const result = extractPixelData({ width: 1, height: 3000 } as HTMLImageElement);
+    58	    expect(result.width).toBeGreaterThanOrEqual(1);
+    59	    expect(result.pixels.length).toBeGreaterThan(0);
+    60	  });
+    61	
+    62	  it('reports an unavailable canvas context', () => {
+    63	    const { canvas } = stubCanvas();
+    64	    canvas.getContext.mockReturnValueOnce(null as never);
+    65	    expect(() => extractPixelData({ width: 8, height: 8 } as HTMLImageElement))
+    66	      .toThrow('Failed to get canvas context');
+    67	  });
+    68	});
+    69	
+    70	describe('QA image resource cleanup', () => {
+    71	  function stubImage(fail: boolean) {
+    72	    vi.stubGlobal('Image', class {
+    73	      width = 2000;
+    74	      height = 1000;
+    75	      onload: (() => void) | undefined;
+    76	      onerror: (() => void) | undefined;
+    77	      set src(_value: string) { queueMicrotask(() => fail ? this.onerror?.() : this.onload?.()); }
+    78	    });
+    79	    const revoke = vi.fn();
+    80	    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:qa-image'), revokeObjectURL: revoke });
+    81	    return revoke;
+    82	  }
+    83	
+    84	  it.each([false, true])('releases the upload URL after decode failure=%s', async (fail) => {
+    85	    const revoke = stubImage(fail);
+    86	    const operation = loadImageFromFile({} as File);
+    87	    if (fail) await expect(operation).rejects.toThrow('Failed to load image');
+    88	    else await expect(operation).resolves.toMatchObject({ width: 2000, height: 1000 });
+    89	    expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:qa-image');
+    90	  });
+    91	
+    92	  it('limits save thumbnails to 256px and releases the object URL', async () => {
+    93	    const revoke = stubImage(false);
+    94	    const { canvas } = stubCanvas();
+    95	    await expect(generateImageThumbnail({} as File)).resolves.toMatch(/^data:image\/jpeg/);
+    96	    expect([canvas.width, canvas.height]).toEqual([256, 128]);
+    97	    expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:qa-image');
+    98	  });
+    99	
+   100	  it('releases the thumbnail URL if canvas allocation fails', async () => {
+   101	    const revoke = stubImage(false);
+   102	    const { canvas } = stubCanvas();
+   103	    canvas.getContext.mockReturnValueOnce(null as never);
+   104	    await expect(generateImageThumbnail({} as File)).rejects.toThrow('Canvas 2D context unavailable');
+   105	    expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:qa-image');
+   106	  });
+   107	});
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    exclude: ['.expo/**', 'node_modules/**'],
+  },
+});
+{
+  "name": "@toposonics/mobile",
+  "version": "0.1.0",
+  "description": "TopoSonics mobile app - Expo React Native",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "dev": "expo start",
+    "build": "echo 'Mobile builds require EAS Build'",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.28.4",
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@sentry/react-native": "^7.11.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "@toposonics/core-audio": "workspace:*",
+    "@toposonics/core-image": "workspace:*",
+    "@toposonics/native-image-processing": "workspace:*",
+    "@toposonics/shared": "workspace:*",
+    "@toposonics/types": "workspace:*",
+    "@toposonics/ui": "workspace:*",
+    "expo": "^57.0.0",
+    "expo-apple-authentication": "~57.0.1",
+    "expo-application": "~57.0.2",
+    "expo-asset": "~57.0.9",
+    "expo-audio": "^57.0.3",
+    "expo-file-system": "~57.0.2",
+    "expo-font": "~57.0.1",
+    "expo-image-picker": "~57.0.8",
+    "expo-secure-store": "~57.0.1",
+    "expo-splash-screen": "~57.0.5",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "~4.26.2",
+    "react-native-url-polyfill": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.6",
+    "@types/react": "~18.2.48",
+    "@types/react-test-renderer": "18.3.1",
+    "babel-preset-expo": "~10.0.2",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.56.0",
+    "react-test-renderer": "19.2.3",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.0"
+  },
+  "private": true
+}
+
+Exit: 0

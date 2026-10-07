@@ -1,0 +1,5 @@
+UTC start: 2026-10-03T01:24:12Z
+Command: python3 -c 'from pathlib import Path; import tempfile; root=Path.cwd(); target=Path(tempfile.mkdtemp(prefix="obsong-backend-negative-",dir="/private/tmp")); (target/"node_modules").symlink_to(root/"node_modules",target_is_directory=True); files=["qa.boundaries.test.ts","qa.persistence.test.ts","qa.proxy.test.ts"]; [(target/f).write_text((root/"apps/api/src/__tests__"/f).read_text().replace("it.fails", "it").replace("../auth", str(root/"apps/api/src/auth")).replace("../services/compositions",str(root/"apps/api/src/services/compositions")).replace("../routes/compositions",str(root/"apps/api/src/routes/compositions")).replace("../supabase",str(root/"apps/api/src/supabase")).replace("../config",str(root/"apps/api/src/config")).replace("from '\''fastify'\''", "from '\''"+str(root/"apps/api/node_modules/fastify")+"'\''")) for f in files]; (root/"docs/qa/2026-10-02/artifacts/backend-negative-control-location.txt").write_text(str(target)); print(target)'
+Exit: 0
+
+/private/tmp/obsong-backend-negative-i41y_okm

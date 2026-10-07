@@ -1,0 +1,6 @@
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm exec eslint apps/mobile/src/state/__tests__/CompositionsProvider.qa.test.ts apps/mobile/src/auth/__tests__/secureStorage.qa.test.ts apps/web/src/lib/__tests__/imageProcessing.qa.test.ts apps/web/vitest.config.ts
+
+Pages directory cannot be found at /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/pages or /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/src/pages. If using a custom path, please configure with the `no-html-link-for-pages` rule in your eslint config file.
+
+Exit: 0

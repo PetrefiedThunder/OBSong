@@ -1,0 +1,42 @@
+UTC start: 2026-10-03T01:21:07Z
+Command: pwd && git worktree list && git branch --show-current && git remote get-url origin && rg --files -g "AGENTS.md" -g "package.json" -g "vitest*" -g "*test*" -g "*spec*" -g "!package-lock.json" -g "!node_modules" | head -100
+Exit: 0
+
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong
+/Users/sellers/Projects/qa-sweep-2026-10-02/OBSong 371ad7e [qa/2026-10-02-sweep]
+qa/2026-10-02-sweep
+https://github.com/PetrefiedThunder/OBSong.git
+apps/api/src/__tests__/compositions.routes.test.ts
+apps/api/src/__tests__/compositions.service.test.ts
+apps/api/vitest.config.ts
+apps/api/package.json
+apps/mobile/src/services/__tests__/playbackRate.test.ts
+apps/mobile/src/state/__tests__/compositionCache.test.ts
+apps/mobile/vitest.config.ts
+apps/mobile/package.json
+package.json
+packages/core-image/src/__tests__/sanity.test.ts
+packages/core-image/src/__tests__/analyzer.test.ts
+packages/core-image/src/__tests__/analysis.test.ts
+packages/core-image/vitest.config.ts
+packages/core-image/package.json
+packages/types/src/__tests__/index.test.ts
+packages/types/vitest.config.ts
+packages/types/package.json
+packages/core-audio/src/__tests__/mappers.test.ts
+packages/core-audio/src/__tests__/sanity.test.ts
+packages/core-audio/vitest.config.ts
+packages/core-audio/package.json
+packages/native-image-processing/src/__tests__/index.test.ts
+packages/native-image-processing/vitest.config.ts
+packages/shared/package.json
+packages/shared/vitest.config.ts
+packages/native-image-processing/package.json
+packages/shared/src/__tests__/apiClient.test.ts
+packages/ui/package.json
+packages/ui/vitest.config.ts
+apps/web/package.json
+apps/web/vitest.config.ts
+packages/ui/src/__tests__/theme.test.ts
+packages/ui/src/__tests__/components.test.ts
+apps/web/src/hooks/__tests__/useToneEngine.utils.test.ts

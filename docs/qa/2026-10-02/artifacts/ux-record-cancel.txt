@@ -1,0 +1,14 @@
+UTC start: 2026-10-03T01:24:44Z
+Command: python3 - <<'PY'
+from pathlib import Path
+from datetime import datetime,timezone
+stamp=datetime.now(timezone.utc).isoformat()
+for p in ['docs/qa/2026-10-02/SESSION-LOG.md','docs/qa/2026-10-02/passes/UX-LOG.md']:
+ with Path(p).open('a') as f:f.write(f'\n- {stamp} **ux/browser-session cancelled**: premature run while local server returned 404; `write_stdin` Ctrl-C exited 130. No completed report; runner interrupted before final output write. `pkill` attempt failed because sandbox denies process inventory; recorded in ux-stop-premature-browser.txt. Root investigating server readiness.\n')
+for name in ['ux-browser.cjs','ux-auth.cjs']:
+ p=Path('docs/qa/2026-10-02/tools')/name
+ s=p.read_text().replace('const page=await context.newPage();','const page=await context.newPage(); page.setDefaultTimeout(12000); page.setDefaultNavigationTimeout(30000);')
+ p.write_text(s)
+PY
+Exit: 0
+

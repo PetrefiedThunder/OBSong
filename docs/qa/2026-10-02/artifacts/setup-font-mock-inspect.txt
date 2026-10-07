@@ -1,0 +1,8 @@
+UTC start: 2026-10-03T01:21:28Z
+Command: rg -n "NEXT_FONT_GOOGLE_MOCKED_RESPONSES" node_modules/.pnpm/next*/node_modules/next/dist/compiled/@next/font 2>/dev/null; git status --short; du -sh .pnpm-store 2>/dev/null
+Exit: 0
+
+zsh:1: no matches found: node_modules/.pnpm/next*/node_modules/next/dist/compiled/@next/font
+?? .pnpm-store/
+?? docs/qa/
+ 32M	.pnpm-store

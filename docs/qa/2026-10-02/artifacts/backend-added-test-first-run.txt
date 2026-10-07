@@ -1,0 +1,20 @@
+UTC start: 2026-10-03T01:23:38Z
+Command: corepack pnpm --filter @toposonics/api exec vitest run src/__tests__/qa.auth.test.ts src/__tests__/qa.boundaries.test.ts src/__tests__/qa.persistence.test.ts src/__tests__/qa.proxy.test.ts
+Exit: 0
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/api
+
+ ✓ src/__tests__/qa.persistence.test.ts (10 tests) 9ms
+ ✓ src/__tests__/qa.proxy.test.ts (2 tests) 37ms
+ ✓ src/__tests__/qa.auth.test.ts (18 tests) 175ms
+ ✓ src/__tests__/qa.boundaries.test.ts (31 tests) 239ms
+
+ Test Files  4 passed (4)
+      Tests  54 passed | 7 expected fail (61)
+   Start at  18:23:38
+   Duration  379ms (transform 107ms, setup 0ms, import 216ms, tests 461ms, environment 0ms)
+

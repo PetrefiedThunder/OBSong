@@ -1,0 +1,50 @@
+UTC start: 2026-10-03T01:26:13Z
+Command: corepack pnpm --filter @toposonics/mobile exec vitest run --coverage --coverage.include="src/**/*.{ts,tsx}" --coverage.exclude="src/**/__tests__/**" --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../../docs/qa/2026-10-02/artifacts/coverage-mobile-after
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/apps/mobile
+      Coverage enabled with v8
+
+ ✓ src/state/__tests__/compositionCache.test.ts (3 tests) 6ms
+ ✓ src/auth/__tests__/secureStorage.qa.test.ts (8 tests) 12ms
+ ✓ src/services/__tests__/playbackRate.test.ts (6 tests) 9ms
+ ✓ src/state/__tests__/CompositionsProvider.qa.test.ts (8 tests) 35ms
+
+ Test Files  4 passed (4)
+      Tests  20 passed | 5 expected fail (25)
+   Start at  18:26:13
+   Duration  533ms (transform 198ms, setup 0ms, import 437ms, tests 62ms, environment 0ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   22.84 |    12.98 |   20.83 |   22.68 |                   
+ src               |       0 |        0 |     100 |       0 |                   
+  config.ts        |       0 |        0 |     100 |       0 | 3-17              
+ src/auth          |   46.15 |    26.66 |   28.57 |    44.7 |                   
+  AuthProvider.tsx |       0 |        0 |       0 |       0 | 18-114            
+  secureStorage.ts |      84 |      100 |     100 |    82.6 | ...00-101,114-115 
+  ...baseClient.ts |       0 |        0 |     100 |       0 | 6-18              
+ src/components    |       0 |        0 |       0 |       0 |                   
+  SignInModal.tsx  |       0 |        0 |       0 |       0 | 34-126            
+ src/screens       |       0 |        0 |       0 |       0 |                   
+  ...ailScreen.tsx |       0 |        0 |       0 |       0 | 28-271            
+  ...onsScreen.tsx |       0 |        0 |       0 |       0 | 22-153            
+  EditorScreen.tsx |       0 |        0 |       0 |       0 | 33-542            
+  HomeScreen.tsx   |       0 |        0 |       0 |       0 | 8-140             
+  ...omeScreen.tsx |       0 |      100 |       0 |       0 | 7-46              
+ src/services      |    8.82 |    13.75 |    4.76 |    8.06 |                   
+  apiClient.ts     |       0 |        0 |       0 |       0 | 22-108            
+  audioPlayer.ts   |       0 |        0 |       0 |       0 | 28-188            
+  ...Processing.ts |       0 |        0 |       0 |       0 | 35-129            
+  playbackRate.ts  |     100 |      100 |     100 |     100 |                   
+ src/state         |    83.6 |    61.76 |   95.23 |   89.18 |                   
+  ...sProvider.tsx |   83.05 |    59.37 |   94.44 |   88.78 | ...54,158-165,233 
+  ...itionCache.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------
+
+Exit: 0

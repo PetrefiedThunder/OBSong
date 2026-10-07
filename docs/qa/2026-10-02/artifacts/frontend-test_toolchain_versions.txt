@@ -1,0 +1,22 @@
+UTC start: 2026-10-03T01:23:59Z
+Command: node -e 'console.log(require("./package.json").packageManager)' && head -15 pnpm-lock.yaml && ls /private/tmp/obsong-qa-corepack
+Exit: 0
+
+pnpm@8.15.0
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: false
+  excludeLinksFromLockfile: false
+
+overrides:
+  node-forge: 1.3.1
+  send: ^0.19.0
+  semver: 7.7.3
+
+patchedDependencies:
+  node-forge@1.3.1:
+    hash: nbjm5odjgi2le4bdtyghi4ekka
+    path: patches/node-forge@1.3.1.patch
+lastKnownGood.json
+pnpm

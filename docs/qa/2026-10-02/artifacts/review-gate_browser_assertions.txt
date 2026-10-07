@@ -1,0 +1,35 @@
+UTC start: 2026-10-03T01:27:30Z
+Command: python3 - <<'PY'
+import json
+from pathlib import Path
+base=Path("docs/qa/2026-10-02/artifacts")
+for name in ["ux-regression-results.json","ux-browser-report.json","ux-auth-report.json"]:
+ p=base/name
+ print(name, "exists",p.exists())
+ if not p.exists(): continue
+ d=json.loads(p.read_text())
+ if name.startswith("ux-regression"):
+  def walk(suites):
+   for suite in suites:
+    for spec in suite.get("specs",[]):
+     for test in spec.get("tests",[]):
+      print(spec["title"], test["expectedStatus"], test["status"])
+      for r in test.get("results",[]):
+       for e in r.get("errors",[]): print(e.get("message",""))
+    walk(suite.get("suites",[]))
+  walk(d.get("suites",[]))
+ else:
+  print("keys", list(d))
+  for k in ["errors", "findings", "steps", "sessions", "crossBrowser", "violations", "checks"]:
+   if k in d: print(k, str(d[k])[:6000])
+PY
+
+ux-regression-results.json exists False
+ux-browser-report.json exists True
+keys ['started', 'base', 'steps', 'axe', 'console', 'pageErrors', 'failedRequests', 'blockedExternal', 'metrics', 'browsers', 'ended']
+steps [{'name': 'Home route, desktop screenshot, axe', 'started': '2026-10-03T01:26:00.399Z', 'outcome': 'pass', 'detail': {'screenshot': 'ux-home-desktop.png', 'axe': [{'id': 'color-contrast', 'impact': 'serious', 'nodes': 13}]}}, {'name': 'Home mobile 375 and 320 layout', 'started': '2026-10-03T01:26:01.388Z', 'outcome': 'pass', 'detail': [{'width': 375, 'scrollWidth': 375, 'overflow': [{'text': '🎵 TopoSonics', 'rect': {'x': 16, 'right': 170.3125}}, {'text': 'Studio', 'rect': {'x': 192.6875, 'right': 238.0625}}, {'text': 'Compositions', 'rect': {'x': 262.0625, 'right': 359}}]}, {'width': 320, 'scrollWidth': 320, 'overflow': [{'text': '🎵 TopoSonics', 'rect': {'x': 16, 'right': 140.078125}}, {'text': 'Studio', 'rect': {'x': 140.078125, 'right': 185.453125}}, {'text': 'Compositions', 'rect': {'x': 209.453125, 'right': 306.390625}}]}]}, {'name': 'Landing demo keyboard semantics', 'started': '2026-10-03T01:26:01.625Z', 'outcome': 'pass', 'detail': {'initial': {'active': '🎵 TopoSonicsStudioCompositionsTurn Images into Musical LandscapesTopoSonics tra', 'insideDialog': False}, 'axe': [{'id': 'color-contrast', 'impact': 'serious', 'nodes': 19}], 'closed': True}}, {'name': 'Studio empty state and axe', 'started': '2026-10-03T01:26:02.004Z', 'outcome': 'pass', 'detail': {'generateDisabled': True, 'screenshot': 'ux-studio-empty.png', 'axe': [{'id': 'color-contrast', 'impact': 'serious', 'nodes': 2}]}}, {'name': 'Selection states are exposed semantically (UX-002 candidate)', 'started': '2026-10-03T01:26:03.379Z', 'outcome': 'pass', 'detail': {'key': {'role': None, 'pressed': None, 'checked': None, 'class': 'py-2 px-3 rounded-lg font-medium transition-colors bg-primary-600 text-white'}, 'mode': {'role': None, 'pressed': None, 'checked': None}, 'ariaSnapshot': '- group "Key":\n  - button "C"\n  - button "C#"\n  - button "D"\n  - button "D#"\n  - button "E"\n  - button "F"\n  - button "F#"\n  - button "G"\n  - button "G#"\n  - button "A"\n  - button "A#"\n  - button "B"'}}, {'name': 'Native dialog', 'started': '2026-10-03T01:26:03.624Z', 'outcome': 'observed', 'detail': 'Failed to analyze image'}, {'name': 'Synthetic portrait upload, generate, playback and MIDI', 'started': '2026-10-03T01:26:03.420Z', 'outcome': 'fail', 'error': 'page.waitForFunction: Timeout 12000ms exceeded.'}, {'name': 'Studio mobile screenshot and reflow', 'started': '2026-10-03T01:26:15.639Z', 'outcome': 'pass', 'detail': {'width': 375, 'scrollWidth': 375}}, {'name': 'Library anonymous state, modal focus trap/restore and axe', 'started': '2026-10-03T01:26:15.713Z', 'outcome': 'pass', 'detail': {'initial': {'active': 'email', 'inDialog': True}, 'tabs': [{'active': 'password', 'inDialog': True}, {'active': 'Cancel', 'inDialog': True}, {'active': 'Sign In', 'inDialog': True}, {'active': None, 'inDialog': False}, {'active': '🎵 TopoSonicsStudioCompositionsCompositionsYour library is p', 'inDialog': False}, {'active': '🎵 TopoSonics', 'inDialog': False}], 'restored': {'tag': 'A', 'text': '🎵 TopoSonics'}, 'axe': []}}, {'name': 'Native dialog', 'started': '2026-10-03T01:26:17.308Z', 'outcome': 'observed', 'detail': 'Failed to analyze image'}, {'name': 'Corrupt image error and retry recovery', 'started': '2026-10-03T01:26:16.589Z', 'outcome': 'pass', 'detail': {'disabled': True, 'screenshot': 'ux-corrupt-image.png'}}, {'name': 'Local route missing page state', 'started': '2026-10-03T01:26:18.119Z', 'outcome': 'pass', 'detail': {'status': 404, 'screenshot': 'ux-not-found.png', 'axe': [{'id': 'color-contrast', 'impact': 'serious', 'nodes': 2}]}}, {'name': 'firefox connected smoke availability', 'started': '2026-10-03T01:26:19.329Z', 'outcome': 'pass', 'detail': {'requested': 'firefox', 'actual': 'firefox', 'note': 'Studio scene selection and demo note loading passed', 'screenshot': 'ux-studio-firefox.png'}}, {'name': 'webkit connected smoke availability', 'started': '2026-10-03T01:26:21.062Z', 'outcome': 'pass', 'detail': {'requested': 'webkit', 'actual': 'webkit', 'note': 'Studio scene selection and demo note loading passed', 'screenshot': 'ux-studio-webkit.png'}}]
+ux-auth-report.json exists True
+keys ['started', 'steps', 'requests', 'console', 'blockedExternal', 'axe', 'ended']
+steps [{'name': 'Invalid sign-in preserves input and displays error', 'utc': '2026-10-03T01:26:05.535Z', 'outcome': 'pass', 'detail': {'dialogs': ['Login failed'], 'modalRemains': True}}, {'name': 'Successful stub sign-in and private empty library', 'utc': '2026-10-03T01:26:07.065Z', 'outcome': 'pass', 'detail': {'screenshot': 'ux-library-empty.png', 'axe': [], 'signOutControls': 0}}, {'name': 'Library loading, failure and retry states', 'utc': '2026-10-03T01:26:07.221Z', 'outcome': 'pass', 'detail': {'loading': 'ux-library-loading.png', 'error': 'ux-library-error.png', 'liveRegions': [], 'retryRecovered': True}}, {'name': 'Studio demo loads notes and save failure can retry', 'utc': '2026-10-03T01:26:07.696Z', 'outcome': 'pass', 'detail': {'playDemoStartsPlayback': False, 'dialogs': ['Login failed', 'Failed to save composition', 'Composition saved!'], 'screenshot': 'ux-studio-saved.png'}}, {'name': 'Saved library, detail, edit and mobile reflow', 'utc': '2026-10-03T01:26:09.603Z', 'outcome': 'pass', 'detail': {'detailAxe': [], 'mobile': {'width': 375, 'scrollWidth': 466}, 'screenshot': 'ux-detail-mobile-375.png'}}]
+
+Exit: 0

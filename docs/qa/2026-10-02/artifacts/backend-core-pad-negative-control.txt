@@ -1,0 +1,81 @@
+UTC start: 2026-10-03T01:25:19Z
+Command: python3 - <<'PY'
+from pathlib import Path
+import subprocess
+p=Path("packages/core-audio/src/__tests__/qa-invariants.test.ts")
+source=p.read_text()
+try:
+    p.write_text(source.replace("it.fails('BE-101:", "it('BE-101:"))
+    result=subprocess.run(["pnpm", "exec", "vitest", "run", "src/__tests__/qa-invariants.test.ts", "-t", "BE-101"], cwd="packages/core-audio")
+    print("Negative control expected one failure; exit =", result.returncode, flush=True)
+    if result.returncode != 1:
+        raise SystemExit("Negative control did not reproduce the expected failure")
+finally:
+    p.write_text(source)
+PY
+Exit: 0
+
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/sellers/Projects/qa-sweep-2026-10-02/OBSong/packages/core-audio
+
+ ❯ src/__tests__/qa-invariants.test.ts (31 tests | 1 failed | 30 skipped) 6ms
+     ↓ C_MAJOR remains playable for all 12 keys and all three modes
+     ↓ C_MINOR remains playable for all 12 keys and all three modes
+     ↓ D_MAJOR remains playable for all 12 keys and all three modes
+     ↓ E_MINOR remains playable for all 12 keys and all three modes
+     ↓ A_MINOR remains playable for all 12 keys and all three modes
+     ↓ A_SHARP_MINOR remains playable for all 12 keys and all three modes
+     ↓ G_MAJOR remains playable for all 12 keys and all three modes
+     ↓ C_PENTATONIC remains playable for all 12 keys and all three modes
+     ↓ A_MINOR_PENTATONIC remains playable for all 12 keys and all three modes
+     ↓ C_BLUES remains playable for all 12 keys and all three modes
+     ↓ D_DORIAN remains playable for all 12 keys and all three modes
+     ↓ A_DORIAN remains playable for all 12 keys and all three modes
+     ↓ C_MIXOLYDIAN remains playable for all 12 keys and all three modes
+     ↓ E_PHRYGIAN remains playable for all 12 keys and all three modes
+     ↓ A_HARMONIC_MINOR remains playable for all 12 keys and all three modes
+     ↓ C_LYDIAN remains playable for all 12 keys and all three modes
+     ↓ C_WHOLE_TONE remains playable for all 12 keys and all three modes
+     ↓ 'majestic-mountains' emits playable notes within each enabled voice pitch range
+     ↓ 'night-city' emits playable notes within each enabled voice pitch range
+     ↓ 'foggy-forest' emits playable notes within each enabled voice pitch range
+     ↓ 'desert-drones' emits playable notes within each enabled voice pitch range
+     ↓ 'ocean-horizon' emits playable notes within each enabled voice pitch range
+     ↓ 'industrial-grid' emits playable notes within each enabled voice pitch range
+     ↓ explicitly disabling every voice returns an empty composition
+     × BE-101: pad segmentation includes a final partial texture segment 5ms
+     ↓ retains tempo=40 BPM, beats, track names and pitches without mutating input
+     ↓ retains tempo=90 BPM, beats, track names and pitches without mutating input
+     ↓ retains tempo=120 BPM, beats, track names and pitches without mutating input
+     ↓ retains tempo=240 BPM, beats, track names and pitches without mutating input
+     ↓ uses composition tempo and accepts an explicit export tempo override
+     ↓ rejects an empty export with an actionable error
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/qa-invariants.test.ts > QA seeded mapping contracts > BE-101: pad segmentation includes a final partial texture segment
+AssertionError: expected [ …(12) ] to not deeply equal [ …(12) ]
+
+Compared values have no visual difference.
+
+ ❯ src/__tests__/qa-invariants.test.ts:98:27
+     96|     const flat = mapTextureToPad([0, 0, 0, 0, 0, 0, 0], 'C', 'C_MAJOR'…
+     97|     const rightEdge = mapTextureToPad([0, 0, 0, 0, 0, 0, 1], 'C', 'C_M…
+     98|     expect(rightEdge).not.toEqual(flat);
+       |                           ^
+     99|   });
+    100| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 30 skipped (31)
+   Start at  18:25:20
+   Duration  121ms (transform 31ms, setup 0ms, import 43ms, tests 6ms, environment 0ms)
+
+Negative control expected one failure; exit = 1

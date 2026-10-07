@@ -1,0 +1,5 @@
+UTC start: 2026-10-03T01:24:09Z
+Command: kill -TERM 46597
+Exit: 1
+
+zsh:kill:1: kill 46597 failed: operation not permitted

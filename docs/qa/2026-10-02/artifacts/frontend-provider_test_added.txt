@@ -1,0 +1,5 @@
+UTC start: 2026-10-03T01:23:55Z
+Command: printf "Added six real React provider regression tests: three baseline controls and three expected failures for FE-002 account switch races. Tests stub auth, AsyncStorage, API. Awaiting test renderer dependency install.\n"
+Exit: 0
+
+Added six real React provider regression tests: three baseline controls and three expected failures for FE-002 account switch races. Tests stub auth, AsyncStorage, API. Awaiting test renderer dependency install.
