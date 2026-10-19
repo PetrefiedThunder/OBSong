@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ScenePack, NoteEvent } from '@toposonics/types';
 import { getAllScenePacks } from '@toposonics/core-audio';
+import { createDemoRequestGuard } from '@/lib/demoRequestGuard';
 
 interface ScenePackSelectorProps {
   selectedScenePack: ScenePack | null;
@@ -17,10 +18,18 @@ export function ScenePackSelector({
 }: ScenePackSelectorProps) {
   const scenePacks = getAllScenePacks();
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+  const demoRequestGuardRef = useRef(createDemoRequestGuard());
+
+  // A new scene selection retires any in-flight demo load: when its delayed
+  // response resolves it is stale and must not overwrite the newer scene.
+  useEffect(() => {
+    demoRequestGuardRef.current.invalidate();
+  }, [selectedScenePack?.id]);
 
   const handleLoadDemo = async (scenePack: ScenePack) => {
     if (!onLoadDemo) return;
 
+    const requestId = demoRequestGuardRef.current.begin();
     setLoadingDemo(scenePack.id);
     try {
       const response = await fetch(`/demo/compositions/${scenePack.id}.json`);
@@ -28,12 +37,16 @@ export function ScenePackSelector({
         throw new Error('Demo not found');
       }
       const data = await response.json();
+      if (!demoRequestGuardRef.current.isCurrent(requestId)) return;
       onLoadDemo(data.noteEvents, scenePack);
     } catch (error) {
+      if (!demoRequestGuardRef.current.isCurrent(requestId)) return;
       console.error('Failed to load demo:', error);
       alert('Demo composition not available for this scene pack');
     } finally {
-      setLoadingDemo(null);
+      if (demoRequestGuardRef.current.isCurrent(requestId)) {
+        setLoadingDemo(null);
+      }
     }
   };
 
