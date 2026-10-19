@@ -20,7 +20,7 @@ interface ImageUploaderProps {
  * Validates that the URL is safe for use in an img src attribute.
  * Only allows blob: and data:image URLs to prevent XSS attacks.
  */
-function isSafeImageUrl(url: string): boolean {
+export function isSafeImageUrl(url: string): boolean {
   try {
     const urlObj = new URL(url, window.location.origin);
     if (urlObj.protocol === 'blob:') return true;

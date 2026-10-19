@@ -68,7 +68,9 @@ for (const [surface, keys] of Object.entries(required)) {
     }
 
     if (placeholderPattern.test(value)) {
-      failures.push(`${surface}: ${key} still looks like a placeholder (${value})`);
+      // Never print the value: these variables hold secrets (service-role / anon
+      // keys). Presence and placeholder-shape are all CI needs to diagnose.
+      failures.push(`${surface}: ${key} still looks like a placeholder`);
     }
   }
 }
