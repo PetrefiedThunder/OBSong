@@ -125,6 +125,7 @@ export function MappingControls({
           {MAPPING_MODES.map((mode) => (
             <button
               key={mode.value}
+              aria-pressed={mappingMode === mode.value}
               onClick={() => onMappingModeChange(mode.value)}
               className={`p-3 rounded-lg text-left transition-colors ${
                 mappingMode === mode.value
@@ -148,6 +149,7 @@ export function MappingControls({
           {KEYS.map((k) => (
             <button
               key={k}
+              aria-pressed={musicalKey === k}
               onClick={() => onKeyChange(k)}
               className={`py-2 px-3 rounded-lg font-medium transition-colors ${
                 musicalKey === k
