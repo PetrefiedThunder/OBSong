@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@toposonics/ui';
 import { getAllScenePacks } from '@toposonics/core-audio';
 import type { ScenePack, NoteEvent } from '@toposonics/types';
+import { createDemoRequestGuard } from '@/lib/demoRequestGuard';
 import { LandingDemoPlayer } from '@/components/LandingDemoPlayer';
 import { TourProvider, useTour } from '@/components/tour/TourProvider';
 import { TourPopup } from '@/components/tour/TourPopup';
@@ -53,6 +54,7 @@ function HomePageContent() {
     tempoBpm: number;
   } | null>(null);
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+  const demoRequestGuardRef = useRef(createDemoRequestGuard());
   const { startTour } = useTour();
 
   // Filter scene packs by category
@@ -61,6 +63,9 @@ function HomePageContent() {
     : allScenePacks.filter(pack => pack.category === selectedCategory);
 
   const handlePlayDemo = async (scenePack: ScenePack) => {
+    // A delayed response for an earlier scene must not overwrite a newer
+    // scene selection: only the newest request may publish its demo.
+    const requestId = demoRequestGuardRef.current.begin();
     setLoadingDemo(scenePack.id);
     try {
       const response = await fetch(`/demo/compositions/${scenePack.id}.json`);
@@ -68,16 +73,20 @@ function HomePageContent() {
         throw new Error('Demo not found');
       }
       const data = await response.json();
+      if (!demoRequestGuardRef.current.isCurrent(requestId)) return;
       setActiveDemo({
         scenePack,
         noteEvents: data.noteEvents,
         tempoBpm: typeof data.tempoBpm === 'number' && data.tempoBpm > 0 ? data.tempoBpm : 120,
       });
     } catch (error) {
+      if (!demoRequestGuardRef.current.isCurrent(requestId)) return;
       console.error('Failed to load demo:', error);
       alert('Demo composition not available for this scene pack');
     } finally {
-      setLoadingDemo(null);
+      if (demoRequestGuardRef.current.isCurrent(requestId)) {
+        setLoadingDemo(null);
+      }
     }
   };
 
