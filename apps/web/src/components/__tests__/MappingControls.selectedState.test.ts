@@ -30,12 +30,12 @@ function renderControls(musicalKey: KeyType, mappingMode: MappingMode) {
 function buttonPressed(html: string, label: string): string | null {
   const buttons = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].map((match) => ({
     pressed: match[1].match(/\baria-pressed="([^"]*)"/)?.[1] ?? null,
-    text: match[2].replace(/<[^>]+>/g, '').trim(),
+    text: match[2].trim(),
   }));
   // Key labels are the whole button text. Mapping-mode labels are followed by a description.
   const match =
     buttons.find((button) => button.text === label) ??
-    buttons.find((button) => button.text.startsWith(label));
+    buttons.find((button) => button.text.includes(`>${label}<`));
   return match?.pressed ?? null;
 }
 
